@@ -186,7 +186,7 @@
     "mpegts.js": "1.8.2",
     "onnxruntime-node": "1.30.0",
     "openai": "7.23.0",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "sqlite-vec": "0.1.9"
   },
   "optionalDependencies": {
