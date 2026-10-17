@@ -21,10 +21,6 @@ function source(path: string): string {
   return readFileSync(join(root, path), 'utf8');
 }
 
-function json(path: string): unknown {
-  return JSON.parse(source(path));
-}
-
 interface HookCommand {
   readonly type?: string;
   readonly command?: string;
@@ -41,26 +37,12 @@ interface ClaudeSettings {
 }
 
 // #718 / ENG-0006: agent primitives are code and get the same review-as-code
-// treatment. These are contract tests, not style checks — `e1d86f6a`
-// ("governance: sync .codex from playbook-engineering") replaced
-// .claude/settings.json wholesale and silently dropped a repo-specific hook.
-// What stays here is what is specific to this repo's primitives.
+// treatment. Harness adapters and settings were removed (qwts/qwts-agent-sop#89);
+// AGENTS.md is the only agent context, and this contract keeps them out.
 describe('agent primitives (#718, ENG-0006)', () => {
-  test('the worktree-identity hook stays wired', () => {
-    const settings = json('.claude/settings.json') as ClaudeSettings;
-    const commands = (settings.hooks?.['WorktreeCreate'] ?? []).flatMap((entry) => (entry.hooks ?? []).map((hook) => hook.command ?? ''));
-    assert.ok(
-      commands.some((command) => command.includes('claude-worktree-create')),
-      'WorktreeCreate must still mint the per-worktree bot identity (ENG-0016)',
-    );
-  });
-
-  test('tool permissions stay least-privilege: no blanket Bash or wildcard allow', () => {
-    const allow = ((json('.claude/settings.json') as ClaudeSettings).permissions?.allow ?? []).map(String);
-    for (const rule of allow) {
-      assert.notEqual(rule, '*', 'a wildcard allow defeats the permission prompt entirely');
-      assert.notEqual(rule, 'Bash', 'blanket Bash allow defeats least-privilege prompts');
-      assert.doesNotMatch(rule, /^Bash\(\*\)$/u, 'blanket Bash allow defeats least-privilege prompts');
+  test('harness adapters and settings stay removed', () => {
+    for (const path of ['CLAUDE.md', '.github/copilot-instructions.md', '.claude/settings.json', '.cursor/rules/process-guard.mdc']) {
+      assert.throws(() => source(path), `${path} must not exist: AGENTS.md is the only agent context`);
     }
   });
 
@@ -84,10 +66,5 @@ describe('agent primitives (#718, ENG-0006)', () => {
       `expected the copied bullet to be reported, got: ${JSON.stringify(failures)}`,
     );
   });
-
-  test('every vendor adapter points at the canonical agent-context file', () => {
-    for (const path of ['CLAUDE.md', '.github/copilot-instructions.md']) {
-      assert.match(source(path), /AGENTS\.md/u, `${path} must point at AGENTS.md (ENG-0006 item 1)`);
-    }
-  });
 });
+
