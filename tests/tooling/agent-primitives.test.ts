@@ -21,21 +21,6 @@ function source(path: string): string {
   return readFileSync(join(root, path), 'utf8');
 }
 
-interface HookCommand {
-  readonly type?: string;
-  readonly command?: string;
-}
-
-interface HookMatcher {
-  readonly matcher?: string;
-  readonly hooks?: readonly HookCommand[];
-}
-
-interface ClaudeSettings {
-  readonly permissions?: { readonly allow?: readonly string[] };
-  readonly hooks?: Record<string, readonly HookMatcher[]>;
-}
-
 // #718 / ENG-0006: agent primitives are code and get the same review-as-code
 // treatment. Harness adapters and settings were removed (qwts/qwts-agent-sop#89);
 // AGENTS.md is the only agent context, and this contract keeps them out.

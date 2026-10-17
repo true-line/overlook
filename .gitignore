@@ -16,3 +16,4 @@ playwright-report/
 test-results/
 .DS_Store
 Overlook Design System.zip
+.claude/settings.local.json
