@@ -27,7 +27,20 @@ export const AGENTS_MAX_LINES = 230;
 
 // Harness adapters were removed (qwts/qwts-agent-sop#89): these paths must
 // not exist. AGENTS.md is the only agent context.
-const ADAPTERS = ['CLAUDE.md', '.github/copilot-instructions.md', '.claude/settings.json'];
+const ADAPTERS = [
+  'CLAUDE.md',
+  '.github/copilot-instructions.md',
+  '.claude/settings.json',
+  '.claude/commands/check.md',
+  '.claude/launch.json',
+  '.codex/config.toml',
+  '.codex/environments/environment.toml',
+  '.codex/hooks.json',
+  '.codex/rules/environment.rules',
+  '.cursor/hooks.json',
+  '.cursor/rules/process-guard.mdc',
+  '.windsurf/hooks.json',
+];
 const ADAPTER_DIRS = ['.cursor/rules'];
 
 // Long enough that shared vocabulary and short imperative bullets do not trip

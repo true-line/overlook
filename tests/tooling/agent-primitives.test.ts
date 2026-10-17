@@ -41,7 +41,20 @@ interface ClaudeSettings {
 // AGENTS.md is the only agent context, and this contract keeps them out.
 describe('agent primitives (#718, ENG-0006)', () => {
   test('harness adapters and settings stay removed', () => {
-    for (const path of ['CLAUDE.md', '.github/copilot-instructions.md', '.claude/settings.json', '.cursor/rules/process-guard.mdc']) {
+    for (const path of [
+      'CLAUDE.md',
+      '.github/copilot-instructions.md',
+      '.claude/settings.json',
+      '.claude/commands/check.md',
+      '.claude/launch.json',
+      '.codex/config.toml',
+      '.codex/environments/environment.toml',
+      '.codex/hooks.json',
+      '.codex/rules/environment.rules',
+      '.cursor/hooks.json',
+      '.cursor/rules/process-guard.mdc',
+      '.windsurf/hooks.json',
+    ]) {
       assert.throws(() => source(path), `${path} must not exist: AGENTS.md is the only agent context`);
     }
   });
@@ -67,4 +80,3 @@ describe('agent primitives (#718, ENG-0006)', () => {
     );
   });
 });
-
