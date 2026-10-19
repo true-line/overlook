@@ -10,9 +10,6 @@ only so existing issue, PR, and comment links continue to resolve.
 | `README.md`                        | Canonical in the repository (quickstart + script table)                                            |
 | `CONTRIBUTING.md`                  | Pointer stub → [Contributing](./Contributing.md)                                                   |
 | `AGENTS.md`                        | Shared agent-context file (repo-canonical); long-form workflow → [Contributing](./Contributing.md) |
-| `CLAUDE.md`                        | Claude Code orientation pointing into `AGENTS.md` (repo-canonical)                                 |
-| `.github/copilot-instructions.md`  | Copilot review orientation pointing into `AGENTS.md` (repo-canonical)                              |
-| `.claude/commands/check.md`        | `/check` command wrapping the local gate run (repo-canonical)                                      |
 | ADRs                               | [Architecture Decision Records](./adr/Architecture-Decision-Records.md) — index + template         |
 | User-story / milestone planning    | [User Stories](./stories/User-Stories.md)                                                          |
 | Testing strategy                   | [Testing Strategy](./Testing-Strategy.md)                                                          |
