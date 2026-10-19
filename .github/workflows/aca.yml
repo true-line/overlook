@@ -1,4 +1,4 @@
-# Advisory semantic checks (agentic-code-analysis, issue qwts/agentic-code-analysis#6;
+# Advisory semantic checks (agentic-code-analysis, issue true-line/agentic-code-analysis#6;
 # mirrors qwts/image-trail#841). Advisory only — findings are informational;
 # promotion to --enforce is a separate owner decision.
 #
@@ -17,7 +17,7 @@
 # required level; the receipts are on the fleet dashboard's qualifications
 # page. agent-context-cost and skill-information-architecture have no
 # qualified on-plan route and are deliberately absent (tracked in
-# qwts/agentic-code-analysis#80). Re-shop before changing a model here: a
+# true-line/agentic-code-analysis#80). Re-shop before changing a model here: a
 # route swap without a passing exam publishes verdicts nothing vouches for.
 #
 # doc-drift and agent-rule-conflict are temporarily disabled after repeated
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: qwts/qwts-agent-ci/.github/actions/ci-policy@3a5617b287d922e37f262210a1d8750d8217b56d
+      - uses: qwts/qwts-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           authorization-only: 'true'
   over-budget:
@@ -132,7 +132,11 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: qwts/agentic-code-analysis
+          repository: true-line/agentic-code-analysis
+          # The default GITHUB_TOKEN is scoped to this repository, so a
+          # checkout of a sibling private repository 404s. An empty secret
+          # falls back to github.token, so this stays backwards compatible.
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
           ref: 60be121a7b27c94c56f85ac61c20ea61ab1d5d0f # main 2026-08-18 (first pin with the qwen adapter); bump deliberately
           path: .aca
           persist-credentials: false
@@ -140,7 +144,7 @@ jobs:
         with:
           node-version: 24
       - name: Install advisory checker dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install advisory checker dependencies
           executable: npm
