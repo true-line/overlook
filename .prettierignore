@@ -6,7 +6,6 @@ storybook-static/
 .test-dist/
 .test-dist-dom/
 coverage/
-.claude/
 playwright-report/
 test-results/
 package-lock.json
@@ -24,12 +23,3 @@ THIRD-PARTY-NOTICES.md
 src/shared/i18n/generated/
 src/main/i18n/generated/
 
-# Agent harness configs keep the bytes their tools write (agent-bot installs the
-# hook entries); reformatting them only churns the diff.
-.codex/config.toml
-.codex/environments/environment.toml
-.codex/rules/environment.rules
-.codex/hooks.json
-.claude/settings.json
-.cursor/hooks.json
-.windsurf/hooks.json
