@@ -121,6 +121,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      # upload-sarif resolves the current workflow run through the workflow-runs
+      # API before it uploads; without actions: read that call is refused with
+      # "Resource not accessible by integration" and the gate never goes green.
+      actions: read
       contents: read
       security-events: write
     steps:
