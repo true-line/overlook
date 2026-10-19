@@ -61,7 +61,7 @@ jobs:
       release_gate_mode: ${{ steps.policy.outputs.release_gate_mode }}
     steps:
       - id: policy
-        uses: qwts/qwts-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
 
   merge-evidence:
     name: Verify merged commit evidence
@@ -178,7 +178,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install locked dependencies
           executable: npm
@@ -285,7 +285,7 @@ jobs:
       # The whole job is lifecycle-gated, so Storybook runs only as part of a
       # complete suite; draft events start no jobs.
       - name: Install Playwright browsers (interaction tests)
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install Playwright Chromium for interaction tests
           executable: npx
@@ -345,7 +345,7 @@ jobs:
       - name: Assert native x64 runner
         run: node scripts/assert-platform.mjs win32 x64
       - name: Install dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install locked Windows test dependencies
           executable: cmd.exe
@@ -420,7 +420,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-CimInstance Win32_VideoController | Select-Object Name, DriverVersion, Status | Format-List
       - name: Install locked dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install native ARM64 DirectML qualification dependencies
           executable: cmd.exe
@@ -471,7 +471,7 @@ jobs:
       - name: Assert native runner architecture
         run: node scripts/assert-platform.mjs win32 ${{ matrix.arch }}
       - name: Install dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install locked native Windows smoke dependencies
           executable: cmd.exe
@@ -523,7 +523,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install locked dependencies for E2E
           executable: npm
@@ -536,7 +536,7 @@ jobs:
       # brings its own Chromium but needs the OS libraries and a display server.
       # install-deps covers the shared libraries; xvfb provides the display.
       - name: Install Electron system dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install Electron Chromium system dependencies
           executable: npx
@@ -546,7 +546,7 @@ jobs:
           retry-delay-seconds: '5'
 
       - name: Install Xvfb
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install Xvfb
           executable: sudo
@@ -623,7 +623,7 @@ jobs:
           test "$e2e" = success
 
   # Documentation governance (ENG-0009): the shared, zero-dependency docs-gov gate,
-  # consumed from qwts/qwts-agent-docs-gov per ENG-0004's reusable-workflow model so a
+  # consumed from true-line/trueline-agent-docs-gov per ENG-0004's reusable-workflow model so a
   # governance fix propagates to every repo without per-repo edits. photos' own rules —
   # include globs, indexes, token budgets, ADR Status field, stale-path scope — live in
   # docs-gov.config.json at the repo root (the workflow's default config path). A
@@ -635,7 +635,7 @@ jobs:
       !cancelled() && needs.policy.result == 'success' &&
       ((needs.policy.outputs.run_full == 'true' && needs.preflight-evidence.outputs.validated != 'true') ||
       (needs.policy.outputs.run_post_merge == 'true' && needs.merge-evidence.outputs.validated != 'true'))
-    uses: qwts/qwts-agent-docs-gov/.github/workflows/docs-governance.yml@67db7dc9c20bc29222fb605b7ff9432fd58a2a3f # qwts-agent-docs-gov 2026-09-15
+    uses: true-line/trueline-agent-docs-gov/.github/workflows/docs-governance.yml@67db7dc9c20bc29222fb605b7ff9432fd58a2a3f # qwts-agent-docs-gov 2026-09-15
     with:
       tooling-ref: 67db7dc9c20bc29222fb605b7ff9432fd58a2a3f
 
@@ -669,7 +669,7 @@ jobs:
       - name: Checkout pinned runtime checker
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: qwts/qwts-agent-ci
+          repository: true-line/trueline-agent-ci
           ref: 87c6b301057992f79a723f63c64624bf40c9d06a
           path: .ci-runtime-policy
           sparse-checkout: tools/ci-runtime
