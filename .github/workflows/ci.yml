@@ -184,7 +184,7 @@ jobs:
       - name: Checkout pinned Image Trail acceptance evidence
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: qwts/image-trail
+          repository: true-line/image-trail
           ref: cf3fe884c7729db73cfe0ddb7c90be6c4d881c09
           path: node_modules/.interop-image-trail
           persist-credentials: false
@@ -343,7 +343,7 @@ jobs:
       - name: Checkout pinned Image Trail acceptance evidence
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: qwts/image-trail
+          repository: true-line/image-trail
           ref: cf3fe884c7729db73cfe0ddb7c90be6c4d881c09
           path: node_modules/.interop-image-trail
           persist-credentials: false
@@ -681,7 +681,7 @@ jobs:
       - name: Checkout pinned Image Trail acceptance evidence
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: qwts/image-trail
+          repository: true-line/image-trail
           ref: cf3fe884c7729db73cfe0ddb7c90be6c4d881c09
           path: .interop-image-trail
           persist-credentials: false
