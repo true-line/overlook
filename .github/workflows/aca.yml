@@ -1,4 +1,4 @@
-# Advisory semantic checks (agentic-code-analysis, issue qwts/agentic-code-analysis#6;
+# Advisory semantic checks (agentic-code-analysis, issue true-line/agentic-code-analysis#6;
 # mirrors qwts/image-trail#841). Advisory only — findings are informational;
 # promotion to --enforce is a separate owner decision.
 #
@@ -17,7 +17,7 @@
 # required level; the receipts are on the fleet dashboard's qualifications
 # page. agent-context-cost and skill-information-architecture have no
 # qualified on-plan route and are deliberately absent (tracked in
-# qwts/agentic-code-analysis#80). Re-shop before changing a model here: a
+# true-line/agentic-code-analysis#80). Re-shop before changing a model here: a
 # route swap without a passing exam publishes verdicts nothing vouches for.
 #
 # doc-drift and agent-rule-conflict are temporarily disabled after repeated
@@ -132,7 +132,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: qwts/agentic-code-analysis
+          repository: true-line/agentic-code-analysis
           ref: 60be121a7b27c94c56f85ac61c20ea61ab1d5d0f # main 2026-08-18 (first pin with the qwen adapter); bump deliberately
           path: .aca
           persist-credentials: false
