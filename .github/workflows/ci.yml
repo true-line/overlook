@@ -153,6 +153,11 @@ jobs:
     timeout-minutes: 102
     env:
       INTEROP_IMAGE_TRAIL_ROOT: ${{ github.workspace }}/node_modules/.interop-image-trail
+      # The type-aware lint (eslint with recommendedTypeChecked) needs more than
+      # the runner's default ~2 GB Node heap on this codebase; at the default
+      # ceiling the Lint step dies with "JavaScript heap out of memory" and
+      # exit code 134. The runner has 16 GB, so 4 GB is comfortably inside it.
+      NODE_OPTIONS: --max-old-space-size=4096
 
     steps:
       - name: Checkout
