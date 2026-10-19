@@ -180,13 +180,12 @@ dependency pins and overrides, packaging checks, and the release/signing flow:
 
 ## Agent Primitives
 
-The files that steer agents — this one, the vendor adapters, `.claude/commands/`,
-hooks, and tool permissions — are **code**: reviewed by PR, least-privilege, and
-never carrying secrets. `npm run lint:agent-context` enforces the length ratchet,
-the adapter pointers, and cross-file duplication;
-`tests/tooling/agent-primitives.test.ts` locks the hook wiring and permission
-shape, because `.claude/settings.json` was once replaced wholesale and a hook
-dropped silently.
+The file that steers agents is this one. Harness adapters, commands, hooks,
+and tool permissions live in each harness's user directory, not this repo
+(qwts/qwts-agent-sop#89). `npm run lint:agent-context` enforces the length ratchet
+and asserts no harness adapter returns; `tests/tooling/agent-primitives.test.ts`
+locks that absence, because `.claude/settings.json` was once replaced wholesale
+in-repo and a hook dropped silently.
 
 Instruction changes that claim to improve agent behavior cite evidence against
 the [Agent Golden Tasks](docs/Agent-Golden-Tasks.md) set. "It reads better" is

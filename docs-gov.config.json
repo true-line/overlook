@@ -1,11 +1,9 @@
 {
-  "include": ["docs/**/*.md", "README.md", "AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", ".github/copilot-instructions.md"],
+  "include": ["docs/**/*.md", "README.md", "AGENTS.md", "CONTRIBUTING.md"],
   "indexes": [
     "README.md",
     "AGENTS.md",
-    "CLAUDE.md",
     "CONTRIBUTING.md",
-    ".github/copilot-instructions.md",
     "docs/README.md",
     "docs/Repo-Documentation-Pointer-Map.md",
     "docs/adr/Architecture-Decision-Records.md",
@@ -29,19 +27,29 @@
     "requiredFields": [
       {
         "glob": "docs/adr/ADR-*.md",
-        "fields": [{ "name": "Status", "pattern": "^(Proposed|Accepted|Superseded|Rejected)" }]
+        "fields": [
+          {
+            "name": "Status",
+            "pattern": "^(Proposed|Accepted|Superseded|Rejected)"
+          }
+        ]
       }
     ]
   },
   "antiPatterns": {
     "positionalReferences": true,
     "unresolvedPlaceholders": true,
-    "duplicateParagraphs": { "minLength": 160, "allow": [] },
+    "duplicateParagraphs": {
+      "minLength": 160,
+      "allow": []
+    },
     "terminology": []
   },
   "integrity": {
     "links": true,
     "orphans": true,
-    "stalePaths": { "roots": ["docs", "design"] }
+    "stalePaths": {
+      "roots": ["docs", "design"]
+    }
   }
 }
