@@ -111,7 +111,7 @@
     "@types/node": "24.13.6",
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
-    "@vitejs/plugin-react": "5.2.0",
+    "@vitejs/plugin-react": "6.1.2",
     "axe-core": "4.13.0",
     "axe-playwright": "2.2.2",
     "c8": "12.0.0",
@@ -139,7 +139,7 @@
     "type-coverage": "2.30.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.1",
-    "vite": "7.3.7",
+    "vite": "8.3.4",
     "wait-on": "9.1.0",
     "zod": "4.6.5"
   },
