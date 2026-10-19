@@ -54,7 +54,7 @@ run you need, replace it or drop it. Third-party `uses:` are SHA-pinned with `# 
 ## Agent identity
 
 Each agent worktree runs as its own `<slug>[bot]` App installation, minted by the
-`WorktreeCreate` hook in `.claude/settings.json`
+`WorktreeCreate` hook in the harness user-directory configuration
 ([ENG-0016](https://github.com/qwts/agent-sop/blob/master/docs/decisions/ENG-0016-agent-pr-bot-identity.md)).
 `git` and `gh` are the only sanctioned write paths: a GitHub MCP connector
 carries the human's OAuth and bypasses both, so a PR appearing as `qwts` despite
