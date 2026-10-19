@@ -61,7 +61,7 @@ jobs:
       release_gate_mode: ${{ steps.policy.outputs.release_gate_mode }}
     steps:
       - id: policy
-        uses: qwts/qwts-agent-ci/.github/actions/ci-policy@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
 
   merge-evidence:
     name: Verify merged commit evidence
@@ -121,6 +121,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      # upload-sarif resolves the current workflow run through the workflow-runs
+      # API before it uploads; without actions: read that call is refused with
+      # "Resource not accessible by integration" and the gate never goes green.
+      actions: read
       contents: read
       security-events: write
     steps:
@@ -149,6 +153,11 @@ jobs:
     timeout-minutes: 102
     env:
       INTEROP_IMAGE_TRAIL_ROOT: ${{ github.workspace }}/node_modules/.interop-image-trail
+      # The type-aware lint (eslint with recommendedTypeChecked) needs more than
+      # the runner's default ~2 GB Node heap on this codebase; at the default
+      # ceiling the Lint step dies with "JavaScript heap out of memory" and
+      # exit code 134. The runner has 16 GB, so 4 GB is comfortably inside it.
+      NODE_OPTIONS: --max-old-space-size=4096
 
     steps:
       - name: Checkout
@@ -169,7 +178,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install locked dependencies
           executable: npm
@@ -184,7 +193,11 @@ jobs:
       - name: Checkout pinned Image Trail acceptance evidence
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: qwts/image-trail
+          repository: true-line/image-trail
+          # The default GITHUB_TOKEN is scoped to this repository, so a
+          # checkout of a sibling private repository 404s. An empty secret
+          # falls back to github.token, so this stays backwards compatible.
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
           ref: cf3fe884c7729db73cfe0ddb7c90be6c4d881c09
           path: node_modules/.interop-image-trail
           persist-credentials: false
@@ -272,7 +285,7 @@ jobs:
       # The whole job is lifecycle-gated, so Storybook runs only as part of a
       # complete suite; draft events start no jobs.
       - name: Install Playwright browsers (interaction tests)
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install Playwright Chromium for interaction tests
           executable: npx
@@ -332,7 +345,7 @@ jobs:
       - name: Assert native x64 runner
         run: node scripts/assert-platform.mjs win32 x64
       - name: Install dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install locked Windows test dependencies
           executable: cmd.exe
@@ -343,7 +356,11 @@ jobs:
       - name: Checkout pinned Image Trail acceptance evidence
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: qwts/image-trail
+          repository: true-line/image-trail
+          # The default GITHUB_TOKEN is scoped to this repository, so a
+          # checkout of a sibling private repository 404s. An empty secret
+          # falls back to github.token, so this stays backwards compatible.
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
           ref: cf3fe884c7729db73cfe0ddb7c90be6c4d881c09
           path: node_modules/.interop-image-trail
           persist-credentials: false
@@ -403,7 +420,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-CimInstance Win32_VideoController | Select-Object Name, DriverVersion, Status | Format-List
       - name: Install locked dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install native ARM64 DirectML qualification dependencies
           executable: cmd.exe
@@ -454,7 +471,7 @@ jobs:
       - name: Assert native runner architecture
         run: node scripts/assert-platform.mjs win32 ${{ matrix.arch }}
       - name: Install dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install locked native Windows smoke dependencies
           executable: cmd.exe
@@ -506,7 +523,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install locked dependencies for E2E
           executable: npm
@@ -519,7 +536,7 @@ jobs:
       # brings its own Chromium but needs the OS libraries and a display server.
       # install-deps covers the shared libraries; xvfb provides the display.
       - name: Install Electron system dependencies
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install Electron Chromium system dependencies
           executable: npx
@@ -529,7 +546,7 @@ jobs:
           retry-delay-seconds: '5'
 
       - name: Install Xvfb
-        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@3a5617b287d922e37f262210a1d8750d8217b56d
+        uses: qwts/qwts-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           task: Install Xvfb
           executable: sudo
@@ -653,7 +670,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: qwts/qwts-agent-ci
-          ref: 3a5617b287d922e37f262210a1d8750d8217b56d
+          ref: 87c6b301057992f79a723f63c64624bf40c9d06a
           path: .ci-runtime-policy
           sparse-checkout: tools/ci-runtime
           persist-credentials: false
@@ -681,7 +698,11 @@ jobs:
       - name: Checkout pinned Image Trail acceptance evidence
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: qwts/image-trail
+          repository: true-line/image-trail
+          # The default GITHUB_TOKEN is scoped to this repository, so a
+          # checkout of a sibling private repository 404s. An empty secret
+          # falls back to github.token, so this stays backwards compatible.
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
           ref: cf3fe884c7729db73cfe0ddb7c90be6c4d881c09
           path: .interop-image-trail
           persist-credentials: false
