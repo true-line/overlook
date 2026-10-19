@@ -98,7 +98,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",
-    "@electron/osx-sign": "2.7.0",
+    "@electron/osx-sign": "2.7.1",
     "@eslint-react/eslint-plugin": "5.20.5",
     "@eslint/js": "10.0.1",
     "@formatjs/cli": "6.16.31",
