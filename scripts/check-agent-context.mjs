@@ -25,7 +25,22 @@ const CANONICAL = 'AGENTS.md';
 // stated reason in the PR that does so, the same bar as a docs-gov token budget.
 export const AGENTS_MAX_LINES = 230;
 
-const ADAPTERS = ['CLAUDE.md', '.github/copilot-instructions.md'];
+// Harness adapters were removed (qwts/qwts-agent-sop#89): these paths must
+// not exist. AGENTS.md is the only agent context.
+const ADAPTERS = [
+  'CLAUDE.md',
+  '.github/copilot-instructions.md',
+  '.claude/settings.json',
+  '.claude/commands/check.md',
+  '.claude/launch.json',
+  '.codex/config.toml',
+  '.codex/environments/environment.toml',
+  '.codex/hooks.json',
+  '.codex/rules/environment.rules',
+  '.cursor/hooks.json',
+  '.cursor/rules/process-guard.mdc',
+  '.windsurf/hooks.json',
+];
 const ADAPTER_DIRS = ['.cursor/rules'];
 
 // Long enough that shared vocabulary and short imperative bullets do not trip
@@ -106,13 +121,8 @@ export function evaluateAgentContext({ readText, readDir, maxLines = AGENTS_MAX_
 
   for (const file of adapterFiles(readDir)) {
     const text = readText(file);
-    if (text === null) {
-      failures.push(`${file} is listed as a vendor adapter but does not exist.`);
-      continue;
-    }
-    if (!text.includes(CANONICAL)) {
-      failures.push(`${file} must point at ${CANONICAL} — a vendor adapter that stands alone becomes a second source of truth.`);
-    }
+    if (text === null) continue;
+    failures.push(`${file} must not exist: harness adapters were removed and ${CANONICAL} is the only agent context.`);
     for (const unit of paragraphs(text)) {
       if (canonicalParagraphs.has(unit)) {
         failures.push(`${file} repeats a paragraph or list item from ${CANONICAL}: "${unit.slice(0, 80)}…". Link to it instead.`);
@@ -146,7 +156,7 @@ function main() {
     process.exitCode = 1;
     return;
   }
-  console.log(`Agent-context gate OK: ${CANONICAL} within ${AGENTS_MAX_LINES} lines, adapters thin and pointing home.`);
+  console.log(`Agent-context gate OK: ${CANONICAL} within ${AGENTS_MAX_LINES} lines, no harness adapters present.`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
