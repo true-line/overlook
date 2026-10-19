@@ -189,6 +189,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: true-line/image-trail
+          # The default GITHUB_TOKEN is scoped to this repository, so a
+          # checkout of a sibling private repository 404s. An empty secret
+          # falls back to github.token, so this stays backwards compatible.
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
           ref: cf3fe884c7729db73cfe0ddb7c90be6c4d881c09
           path: node_modules/.interop-image-trail
           persist-credentials: false
@@ -348,6 +352,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: true-line/image-trail
+          # The default GITHUB_TOKEN is scoped to this repository, so a
+          # checkout of a sibling private repository 404s. An empty secret
+          # falls back to github.token, so this stays backwards compatible.
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
           ref: cf3fe884c7729db73cfe0ddb7c90be6c4d881c09
           path: node_modules/.interop-image-trail
           persist-credentials: false
@@ -686,6 +694,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: true-line/image-trail
+          # The default GITHUB_TOKEN is scoped to this repository, so a
+          # checkout of a sibling private repository 404s. An empty secret
+          # falls back to github.token, so this stays backwards compatible.
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
           ref: cf3fe884c7729db73cfe0ddb7c90be6c4d881c09
           path: .interop-image-trail
           persist-credentials: false
