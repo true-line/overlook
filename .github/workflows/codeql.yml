@@ -21,9 +21,24 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
-    timeout-minutes: 30
+    timeout-minutes: 60
+    # The action sizes itself from what the runner reports, and the runner
+    # reports the whole host rather than what a single job may use: it asked
+    # for a 14 GB budget and 24 threads, and the TypeScript extractor alone
+    # wanted more than half of it. The runner is a WSL instance on a shared
+    # host, so that budget is not available to the job and the dataset import
+    # fails with "Cannot allocate memory" while writing the relation files.
+    #
+    # CODEQL_RAM and CODEQL_THREADS replace the ram and threads inputs, so the
+    # budget is what the runner can actually back. The matrix runs one
+    # language at a time for the same reason: two CodeQL processes asking for
+    # that budget on one host is what pushed it over.
+    env:
+      CODEQL_RAM: 8192
+      CODEQL_THREADS: 4
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         language: [actions, javascript-typescript]
     steps:
