@@ -65,7 +65,14 @@ test('DML hardware qualification is required and retains native strict controls'
   assert.match(gate, /needs:[\s\S]*?dml-arm64-qualification,/u);
   assert.match(gate, /DML_ARM64: \$\{\{ needs\.dml-arm64-qualification\.result \}\}/u);
   assert.match(job, /needs: policy/u);
-  assert.match(job, /runs-on: \[self-hosted, Windows, ARM64\]/u);
+  // The qualification runs natively on the organisation's arm64 Windows runner.
+  // A fork's pull request and a merge-queue run keep a hosted arm64 runner,
+  // because a pull request controls the workflow file it runs and would
+  // otherwise execute its own code on the organisation's hardware.
+  assert.match(
+    job,
+    /runs-on: \$\{\{ fromJSON\(\(github\.event_name == 'merge_group' \|\| github\.event\.pull_request\.head\.repo\.fork\) && '\["windows-11-arm"\]' \|\| '\["self-hosted", "Windows", "ARM64"\]'\) \}\}/u,
+  );
   assert.match(job, /persist-credentials: false/u);
   assert.doesNotMatch(job, /git config --global/u);
   assert.match(job, /GIT_CONFIG_COUNT: '1'/u);

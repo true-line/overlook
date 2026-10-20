@@ -49,7 +49,13 @@ describe('Windows ARM64 packaging + signing (#683)', () => {
     const smoke = source('scripts/verify-windows-packaged-import.ps1');
     assert.match(workflow, /^ {2}installed-windows-import:/mu);
     assert.match(workflow, /arch: x64\s+runner: windows-latest/u);
-    assert.match(workflow, /arch: arm64\s+runner: windows-11-arm/u);
+    // The arm64 leg runs natively on the organisation's arm64 Windows runner.
+    // A fork's pull request and a merge-queue run keep a hosted arm64 runner,
+    // because a pull request controls the workflow file it runs.
+    assert.match(
+      workflow,
+      /arch: arm64\s+runner: self-hosted-windows-arm64\s+labels: '\["self-hosted", "Windows", "ARM64"\]'\s+hosted: '\["windows-11-arm"\]'/u,
+    );
     assert.match(workflow, /name: overlook-windows-\$\{\{ matrix\.arch \}\}/u);
     assert.match(workflow, /Get-ChildItem .* -File -Recurse/u);
     assert.match(workflow, /verify-windows-packaged-import\.ps1/u);

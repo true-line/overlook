@@ -105,7 +105,13 @@ describe('governed CI lifecycle (ENG-0004)', () => {
     assert.match(ci, /run: npm run test:inner/u);
     assert.match(ci, /run: npm run test:e2e:windows-import:inner/u);
     assert.match(ci, /^ {2}windows-main-smoke:\n {4}name: Windows \$\{\{ matrix\.arch \}\} source import$/mu);
-    assert.match(ci, /arch: arm64\s+runner: windows-11-arm/u);
+    // The arm64 leg runs natively on the organisation's arm64 Windows runner.
+    // A fork's pull request and a merge-queue run keep a hosted arm64 runner,
+    // because a pull request controls the workflow file it runs.
+    assert.match(
+      ci,
+      /arch: arm64\s+runner: self-hosted-windows-arm64\s+labels: '\["self-hosted", "Windows", "ARM64"\]'\s+hosted: '\["windows-11-arm"\]'/u,
+    );
     assert.match(ci, /node scripts\/assert-platform\.mjs win32 \$\{\{ matrix\.arch \}\}/u);
     assert.match(gate, /needs:[\s\S]{0,300}windows-tests,[\s\S]{0,100}windows-main-smoke,[\s\S]{0,300}post-merge,/u);
     assert.match(gate, /test "\$WINDOWS_TESTS" = success/u);
@@ -115,7 +121,10 @@ describe('governed CI lifecycle (ENG-0004)', () => {
   test('enforces finite workflow runtime with the reviewed immutable contract', () => {
     const sources = [aca, autoUpdate, ci, closeLinkedIssues, codeql, packageWorkflow, perf, release, versionCut].join('\n');
     assert.doesNotMatch(sources, /^\s*run: (?:npm (?:ci|install)|npm --prefix .* clean-install|npx playwright install)/gmu);
-    assert.match(sources, /uses: true-line\/trueline-agent-ci\/\.github\/actions\/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a/u);
+    assert.match(
+      sources,
+      /uses: true-line\/trueline-agent-ci\/\.github\/actions\/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a/u,
+    );
     assert.match(ci, /name: Workflow runtime policy/u);
     assert.match(ci, /ref: 87c6b301057992f79a723f63c64624bf40c9d06a/u);
     assert.match(ci, /runtime-policy\.mjs --root "\$GITHUB_WORKSPACE"/u);
