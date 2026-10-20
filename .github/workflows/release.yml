@@ -30,9 +30,14 @@ concurrency:
   group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
+# Jobs run on the organisation's own runners: the Linux runner group holds one
+# x86-64 runner, the MacOS group one arm64 runner. A fork's pull request and a
+# merge-queue run keep a hosted runner, because a pull request controls the
+# workflow file it runs and would otherwise execute its own code on the
+# organisation's hardware.
 jobs:
   policy:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 10
     steps:
       # The organisation's Linux runner does not carry Node on its default PATH.
@@ -49,7 +54,7 @@ jobs:
   verify:
     needs: policy
     name: Verify release evidence
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 22
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
@@ -159,7 +164,7 @@ jobs:
   publish:
     name: Publish prerelease
     needs: [verify, build]
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 22
     permissions:
       contents: write

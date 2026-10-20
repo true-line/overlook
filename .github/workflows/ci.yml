@@ -48,11 +48,16 @@ permissions:
   contents: read
   pull-requests: read
 
+# Jobs run on the organisation's own runners: the Linux runner group holds one
+# x86-64 runner, the MacOS group one arm64 runner. A fork's pull request and a
+# merge-queue run keep a hosted runner, because a pull request controls the
+# workflow file it runs and would otherwise execute its own code on the
+# organisation's hardware.
 jobs:
   policy:
     name: Action Policy
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 10
     outputs:
       mode: ${{ steps.policy.outputs.mode }}
@@ -74,7 +79,7 @@ jobs:
     name: Verify merged commit evidence
     needs: policy
     if: needs.policy.outputs.run_post_merge == 'true'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 10
     outputs:
       validated: ${{ steps.evidence.outputs.validated }}
@@ -101,7 +106,7 @@ jobs:
     name: Verify preflight evidence
     needs: policy
     if: github.event_name == 'pull_request' && needs.policy.outputs.run_full == 'true'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 10
     outputs:
       validated: ${{ steps.evidence.outputs.validated }}
@@ -125,7 +130,7 @@ jobs:
     name: zizmor / unpinned-uses
     needs: policy
     if: ${{ !cancelled() && needs.policy.result == 'success' }}
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 10
     permissions:
       # upload-sarif resolves the current workflow run through the workflow-runs
@@ -151,7 +156,7 @@ jobs:
       !cancelled() && needs.policy.result == 'success' &&
       ((needs.policy.outputs.run_full == 'true' && needs.preflight-evidence.outputs.validated != 'true') ||
       (needs.policy.outputs.run_post_merge == 'true' && needs.merge-evidence.outputs.validated != 'true'))
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     # The outer bound on this job. CI calls the :inner entrypoints directly — the guard
     # has no CI exemption (runner-local evidence is replayable), so the wrapped scripts'
     # --timeout-s values never apply here; the per-step timeout-minutes below are what
@@ -399,7 +404,7 @@ jobs:
     if: >-
       !cancelled() && needs.policy.result == 'success' &&
       needs.policy.outputs.run_full == 'true'
-    runs-on: [self-hosted, Windows, ARM64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["windows-11-arm"]' || '["self-hosted", "Windows", "ARM64"]') }}
     timeout-minutes: 20
     # Command-scope config covers checkout and cleanup without changing the laptop.
     env:
@@ -462,12 +467,14 @@ jobs:
           - arch: x64
             runner: windows-latest
             labels: '["windows-latest"]'
+            hosted: '["windows-latest"]'
           # The arm64 leg runs natively on the organisation's own Windows
           # runner, which is an arm64 machine.
           - arch: arm64
             runner: self-hosted-windows-arm64
             labels: '["self-hosted", "Windows", "ARM64"]'
-    runs-on: ${{ fromJSON(matrix.labels) }}
+            hosted: '["windows-11-arm"]'
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && matrix.hosted || matrix.labels) }}
     timeout-minutes: 47
     env:
       OVERLOOK_E2E_WORKERS: '1'
@@ -520,7 +527,7 @@ jobs:
     # system libraries are installed with root; the organisation's Linux runner
     # has no passwordless sudo, and the macOS runner has no xvfb. It moves as
     # soon as the runner can install those packages.
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     # The only bound on this job. This job runs test:e2e:inner directly, without the
     # guard's --timeout-s 1800 (30 min). 45 keeps headroom over the test step's 30 —
     # checkout/npm ci/Electron system deps run before the test step and the report
@@ -634,7 +641,7 @@ jobs:
       always() && needs.policy.result == 'success' &&
       ((needs.policy.outputs.run_full == 'true' && needs.preflight-evidence.outputs.validated != 'true') ||
       (needs.policy.outputs.run_post_merge == 'true' && needs.merge-evidence.outputs.validated != 'true'))
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 5
     steps:
       - name: Verify E2E result
@@ -678,7 +685,7 @@ jobs:
     name: Workflow runtime policy
     needs: policy
     if: needs.policy.result == 'success'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 10
     steps:
       - name: Checkout exact validation commit
@@ -710,7 +717,7 @@ jobs:
     name: Post-merge smoke
     needs: [policy, merge-evidence]
     if: needs.policy.outputs.run_post_merge == 'true' && needs.merge-evidence.outputs.validated == 'true'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 20
     env:
       INTEROP_IMAGE_TRAIL_ROOT: ${{ github.workspace }}/.interop-image-trail
@@ -755,7 +762,7 @@ jobs:
         post-merge,
       ]
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 5
     steps:
       - name: Reject cancelled workflow

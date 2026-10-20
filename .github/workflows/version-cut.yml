@@ -47,9 +47,14 @@ permissions:
   contents: read
   actions: read
 
+# Jobs run on the organisation's own runners: the Linux runner group holds one
+# x86-64 runner, the MacOS group one arm64 runner. A fork's pull request and a
+# merge-queue run keep a hosted runner, because a pull request controls the
+# workflow file it runs and would otherwise execute its own code on the
+# organisation's hardware.
 jobs:
   policy:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 10
     steps:
       # The organisation's Linux runner does not carry Node on its default PATH.
@@ -66,7 +71,7 @@ jobs:
   version-pr:
     needs: policy
     name: Version packages PR
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 30
     outputs:
       has-releases: ${{ steps.version.outputs.has-releases }}
@@ -187,7 +192,7 @@ jobs:
   tag:
     needs: [policy, version-pr]
     name: Tag version merges
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 90
     env:
       HAS_CHORES_DUMB: ${{ secrets.CHORES_DUMB_CLIENT_ID != '' && secrets.CHORES_DUMB_PRIVATE_KEY != '' }}

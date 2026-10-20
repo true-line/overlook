@@ -57,9 +57,14 @@ on:
 permissions:
   contents: read
 
+# Jobs run on the organisation's own runners: the Linux runner group holds one
+# x86-64 runner, the MacOS group one arm64 runner. A fork's pull request and a
+# merge-queue run keep a hosted runner, because a pull request controls the
+# workflow file it runs and would otherwise execute its own code on the
+# organisation's hardware.
 jobs:
   policy:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 10
     steps:
       # The organisation's Linux runner does not carry Node on its default PATH.
@@ -88,16 +93,19 @@ jobs:
           # name is derived from it.
           - os: macos-latest
             labels: '["self-hosted", "macOS", "ARM64"]'
+            hosted: '["macos-latest"]'
           # The Windows legs keep hosted runners. The arm64 payload is
           # deliberately cross-compiled from an x64 host, and the organisation
           # has no x64 Windows runner.
           - os: windows-latest
             win-arch: x64
             labels: '["windows-latest"]'
+            hosted: '["windows-latest"]'
           - os: windows-latest
             win-arch: arm64
             labels: '["windows-latest"]'
-    runs-on: ${{ fromJSON(matrix.labels) }}
+            hosted: '["windows-latest"]'
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && matrix.hosted || matrix.labels) }}
     timeout-minutes: 120
     steps:
       - name: Checkout
@@ -412,10 +420,12 @@ jobs:
           - arch: x64
             runner: windows-latest
             labels: '["windows-latest"]'
+            hosted: '["windows-latest"]'
           - arch: arm64
             runner: self-hosted-windows-arm64
             labels: '["self-hosted", "Windows", "ARM64"]'
-    runs-on: ${{ fromJSON(matrix.labels) }}
+            hosted: '["windows-11-arm"]'
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && matrix.hosted || matrix.labels) }}
     timeout-minutes: 20
     steps:
       # github.workflow_sha identifies the revision containing this reusable

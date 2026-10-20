@@ -52,6 +52,11 @@ permissions:
 concurrency:
   group: aca-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
+# Jobs run on the organisation's own runners: the Linux runner group holds one
+# x86-64 runner, the MacOS group one arm64 runner. A fork's pull request and a
+# merge-queue run keep a hosted runner, because a pull request controls the
+# workflow file it runs and would otherwise execute its own code on the
+# organisation's hardware.
 jobs:
   # Repo boundary: every direct non-CI trigger runs the immutable policy
   # action in authorization-only mode before any repository work — actor and
@@ -73,7 +78,7 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (github.event.action != 'labeled' || github.event.label.name == 'aca')
       && github.event.pull_request.changed_files <= 25
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 10
     steps:
       # The organisation's Linux runner does not carry Node on its default PATH.
@@ -92,7 +97,7 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (github.event.action != 'labeled' || github.event.label.name == 'aca')
       && github.event.pull_request.changed_files > 25
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 5
     steps:
       - env:
@@ -116,7 +121,7 @@ jobs:
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (github.event.action != 'labeled' || github.event.label.name == 'aca')
       && github.event.pull_request.changed_files <= 25
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     timeout-minutes: 60
     strategy:
       # Advisory: every check reports; one check's findings must not silence
