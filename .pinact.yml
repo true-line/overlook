@@ -2,5 +2,5 @@
 version: 3
 # ci-policy is the authorization boundary (see #1038, #1024). Never bump via automation.
 ignore_actions:
-  - name: qwts/qwts-agent-ci/.github/actions/ci-policy
+  - name: true-line/trueline-agent-ci/.github/actions/ci-policy
     ref: '.*'

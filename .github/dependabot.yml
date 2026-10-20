@@ -126,4 +126,4 @@ updates:
       # ci-policy is an authorization boundary, not an ordinary dependency. Its
       # immutable commit advances only with the matching reviewed contract tests
       # and must never ride Dependabot's catch-all action group (#1038).
-      - dependency-name: 'qwts/qwts-agent-ci/.github/actions/ci-policy'
+      - dependency-name: 'true-line/trueline-agent-ci/.github/actions/ci-policy'

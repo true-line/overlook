@@ -43,7 +43,7 @@ describe('Dependabot update isolation (#1018, #1038)', () => {
     assert.ok(githubActionsStart >= 0);
     const githubActions = dependabot.slice(githubActionsStart);
 
-    assert.match(githubActions, /dependency-name: 'qwts\/qwts-agent-ci\/\.github\/actions\/ci-policy'/u);
-    assert.doesNotMatch(githubActions, /dependency-name: 'qwts\/qwts-agent-ci\/\.github\/actions\/bounded-command'/u);
+    assert.match(githubActions, /dependency-name: 'true-line\/trueline-agent-ci\/\.github\/actions\/ci-policy'/u);
+    assert.doesNotMatch(githubActions, /dependency-name: 'true-line\/trueline-agent-ci\/\.github\/actions\/bounded-command'/u);
   });
 });

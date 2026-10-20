@@ -33,13 +33,13 @@ contract; their step or job timeout remains the failure boundary. Keep the
 workflow definitions, runtime-policy pin, and tooling assertions in
 `tests/tooling/` synchronized when changing these limits.
 
-All third-party `uses:` in `.github/workflows/*.yml` are pinned to a full commit SHA with a `# vX.Y.Z` version comment, verified by `pinact run --verify` (config: `.pinact.yml`). The SHA-pinned `qwts/qwts-agent-docs-gov/.github/workflows/docs-governance.yml@67db7dc…` (whose `tooling-ref` input names the same commit) is the same policy — do not regress it to a floating tag. The `qwts/qwts-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a` pin is the repository's authorization boundary (#1038, #1024): it is immutable, Dependabot ignores it, and `pinact` ignores it via `.pinact.yml`. Re-verify pins with `pinact run --verify`; do not bulk-refresh governed pins. The `zizmor` `unpinned-uses` gate (`.github/zizmor.yml`, job `zizmor` in `ci.yml`) is the continuously enforced backstop that blocks any new unpinned reference; only `unpinned-uses` is merge-blocking until `qwts/agent-sop#6` ships the shared `security-scan.yml` reusable (see [#716](https://github.com/qwts/overlook/issues/716)).
+All third-party `uses:` in `.github/workflows/*.yml` are pinned to a full commit SHA with a `# vX.Y.Z` version comment, verified by `pinact run --verify` (config: `.pinact.yml`). The SHA-pinned `true-line/trueline-agent-docs-gov/.github/workflows/docs-governance.yml@67db7dc…` (whose `tooling-ref` input names the same commit) is the same policy — do not regress it to a floating tag. The `true-line/trueline-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a` pin is the repository's authorization boundary (#1038, #1024): it is immutable, Dependabot ignores it, and `pinact` ignores it via `.pinact.yml`. Re-verify pins with `pinact run --verify`; do not bulk-refresh governed pins. The `zizmor` `unpinned-uses` gate (`.github/zizmor.yml`, job `zizmor` in `ci.yml`) is the continuously enforced backstop that blocks any new unpinned reference; only `unpinned-uses` is merge-blocking until `qwts/agent-sop#6` ships the shared `security-scan.yml` reusable (see [#716](https://github.com/qwts/overlook/issues/716)).
 
 Two gates need an external checkout, both env-gated in the same shape:
 
 | Variable                   | Points at                                                                                                        |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `DOCS_GOV_TOOLING_ROOT`    | a `qwts/qwts-agent-docs-gov` checkout with `tools/docs-gov` at commit `67db7dc9c20bc29222fb605b7ff9432fd58a2a3f` |
+| `DOCS_GOV_TOOLING_ROOT`    | a `true-line/trueline-agent-docs-gov` checkout with `tools/docs-gov` at commit `67db7dc9c20bc29222fb605b7ff9432fd58a2a3f` |
 | `INTEROP_IMAGE_TRAIL_ROOT` | a `qwts/image-trail` checkout pinned to the commit the manifest names                                            |
 
 ## Advisory semantic checks
