@@ -666,6 +666,11 @@ jobs:
     uses: true-line/trueline-agent-docs-gov/.github/workflows/docs-governance.yml@67db7dc9c20bc29222fb605b7ff9432fd58a2a3f # qwts-agent-docs-gov 2026-09-15
     with:
       tooling-ref: 67db7dc9c20bc29222fb605b7ff9432fd58a2a3f
+      # The reusable workflow takes the runner labels as an input, so the gate
+      # runs on the organisation's own Linux runner. A fork's pull request and a
+      # merge-queue run keep a hosted runner, because a pull request controls
+      # the workflow file it runs.
+      runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
 
   codeql:
     name: Advanced CodeQL
