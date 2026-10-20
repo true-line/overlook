@@ -523,11 +523,10 @@ jobs:
       !cancelled() && needs.policy.result == 'success' &&
       ((needs.policy.outputs.run_full == 'true' && needs.preflight-evidence.outputs.validated != 'true') ||
       (needs.policy.outputs.run_post_merge == 'true' && needs.merge-evidence.outputs.validated != 'true'))
-    # This lane keeps a hosted runner for now. It drives Storybook through a
-    # real browser under `xvfb-run`, and both the X server and the browser's
-    # system libraries are installed with root; the organisation's Linux runner
-    # has no passwordless sudo, and the macOS runner has no xvfb. It moves as
-    # soon as the runner can install those packages.
+    # This lane drives Storybook through a real browser under `xvfb-run`, and
+    # it installs the browser's system libraries and the X server itself with
+    # root. The organisation's Linux runner can do that, so the lane runs there
+    # rather than on a hosted runner.
     runs-on: ${{ fromJSON((github.event_name == 'merge_group' || github.event.pull_request.head.repo.fork) && '["ubuntu-latest"]' || '["self-hosted", "Linux", "X64"]') }}
     # The only bound on this job. This job runs test:e2e:inner directly, without the
     # guard's --timeout-s 1800 (30 min). 45 keeps headroom over the test step's 30 —
