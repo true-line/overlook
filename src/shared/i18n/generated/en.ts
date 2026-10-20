@@ -298,11 +298,12 @@ export const en = {
   "duplicates.groups": "{count, plural, one {# group} other {# groups}}",
   "duplicates.loading": "Loading…",
   "duplicates.photo.moving": "Moving…",
+  "duplicates.photo.movingLabel": "Moving {name} to Trash",
   "duplicates.photo.protectedHow": "To remove it, use Shift+Delete in the library",
   "duplicates.photo.protectedKept": "Protected Original — kept",
   "duplicates.photo.size": "{width}×{height}",
   "duplicates.photo.trash": "Move to Trash",
-  "duplicates.photo.trashLabel": "Move {name} to Trash",
+  "duplicates.photo.trashLabel": "Move to Trash: {name}",
   "duplicates.privacy": "Compared on this device from each photo’s own preview. Suggestions only: nothing is merged or deleted for you.",
   "duplicates.progress": "{indexed} of {total} {total, plural, one {photo} other {photos}} compared · {pending} pending",
   "duplicates.rescan": "Rescan",
@@ -458,6 +459,7 @@ export const en = {
   "inspector.metadata.manageResult": "Updated {count} photos{merged, select, yes { and merged tags} other {}}.",
   "inspector.metadata.mixed": "Mixed values — unchanged until edited",
   "inspector.metadata.removeEverywhere": "Remove from {count} photos",
+  "inspector.metadata.removeImportedTag": "Remove {tag}, {imported}",
   "inspector.metadata.removeTag": "Remove {tag}",
   "inspector.metadata.rename": "Rename or merge on {count} photos",
   "inspector.metadata.result": "Updated {updated}; {unchanged} unchanged; {missing} unavailable.",
@@ -526,6 +528,7 @@ export const en = {
   "inspector.variants.root": "Imported",
   "inspector.variants.sharedOriginal": "One encrypted original · each variant keeps its own previews",
   "inspector.variants.show": "Show {name}, {kind}, {date}",
+  "inspector.variants.showCurrent": "Show {name}, {kind}, {date}, Shown",
   "inspector.variants.shown": "Shown",
   "inspector.variants.title": "Variants",
   "inspector.window.label": "Inspector window",
@@ -760,6 +763,7 @@ export const en = {
   "lightbox.video.tryAgain": "Try again",
   "lightbox.video.unmute": "Unmute",
   "lightbox.video.volume": "Volume",
+  "lightbox.zoom.fitImage": "Fit image, currently {zoom}%",
   "lock.attemptsRemaining": "{count, plural, one {# attempt} other {# attempts}} remaining before recovery",
   "lock.retryCountdown": "Try again in {seconds}s",
   "menu.app": "Overlook",
@@ -1296,6 +1300,7 @@ interface InterpolatedMessageArguments {
   "duplicates.evidence.rotated": { "degrees": MessageValue };
   "duplicates.group.label": { "count": MessageValue; "originals": number };
   "duplicates.groups": { "count": number };
+  "duplicates.photo.movingLabel": { "name": MessageValue };
   "duplicates.photo.size": { "height": MessageValue; "width": MessageValue };
   "duplicates.photo.trashLabel": { "name": MessageValue };
   "duplicates.progress": { "indexed": MessageValue; "pending": MessageValue; "total": number };
@@ -1332,6 +1337,7 @@ interface InterpolatedMessageArguments {
   "inspector.metadata.importedTagChip": { "imported": MessageValue; "tag": MessageValue };
   "inspector.metadata.manageResult": { "count": MessageValue; "merged": string };
   "inspector.metadata.removeEverywhere": { "count": MessageValue };
+  "inspector.metadata.removeImportedTag": { "imported": MessageValue; "tag": MessageValue };
   "inspector.metadata.removeTag": { "tag": MessageValue };
   "inspector.metadata.rename": { "count": MessageValue };
   "inspector.metadata.result": { "missing": MessageValue; "unchanged": MessageValue; "updated": MessageValue };
@@ -1348,6 +1354,7 @@ interface InterpolatedMessageArguments {
   "inspector.variants.count": { "count": number };
   "inspector.variants.promoteLabel": { "name": MessageValue };
   "inspector.variants.show": { "date": MessageValue; "kind": MessageValue; "name": MessageValue };
+  "inspector.variants.showCurrent": { "date": MessageValue; "kind": MessageValue; "name": MessageValue };
   "keyring.export.done": { "path": MessageValue };
   "keyring.export.title": { "id": MessageValue };
   "keyring.import.alreadyPresent": { "id": MessageValue };
@@ -1389,6 +1396,7 @@ interface InterpolatedMessageArguments {
   "lightbox.video.player": { "name": MessageValue };
   "lightbox.video.preservedBody": { "codec": MessageValue };
   "lightbox.video.seekValue": { "at": MessageValue; "total": MessageValue };
+  "lightbox.zoom.fitImage": { "zoom": MessageValue };
   "lock.attemptsRemaining": { "count": number };
   "lock.retryCountdown": { "seconds": MessageValue };
   "moodboard.bg.select": { "name": MessageValue };

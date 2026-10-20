@@ -46,7 +46,7 @@ import { MoodboardPlacement } from './MoodboardPlacement';
 import { BoardPanel } from './BoardPanel';
 import { BoardToolbar } from './BoardToolbar';
 import { handleMoodboardKey } from './use-moodboard-keyboard';
-import { moodboardMessages } from './messages';
+import { moodboardMessages, moodboardStatusText } from './messages';
 import type { ResolvePlacement } from './board-seed';
 
 const ANNOUNCE_KEY = 'moodboard';
@@ -490,22 +490,30 @@ export function Moodboard({
           {guide?.y !== undefined ? (
             <div className="ovl-moodboard__guide" style={{ left: 0, top: guide.y, width: board.size.width, height: 1 }} />
           ) : null}
-          {order.map((placement) => (
-            <MoodboardPlacement
-              key={placement.id}
-              placement={placement}
-              view={resolvePlacement(placement.photoId)}
-              label={placementLabel({
-                photoName: resolvePlacement(placement.photoId).name || null,
-                layer: layerPosition(board, placement.id),
-                total,
-              })}
-              selected={selection.has(placement.id)}
-              onPointerDown={onPiecePointerDown}
-              onActivate={activate}
-              onFocus={setFocusId}
-            />
-          ))}
+          {order.map((placement) => {
+            const view = resolvePlacement(placement.photoId);
+            return (
+              <MoodboardPlacement
+                key={placement.id}
+                placement={placement}
+                view={view}
+                label={placementLabel({
+                  photoName: view.name || null,
+                  layer: layerPosition(board, placement.id),
+                  total,
+                  // The placement shows a status badge or placeholder for
+                  // offloaded, unavailable and locked content; the name
+                  // repeats those words so the visible label stays inside the
+                  // accessible name (WCAG 2.5.3).
+                  qualifier: moodboardStatusText(intl, view.availability),
+                })}
+                selected={selection.has(placement.id)}
+                onPointerDown={onPiecePointerDown}
+                onActivate={activate}
+                onFocus={setFocusId}
+              />
+            );
+          })}
           {singleSelected !== null ? (
             <>
               <div
@@ -584,11 +592,19 @@ export function Moodboard({
       />
 
       <ol className="ovl-moodboard__reading-order" aria-label={intl.formatMessage(moodboardMessages.readingOrder)}>
-        {order.map((placement, index) => (
-          <li key={placement.id}>
-            {placementLabel({ photoName: resolvePlacement(placement.photoId).name || null, layer: index + 1, total })}
-          </li>
-        ))}
+        {order.map((placement, index) => {
+          const view = resolvePlacement(placement.photoId);
+          return (
+            <li key={placement.id}>
+              {placementLabel({
+                photoName: view.name || null,
+                layer: index + 1,
+                total,
+                qualifier: moodboardStatusText(intl, view.availability),
+              })}
+            </li>
+          );
+        })}
       </ol>
     </div>
   );

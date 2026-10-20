@@ -2,6 +2,7 @@ import { useId, useState, type DragEvent, type ReactElement } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 
 import { Icon } from '../components/Icon.js';
+import { WORD_SEPARATOR } from '../components/word-separator.js';
 import { admitRecoveryKeyDrop, type RecoveryKeyDropFailure } from '../recovery-key-drop.js';
 
 const messages = defineMessages({
@@ -61,8 +62,7 @@ export function RecoveryKeyDropTarget({
       <button
         type="button"
         className="ovl-restore__keydrop"
-        aria-labelledby={`${labelId} ${selectionId}`}
-        aria-describedby={hintId}
+        aria-labelledby={`${labelId} ${selectionId} ${hintId}`}
         data-testid="recovery-key-drop-target"
         data-overlook-file-drop-target="recovery-key"
         onClick={() => {
@@ -81,9 +81,17 @@ export function RecoveryKeyDropTarget({
       >
         <Icon name="key-round" size={16} />
         <span className="ovl-restore__keydropText">
-          <span id={labelId}>{intl.formatMessage(messages.choose)}</span>
+          {/* The separators keep the three lines separate words: axe reads the
+              visible text of a button by concatenating child text with no
+              separator. The hint is part of the name, so its visible words are
+              inside the accessible name too (WCAG 2.5.3). */}
+          <span id={labelId}>
+            {intl.formatMessage(messages.choose)}
+            {WORD_SEPARATOR}
+          </span>
           <span id={selectionId} className={path === null ? 'prose-note' : 'mono-data'} aria-live="polite" aria-atomic="true">
             {path === null ? intl.formatMessage(messages.none) : fileName(path)}
+            {WORD_SEPARATOR}
           </span>
           <span id={hintId} className="ovl-restore__keydropHint">
             {intl.formatMessage(messages.dropHint)}

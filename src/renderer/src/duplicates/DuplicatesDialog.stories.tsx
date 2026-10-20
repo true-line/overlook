@@ -113,11 +113,11 @@ export const ProtectedOriginal: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByTestId('duplicate-group');
-    await expect(canvas.queryByRole('button', { name: 'Move IMG_0001.jpg to Trash' })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: 'Move to Trash: IMG_0001.jpg' })).toBeNull();
     await expect(canvas.getByText('Protected Original — kept')).toBeVisible();
     await expect(canvas.getByText('To remove it, use Shift+Delete in the library')).toBeVisible();
     await expect(canvasElement.querySelector('[title]')).toBeNull();
-    await expect(canvas.getAllByRole('button', { name: /^Move .* to Trash$/ })).toHaveLength(2);
+    await expect(canvas.getAllByRole('button', { name: /^Move to Trash: /u })).toHaveLength(2);
   },
 };
 
@@ -132,12 +132,12 @@ export const Moving: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByTestId('duplicate-group');
-    const web = canvas.getByRole('button', { name: 'Move IMG_0001-web.jpg to Trash' });
+    const web = canvas.getByRole('button', { name: 'Move to Trash: IMG_0001-web.jpg' });
     web.focus();
     await userEvent.keyboard('{Enter}');
     await waitFor(() => expect(web).toHaveTextContent('Moving…'));
     await expect(web).toHaveFocus();
-    for (const button of canvas.getAllByRole('button', { name: /^Move .* to Trash$/ })) {
+    for (const button of canvas.getAllByRole('button', { name: /^Move/u })) {
       await expect(button).toHaveAttribute('aria-disabled', 'true');
       await expect(button).toBeEnabled();
     }
@@ -150,7 +150,7 @@ export const TrashRoutesThroughTheLibrary: Story = {
     const canvas = within(canvasElement);
     remove.mockClear();
     await canvas.findByTestId('duplicate-group');
-    await userEvent.click(canvas.getByRole('button', { name: 'Move IMG_0001-web.jpg to Trash' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Move to Trash: IMG_0001-web.jpg' }));
     await expect(remove).toHaveBeenCalledWith({ photoIds: ['IMG_0001-web'] });
     await expect(args.dispatch).toHaveBeenCalledWith({
       type: 'toast/shown',
@@ -228,16 +228,16 @@ export const Resolved: Story = {
     const canvas = within(canvasElement);
     const announcer = within(document.body).getByTestId('screen-reader-announcer-polite');
     await canvas.findByRole('region', { name: 'Possible duplicates, 3 photos, 1 protected Original' });
-    canvas.getByRole('button', { name: 'Move IMG_0001-web.jpg to Trash' }).focus();
+    canvas.getByRole('button', { name: 'Move to Trash: IMG_0001-web.jpg' }).focus();
 
     await userEvent.keyboard('{Enter}');
-    await waitFor(() => expect(canvas.getByRole('button', { name: 'Move IMG_0001-turned.jpg to Trash' })).toHaveFocus());
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Move to Trash: IMG_0001-turned.jpg' })).toHaveFocus());
     await expect(announcer).toHaveTextContent('Moved IMG_0001-web.jpg to Trash. 2 groups left.');
 
     // The last candidate leaves only the Original, so that group resolves and
     // focus moves to the group now in its place.
     await userEvent.keyboard('{Enter}');
-    await waitFor(() => expect(canvas.getByRole('button', { name: 'Move IMG_0200.jpg to Trash' })).toHaveFocus());
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Move to Trash: IMG_0200.jpg' })).toHaveFocus());
     await expect(announcer).toHaveTextContent('Moved IMG_0001-turned.jpg to Trash. 1 group left.');
 
     await userEvent.keyboard('{Enter}');
@@ -265,7 +265,7 @@ export const OriginalsOnly: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('region', { name: 'Possible duplicates, 2 photos, 2 protected Originals' });
-    await expect(canvas.queryAllByRole('button', { name: /^Move .* to Trash$/ })).toHaveLength(0);
+    await expect(canvas.queryAllByRole('button', { name: /^Move/u })).toHaveLength(0);
     await expect(canvas.getAllByText('Protected Original — kept')).toHaveLength(2);
   },
 };

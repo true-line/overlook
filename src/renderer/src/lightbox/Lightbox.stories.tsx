@@ -215,7 +215,7 @@ export const PortraitFillZoomAndReset: Story = {
     await waitFor(() => expect(viewport).toHaveAttribute('data-mode', 'fill'));
     await waitFor(() => expect(viewport).toHaveAttribute('data-zoom', '2.000'));
     await expect(canvas.getByTestId('lightbox')).toHaveAttribute('data-chrome', 'on');
-    await userEvent.click(canvas.getByRole('button', { name: 'Fit image (0)' }));
+    await userEvent.click(canvas.getByRole('button', { name: /^Fit image, currently/u }));
     await expect(viewport).toHaveAttribute('data-mode', 'fit');
     await expect(viewport).toHaveAttribute('data-zoom', '1.000');
   },
@@ -405,7 +405,7 @@ export const KeyboardZoom: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const viewport = canvas.getByTestId('lightbox-viewport');
-    const fitButton = canvas.getByRole('button', { name: 'Fit image (0)' });
+    const fitButton = canvas.getByRole('button', { name: /^Fit image, currently/u });
     await userEvent.click(fitButton);
     await userEvent.keyboard('+');
     await waitFor(() => expect(viewport).toHaveAttribute('data-mode', 'custom'));
@@ -420,7 +420,7 @@ export const KeyboardPanWhenZoomed: Story = {
     const canvas = within(canvasElement);
     const viewport = canvas.getByTestId('lightbox-viewport');
     await waitFor(() => expect(viewport).toHaveAttribute('data-load-state', 'decoded'));
-    await userEvent.click(canvas.getByRole('button', { name: 'Fit image (0)' }));
+    await userEvent.click(canvas.getByRole('button', { name: /^Fit image, currently/u }));
     await userEvent.keyboard('+');
     await expect(viewport).toHaveAttribute('data-mode', 'custom');
 

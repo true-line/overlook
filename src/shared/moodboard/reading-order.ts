@@ -25,7 +25,9 @@ export interface PlacementLabelInput {
   /** 1-based layer position. */
   readonly layer: number;
   readonly total: number;
-  /** Placeholder qualifier appended in parentheses (e.g. "offloaded"). */
+  /** Placeholder qualifier appended after the name (e.g. "offloaded"). Not
+   * parenthesised: a parenthetical is invisible to name-in-label checks, which
+   * strip it before comparing the visible words with the accessible name. */
   readonly qualifier?: string | null;
 }
 
@@ -33,6 +35,6 @@ export interface PlacementLabelInput {
  * Falls back to a neutral name when the photo can't be identified. */
 export function placementLabel({ photoName, layer, total, qualifier = null }: PlacementLabelInput): string {
   const name = photoName === null || photoName.trim() === '' ? 'Photo' : photoName.trim();
-  const suffix = qualifier === null || qualifier.trim() === '' ? '' : ` (${qualifier.trim()})`;
+  const suffix = qualifier === null || qualifier.trim() === '' ? '' : `, ${qualifier.trim()}`;
   return `${name}${suffix} — layer ${layer} of ${total}`;
 }

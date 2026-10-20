@@ -11,18 +11,12 @@ const messages = defineMessages({
   },
 });
 
-export function RestoreExclusionNotice({
-  coverage,
-  id,
-}: {
-  readonly coverage: RestoreCoverage | null | undefined;
-  readonly id?: string;
-}): ReactElement | null {
+export function RestoreExclusionNotice({ coverage }: { readonly coverage: RestoreCoverage | null | undefined }): ReactElement | null {
   const intl = useIntl();
   const { formatBytes } = useFormats();
   if (coverage === null || coverage === undefined || coverage.excludedCount === 0) return null;
   return (
-    <span id={id} className="ovl-restore__notice prose-note" data-testid="restore-excluded">
+    <span className="ovl-restore__notice prose-note" data-testid="restore-excluded">
       {intl.formatMessage(messages.excluded, { count: coverage.excludedCount, bytes: formatBytes(coverage.excludedBytes) })}
     </span>
   );
