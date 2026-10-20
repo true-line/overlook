@@ -2274,7 +2274,7 @@
     {
       "id": "a11y-audit-and-gates",
       "wiki": "Accessibility-Audit-2026-07",
-      "$note": "Issue #840 makes the Toast rapid-announcement story capture live-region mutations after play begins, so hosted Storybook timing cannot erase the first announcement before order is asserted.",
+      "$note": "Issue #840 makes the Toast rapid-announcement story capture live-region mutations after play begins, so hosted Storybook timing cannot erase the first announcement before order is asserted. The label-in-name fixes for #1412 also change the accessible names of the lightbox zoom reset, the inspector variant row and tag chips, the duplicates trash button, the moodboard placement, the facet bar value chips, the recovery key drop target and the restore library select, so their stories are audited here too.",
       "coverage": [
         {
           "type": "playwright-e2e",
@@ -2295,11 +2295,15 @@
             "src/renderer/src/components/Toast.stories.tsx",
             "src/renderer/src/components/feedback.stories.tsx",
             "src/renderer/src/components/inputs.stories.tsx",
+            "src/renderer/src/duplicates/DuplicatesDialog.stories.tsx",
             "src/renderer/src/grid/ListRow.stories.tsx",
             "src/renderer/src/grid/VirtualGrid.stories.tsx",
             "src/renderer/src/import/ImportDialog.stories.tsx",
             "src/renderer/src/inspector/Inspector.stories.tsx",
             "src/renderer/src/lightbox/Lightbox.stories.tsx",
+            "src/renderer/src/moodboard/Moodboard.stories.tsx",
+            "src/renderer/src/restore/RestoreLibraryCard.stories.tsx",
+            "src/renderer/src/shell/FacetBar.stories.tsx",
             "src/renderer/src/shell/Sidebar.stories.tsx",
             "src/renderer/src/settings/SettingsDialog.stories.tsx"
           ]
