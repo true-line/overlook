@@ -34,10 +34,16 @@ export const disclosureMessages = defineMessages({
   fieldComments: { id: 'disclosure.field.comments', defaultMessage: 'Comments' },
   classFor: { id: 'disclosure.classFor', defaultMessage: 'Disclosure class for {field}' },
   previewHeading: { id: 'disclosure.preview.heading', defaultMessage: 'What leaves' },
-  previewDestination: { id: 'disclosure.preview.destination', defaultMessage: 'Publishing to a public destination' },
-  previewDestinationHint: {
-    id: 'disclosure.preview.destination.hint',
-    defaultMessage: 'Only Public fields cross. Off means a named recipient: Shared fields cross too.',
+  previewDestination: { id: 'disclosure.preview.destination.label', defaultMessage: 'Destination' },
+  previewDestinationShared: { id: 'disclosure.preview.destination.shared', defaultMessage: 'Named recipient' },
+  previewDestinationPublic: { id: 'disclosure.preview.destination.public', defaultMessage: 'Public' },
+  previewDestinationSharedHint: {
+    id: 'disclosure.preview.destination.shared.hint',
+    defaultMessage: 'A folder you choose, Apple Photos, or a keyed provider. Shared and Public fields cross.',
+  },
+  previewDestinationPublicHint: {
+    id: 'disclosure.preview.destination.public.hint',
+    defaultMessage: 'Anyone with the link or address. Only Public fields cross.',
   },
   previewCrosses: {
     id: 'disclosure.preview.crosses',
@@ -54,6 +60,11 @@ export const disclosureMessages = defineMessages({
     id: 'disclosure.preview.blocked',
     defaultMessage:
       'The originals cannot leave while a withheld field is embedded in them. Include it for this export, or export Baked, which strips embedded metadata.',
+  },
+  previewBlockedAnnounce: {
+    id: 'disclosure.preview.blocked.announce',
+    defaultMessage:
+      '{count, plural, one {The originals can’t leave while {fields} is withheld.} other {The originals can’t leave while {fields} are withheld.}}',
   },
   previewWiden: { id: 'disclosure.preview.widen', defaultMessage: 'Include {field} in this export (recorded in activity)' },
   previewSidecars: {

@@ -214,8 +214,9 @@ export const ProviderRequiredFailure: Story = {
   },
 };
 
-// #497 (ADR-0031 §6): the preflight names an edit the mode cannot carry; Export
-// stays disabled until the user continues with the loss or picks another mode.
+// #497 (ADR-0031 §6) / #1307: the preflight names an edit the mode can't
+// carry. Export stays unavailable, with its reason under the footer, until
+// the user confirms exporting without it or picks another mode.
 export const EditLossReport: Story = {
   parameters: {
     preflight: {
@@ -227,18 +228,75 @@ export const EditLossReport: Story = {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(body.getByRole('button', { name: /Choose folder/u }));
     const losses = await body.findByTestId('export-edits-losses');
+    await expect(losses).toHaveTextContent('1 edit can’t travel in this mode:');
     await expect(losses).toHaveTextContent('IMG_4021.RAF: tone-curve v2');
-    await expect(body.getByRole('button', { name: /Export 3 photos/u })).toBeDisabled();
-    await userEvent.click(body.getByRole('switch', { name: 'Continue with these losses' }));
-    await expect(body.getByRole('button', { name: /Export 3 photos/u })).toBeEnabled();
-    // Original only omits every edit by design: a statement, not a loss to acknowledge.
+    // A consequence, not an error: no alert, a polite announcement instead.
+    await expect(body.queryByRole('alert')).toBeNull();
+    await waitFor(() =>
+      expect(body.getByTestId('screen-reader-announcer-polite')).toHaveTextContent(
+        '1 edit can’t travel in this mode. Confirm to export without it, or choose another mode.',
+      ),
+    );
+    const exportButton = body.getByRole('button', { name: /Export 3 photos/u });
+    await expect(exportButton).toBeEnabled();
+    await expect(exportButton).toHaveAttribute('aria-disabled', 'true');
+    await expect(exportButton).toHaveAccessibleDescription('Confirm the edits that won’t be exported, or choose another mode.');
+    await expect(body.getByTestId('export-reason')).toBeVisible();
+    await userEvent.click(body.getByRole('checkbox', { name: 'Export without this edit' }));
+    await expect(exportButton).not.toHaveAttribute('aria-disabled');
+    await expect(body.queryByTestId('export-reason')).toBeNull();
+    // Another mode is another loss list: the confirmation resets.
+    await userEvent.click(body.getByRole('radio', { name: 'Bake' }));
+    await userEvent.click(body.getByRole('radio', { name: 'Original + XMP' }));
+    await expect(await body.findByRole('checkbox', { name: 'Export without this edit' })).not.toBeChecked();
+    await expect(exportButton).toHaveAttribute('aria-disabled', 'true');
+    // Original only omits every edit by design: a statement, not a loss to confirm.
     await userEvent.click(body.getByRole('radio', { name: 'Original only' }));
     await expect(await body.findByTestId('export-edits-omitted')).toHaveTextContent(
       '2 photos have presentation edits that will not be exported.',
     );
     await expect(body.queryByTestId('export-edits-losses')).toBeNull();
+    await expect(exportButton).not.toHaveAttribute('aria-disabled');
     // Bake shows its explicit quality.
     await userEvent.click(body.getByRole('radio', { name: 'Bake' }));
     await expect(body.getByRole('radiogroup', { name: 'JPEG quality' })).toBeVisible();
+  },
+};
+
+// The loss list shows five, then how many more (#1307).
+export const ManyEditLosses: Story = {
+  parameters: {
+    preflight: {
+      edited: 8,
+      losses: Array.from({ length: 8 }, (_, index) => ({
+        photoId: `P${String(index)}`,
+        fileName: `IMG_40${String(20 + index)}.RAF`,
+        reason: 'tone-curve v2',
+      })),
+    } satisfies PreflightStub,
+  },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const losses = await body.findByTestId('export-edits-losses');
+    await expect(losses).toHaveTextContent('8 edits can’t travel in this mode:');
+    await expect(within(losses).getAllByRole('listitem')).toHaveLength(6);
+    await expect(within(losses).getByText('and 3 more')).toBeVisible();
+    await expect(body.getByRole('checkbox', { name: 'Export without these 8 edits' })).not.toBeChecked();
+  },
+};
+
+// A Public destination withholds a field the originals carry: Export names
+// the way out instead of greying without a word (#1307).
+export const BlockedByDisclosure: Story = {
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(body.getByRole('button', { name: /Choose folder/u }));
+    await userEvent.click(await body.findByRole('radio', { name: 'Public' }));
+    const exportButton = body.getByRole('button', { name: /Export 3 photos/u });
+    await waitFor(() => expect(exportButton).toHaveAttribute('aria-disabled', 'true'));
+    await expect(body.getByTestId('export-reason')).toHaveTextContent('Include the withheld field, or export Baked.');
+    await expect(exportButton).toHaveAccessibleDescription('Include the withheld field, or export Baked.');
+    await userEvent.click(body.getByRole('radio', { name: 'Bake' }));
+    await waitFor(() => expect(exportButton).not.toHaveAttribute('aria-disabled'));
   },
 };

@@ -7,7 +7,7 @@ export type BadgeTone = 'neutral' | 'cyan' | 'amber' | 'green' | 'red';
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   readonly tone?: BadgeTone;
-  readonly icon?: IconName;
+  readonly icon?: IconName | undefined;
 }
 
 // components/core/Badge.jsx — 18px uppercase mono pill, -dim bg + accent fg;

@@ -1,18 +1,19 @@
-import type { ReactElement } from 'react';
+import { useEffect, useRef, type ReactElement } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 
 import type { ExportPayloadMode } from '../../../shared/ipc/export-channels.js';
+import { Checkbox } from '../components/Checkbox';
 import { Icon } from '../components/Icon';
+import { useAnnouncer } from '../components/LiveAnnouncer';
 import { Segmented } from '../components/Segmented';
-import { Switch } from '../components/Switch';
-import { useFormats } from '../i18n/use-formats.js';
 import { Field } from '../settings/Field';
 import type { ExportPreflightReport } from './use-export-preflight.js';
 
 // Edits control (#497, ADR-0031 §6): one declared payload mode — Bake, Original
 // + XMP, Original only — with the explicit quality for Bake and the preflight
-// loss report. Export stays disabled until the user continues with a named
-// loss or picks another mode; Original only states what it omits.
+// loss report. Export stays unavailable until the user confirms exporting
+// without the named edits or picks another mode (#1307); Original only states
+// what it omits.
 
 const messages = defineMessages({
   label: { id: 'export.edits.label', defaultMessage: 'Edits' },
@@ -41,11 +42,23 @@ const messages = defineMessages({
   },
   losses: {
     id: 'export.edits.losses',
-    defaultMessage: '{count, plural, one {# edit} other {# edits}} cannot travel in this mode:',
+    defaultMessage: '{count, plural, one {# edit} other {# edits}} can’t travel in this mode:',
   },
   lossItem: { id: 'export.edits.lossItem', defaultMessage: '{fileName}: {reason}' },
-  acknowledge: { id: 'export.edits.acknowledge', defaultMessage: 'Continue with these losses' },
+  lossMore: { id: 'export.edits.lossMore', defaultMessage: 'and {count} more' },
+  acknowledge: {
+    id: 'export.edits.acknowledge',
+    defaultMessage: 'Export without {count, plural, one {this edit} other {these # edits}}',
+  },
+  lossesAnnounce: {
+    id: 'export.edits.lossesAnnounce',
+    defaultMessage:
+      '{count, plural, one {# edit} other {# edits}} can’t travel in this mode. Confirm to export without {count, plural, one {it} other {them}}, or choose another mode.',
+  },
 });
+
+/** The loss list shows this many edits, then "and {n} more". */
+const LOSSES_SHOWN = 5;
 
 export const EXPORT_JPEG_QUALITIES = { best: 95, high: 90, small: 80 } as const;
 export type ExportJpegQuality = keyof typeof EXPORT_JPEG_QUALITIES;
@@ -73,8 +86,7 @@ export function ExportEditsOptions({
   onAcknowledge,
 }: ExportEditsOptionsProps): ReactElement {
   const intl = useIntl();
-  const { formatCount } = useFormats();
-  const losses = preflight?.losses ?? [];
+  const losses = disabled ? [] : (preflight?.losses ?? []);
   const modeHint = disabled
     ? undefined
     : intl.formatMessage(
@@ -119,23 +131,49 @@ export function ExportEditsOptions({
           {intl.formatMessage(messages.omitted, { count: preflight.edited })}
         </div>
       )}
-      {disabled || losses.length === 0 ? null : (
-        <div className="ovl-export__losses" role="alert" data-testid="export-edits-losses">
-          <div className="ovl-export__warning prose-note">
-            <Icon name="triangle-alert" size={12} />
-            {intl.formatMessage(messages.losses, { count: losses.length })}
-          </div>
-          <ul className="ovl-export__lossList prose-note">
-            {losses.map((loss) => (
-              <li key={loss.photoId}>{intl.formatMessage(messages.lossItem, { fileName: loss.fileName, reason: loss.reason })}</li>
-            ))}
-          </ul>
-          <div className="ovl-export__acknowledge">
-            <span>{formatCount(losses.length)}</span>
-            <Switch checked={acknowledged} onChange={onAcknowledge} label={intl.formatMessage(messages.acknowledge)} />
-          </div>
-        </div>
-      )}
+      <LossReport losses={losses} acknowledged={acknowledged} onAcknowledge={onAcknowledge} />
     </>
+  );
+}
+
+interface LossReportProps {
+  readonly losses: ExportPreflightReport['losses'];
+  readonly acknowledged: boolean;
+  readonly onAcknowledge: (acknowledged: boolean) => void;
+}
+
+/** The edits this mode can't carry, and the checkbox that confirms exporting
+ *  without them. Said once when the report appears and again when its count
+ *  changes, politely: it's a consequence of a choice, not an error (#1307). */
+function LossReport({ losses, acknowledged, onAcknowledge }: LossReportProps): ReactElement | null {
+  const intl = useIntl();
+  const { announce } = useAnnouncer();
+  const announcedCountRef = useRef(0);
+  useEffect(() => {
+    if (losses.length === announcedCountRef.current) return;
+    announcedCountRef.current = losses.length;
+    if (losses.length > 0) announce(intl.formatMessage(messages.lossesAnnounce, { count: losses.length }), 'polite', 'export-edit-losses');
+  }, [announce, intl, losses.length]);
+  if (losses.length === 0) return null;
+  return (
+    <div className="ovl-export__losses" data-testid="export-edits-losses">
+      <div className="ovl-export__lossHead prose-note">
+        <Icon name="triangle-alert" size={14} />
+        {intl.formatMessage(messages.losses, { count: losses.length })}
+      </div>
+      <ul className="ovl-export__lossList prose-note">
+        {losses.slice(0, LOSSES_SHOWN).map((loss) => (
+          <li key={loss.photoId}>{intl.formatMessage(messages.lossItem, { fileName: loss.fileName, reason: loss.reason })}</li>
+        ))}
+        {losses.length > LOSSES_SHOWN ? (
+          <li className="ovl-export__lossMore">{intl.formatMessage(messages.lossMore, { count: losses.length - LOSSES_SHOWN })}</li>
+        ) : null}
+      </ul>
+      <Checkbox
+        checked={acknowledged}
+        onChange={onAcknowledge}
+        label={intl.formatMessage(messages.acknowledge, { count: losses.length })}
+      />
+    </div>
   );
 }

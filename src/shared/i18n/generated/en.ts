@@ -269,10 +269,14 @@ export const en = {
   "disclosure.pinned": "Always private",
   "disclosure.pinned.hint": "These never cross any boundary and no setting can change that.",
   "disclosure.preview.blocked": "The originals cannot leave while a withheld field is embedded in them. Include it for this export, or export Baked, which strips embedded metadata.",
+  "disclosure.preview.blocked.announce": "{count, plural, one {The originals can’t leave while {fields} is withheld.} other {The originals can’t leave while {fields} are withheld.}}",
   "disclosure.preview.crosses": "{disclosed, plural, one {# photo} other {# photos}} of {present}",
   "disclosure.preview.decline": "Cancel leaves the library unchanged; nothing has crossed yet.",
-  "disclosure.preview.destination": "Publishing to a public destination",
-  "disclosure.preview.destination.hint": "Only Public fields cross. Off means a named recipient: Shared fields cross too.",
+  "disclosure.preview.destination.label": "Destination",
+  "disclosure.preview.destination.public": "Public",
+  "disclosure.preview.destination.public.hint": "Anyone with the link or address. Only Public fields cross.",
+  "disclosure.preview.destination.shared": "Named recipient",
+  "disclosure.preview.destination.shared.hint": "A folder you choose, Apple Photos, or a keyed provider. Shared and Public fields cross.",
   "disclosure.preview.embedded": "Embedded in the original bytes and cannot be filtered: {fields}.",
   "disclosure.preview.heading": "What leaves",
   "disclosure.preview.loading": "Checking what would leave…",
@@ -314,12 +318,14 @@ export const en = {
   "export.destination.folder": "Folder",
   "export.destination.kind": "Export to",
   "export.destination.label": "Export destination",
-  "export.edits.acknowledge": "Continue with these losses",
+  "export.edits.acknowledge": "Export without {count, plural, one {this edit} other {these # edits}}",
   "export.edits.bake": "Bake",
   "export.edits.bakeHint": "Render the saved rotation, flip, and crop into a new JPEG. Embedded metadata is not carried over.",
   "export.edits.label": "Edits",
   "export.edits.lossItem": "{fileName}: {reason}",
-  "export.edits.losses": "{count, plural, one {# edit} other {# edits}} cannot travel in this mode:",
+  "export.edits.lossMore": "and {count} more",
+  "export.edits.losses": "{count, plural, one {# edit} other {# edits}} can’t travel in this mode:",
+  "export.edits.lossesAnnounce": "{count, plural, one {# edit} other {# edits}} can’t travel in this mode. Confirm to export without {count, plural, one {it} other {them}}, or choose another mode.",
   "export.edits.omitted": "{count, plural, one {# photo has} other {# photos have}} presentation edits that will not be exported.",
   "export.edits.originalOnly": "Original only",
   "export.edits.originalOnlyHint": "Write the byte-identical original and nothing beside it. Presentation edits and companion sidecars are omitted.",
@@ -342,6 +348,8 @@ export const en = {
   "export.photoKit.decryptHint": "Apple Photos receives plain originals and may retain them after Overlook locks. Only this reviewed selection is sent.",
   "export.photoKit.done": "{count} {count, plural, one {photo} other {photos}} exported and decrypted to Apple Photos.",
   "export.photoKit.metadataHint": "The original bytes, embedded metadata, creation date, and location are preserved where PhotoKit supports them.",
+  "export.reason.blocked": "Include the withheld field, or export Baked.",
+  "export.reason.edits": "Confirm the edits that won’t be exported, or choose another mode.",
   "export.unencryptedOriginals": "Unencrypted originals",
   "facets.additive": "Add to selection",
   "facets.additive.hint": "Shift-click also adds a value",
@@ -1277,6 +1285,7 @@ interface InterpolatedMessageArguments {
   "custody.state.unavailable": { "provider": MessageValue };
   "custody.state.wrongAccount": { "account": MessageValue; "provider": MessageValue };
   "disclosure.classFor": { "field": MessageValue };
+  "disclosure.preview.blocked.announce": { "count": number; "fields": MessageValue };
   "disclosure.preview.crosses": { "disclosed": number; "present": MessageValue };
   "disclosure.preview.embedded": { "fields": MessageValue };
   "disclosure.preview.sidecars": { "count": number };
@@ -1293,8 +1302,11 @@ interface InterpolatedMessageArguments {
   "duplicates.toast.missing": { "name": MessageValue };
   "duplicates.toast.preserved": { "name": MessageValue };
   "duplicates.toast.trashed": { "name": MessageValue };
+  "export.edits.acknowledge": { "count": number };
   "export.edits.lossItem": { "fileName": MessageValue; "reason": MessageValue };
+  "export.edits.lossMore": { "count": MessageValue };
   "export.edits.losses": { "count": number };
+  "export.edits.lossesAnnounce": { "count": number };
   "export.edits.omitted": { "count": number };
   "export.photoKit.done": { "count": number };
   "facets.chip": { "count": number; "facet": MessageValue };

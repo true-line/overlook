@@ -54,19 +54,24 @@ capture time`, `DisclosureSettings.stories.tsx › Defaults / Preview`.
 3. Relaunch and reopen Settings ▸ Privacy. **Expected:** Capture time is
    still Private.
 4. Select one photo → **Export**. **Expected:** the dialog shows **What
-   leaves** section before the destination controls: a **Publishing to a public destination**
-   switch (off), one row per field present in the selection with its class,
-   how many photos it crosses for and a sample value, and a note that
-   capture time is embedded in the original bytes. Because capture time is
-   private and the payload is Original, a warning says the originals cannot
-   leave and **Export 1 photo** is disabled.
+   leaves** section before the destination controls: a **Destination**
+   choice set to **Named recipient** (its hint says Shared and Public fields
+   cross), one row per field present in the selection with a neutral class
+   badge (lock for Private, people for Shared, globe for Public), how many
+   photos it crosses for and a sample value, and a note that capture time is
+   embedded in the original bytes. Because capture time is private and the
+   payload is Original, a notice says the originals cannot leave, a screen
+   reader hears "The originals can’t leave while Capture time is withheld."
+   (politely, not as an alert), and **Export 1 photo** is unavailable with
+   "Include the withheld field, or export Baked." under the footer.
 5. Tick **Include Capture time in this export**. **Expected:** the warning
    clears, the row reads "1 photo of 1", the button enables. Export.
    **Expected:** the file lands; Activity's export record names
    `disclosureWidened: captureTime` and no value.
 6. Reopen Export, switch the payload to **Baked**. **Expected:** no warning
    even without the checkbox — a baked payload carries no embedded metadata.
-7. Turn on **Publishing to a public destination**. **Expected:** every row
+7. Choose **Public** as the destination. **Expected:** its hint says only
+   Public fields cross, and every row
    reads **Withheld** (nothing defaults to Public); with a Baked payload the
    export still runs and the file carries no title, tags or EXIF.
 8. On macOS with Photos authorized, set Precise location to Private (the

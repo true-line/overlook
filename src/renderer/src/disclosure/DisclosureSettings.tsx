@@ -55,7 +55,7 @@ export function DisclosureSettings(): ReactElement {
         <h3 id="disclosure-heading" className="ovl-disclosure__title">
           {intl.formatMessage(disclosureMessages.heading)}
         </h3>
-        <p className="ovl-disclosure__hint">{intl.formatMessage(disclosureMessages.hint)}</p>
+        <p className="ovl-disclosure__hint prose-note">{intl.formatMessage(disclosureMessages.hint)}</p>
       </div>
       <ul className="ovl-disclosure__rows">
         {DISCLOSURE_FIELDS.map((field) => (
@@ -75,7 +75,7 @@ export function DisclosureSettings(): ReactElement {
       </ul>
       <div className="ovl-disclosure__pinned" data-testid="disclosure-pinned">
         <div className="ovl-disclosure__pinnedTitle">{intl.formatMessage(disclosureMessages.pinned)}</div>
-        <div className="ovl-disclosure__hint">{intl.formatMessage(disclosureMessages.pinnedHint)}</div>
+        <div className="ovl-disclosure__hint prose-note">{intl.formatMessage(disclosureMessages.pinnedHint)}</div>
         <ul className="ovl-disclosure__pinnedList">
           {pinned.map((item) => (
             <li key={item}>{item}</li>
