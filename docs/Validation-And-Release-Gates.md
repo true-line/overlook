@@ -37,10 +37,10 @@ All third-party `uses:` in `.github/workflows/*.yml` are pinned to a full commit
 
 Two gates need an external checkout, both env-gated in the same shape:
 
-| Variable                   | Points at                                                                                                        |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Variable                   | Points at                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `DOCS_GOV_TOOLING_ROOT`    | a `true-line/trueline-agent-docs-gov` checkout with `tools/docs-gov` at commit `67db7dc9c20bc29222fb605b7ff9432fd58a2a3f` |
-| `INTEROP_IMAGE_TRAIL_ROOT` | a `qwts/image-trail` checkout pinned to the commit the manifest names                                            |
+| `INTEROP_IMAGE_TRAIL_ROOT` | a `qwts/image-trail` checkout pinned to the commit the manifest names                                                     |
 
 ## Advisory semantic checks
 
