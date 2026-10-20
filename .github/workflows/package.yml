@@ -59,9 +59,16 @@ permissions:
 
 jobs:
   policy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     steps:
+      # The organisation's Linux runner does not carry Node on its default PATH.
+      # This step reaches for `node`, or runs an action that does, so the
+      # runtime is installed first, with the same pinned action the rest of
+      # the workflow already uses.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
       - uses: true-line/trueline-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           authorization-only: 'true'
@@ -76,12 +83,21 @@ jobs:
         # cross-compiled on the x64 windows-latest runner; verify-windows-arch
         # proves the payloads are genuinely arm64.
         include:
+          # The macOS leg runs on the organisation's own macOS runner, which is
+          # an arm64 machine. `os` keeps its hosted name because the artifact
+          # name is derived from it.
           - os: macos-latest
+            labels: '["self-hosted", "macOS", "ARM64"]'
+          # The Windows legs keep hosted runners. The arm64 payload is
+          # deliberately cross-compiled from an x64 host, and the organisation
+          # has no x64 Windows runner.
           - os: windows-latest
             win-arch: x64
+            labels: '["windows-latest"]'
           - os: windows-latest
             win-arch: arm64
-    runs-on: ${{ matrix.os }}
+            labels: '["windows-latest"]'
+    runs-on: ${{ fromJSON(matrix.labels) }}
     timeout-minutes: 120
     steps:
       - name: Checkout
@@ -395,9 +411,11 @@ jobs:
         include:
           - arch: x64
             runner: windows-latest
+            labels: '["windows-latest"]'
           - arch: arm64
-            runner: windows-11-arm
-    runs-on: ${{ matrix.runner }}
+            runner: self-hosted-windows-arm64
+            labels: '["self-hosted", "Windows", "ARM64"]'
+    runs-on: ${{ fromJSON(matrix.labels) }}
     timeout-minutes: 20
     steps:
       # github.workflow_sha identifies the revision containing this reusable

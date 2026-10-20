@@ -32,9 +32,16 @@ concurrency:
 
 jobs:
   policy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     steps:
+      # The organisation's Linux runner does not carry Node on its default PATH.
+      # This step reaches for `node`, or runs an action that does, so the
+      # runtime is installed first, with the same pinned action the rest of
+      # the workflow already uses.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
       - uses: true-line/trueline-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           authorization-only: 'true'
@@ -42,7 +49,7 @@ jobs:
   verify:
     needs: policy
     name: Verify release evidence
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 22
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
@@ -152,7 +159,7 @@ jobs:
   publish:
     name: Publish prerelease
     needs: [verify, build]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 22
     permissions:
       contents: write

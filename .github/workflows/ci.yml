@@ -52,7 +52,7 @@ jobs:
   policy:
     name: Action Policy
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     outputs:
       mode: ${{ steps.policy.outputs.mode }}
@@ -60,6 +60,13 @@ jobs:
       run_post_merge: ${{ steps.policy.outputs.run_post_merge }}
       release_gate_mode: ${{ steps.policy.outputs.release_gate_mode }}
     steps:
+      # The organisation's Linux runner does not carry Node on its default PATH.
+      # This step reaches for `node`, or runs an action that does, so the
+      # runtime is installed first, with the same pinned action the rest of
+      # the workflow already uses.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
       - id: policy
         uses: true-line/trueline-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
 
@@ -67,7 +74,7 @@ jobs:
     name: Verify merged commit evidence
     needs: policy
     if: needs.policy.outputs.run_post_merge == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     outputs:
       validated: ${{ steps.evidence.outputs.validated }}
@@ -94,7 +101,7 @@ jobs:
     name: Verify preflight evidence
     needs: policy
     if: github.event_name == 'pull_request' && needs.policy.outputs.run_full == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     outputs:
       validated: ${{ steps.evidence.outputs.validated }}
@@ -118,7 +125,7 @@ jobs:
     name: zizmor / unpinned-uses
     needs: policy
     if: ${{ !cancelled() && needs.policy.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     permissions:
       # upload-sarif resolves the current workflow run through the workflow-runs
@@ -144,7 +151,7 @@ jobs:
       !cancelled() && needs.policy.result == 'success' &&
       ((needs.policy.outputs.run_full == 'true' && needs.preflight-evidence.outputs.validated != 'true') ||
       (needs.policy.outputs.run_post_merge == 'true' && needs.merge-evidence.outputs.validated != 'true'))
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     # The outer bound on this job. CI calls the :inner entrypoints directly — the guard
     # has no CI exemption (runner-local evidence is replayable), so the wrapped scripts'
     # --timeout-s values never apply here; the per-step timeout-minutes below are what
@@ -324,6 +331,9 @@ jobs:
       !cancelled() && needs.policy.result == 'success' &&
       needs.policy.outputs.run_full == 'true' &&
       needs.preflight-evidence.outputs.validated != 'true'
+    # This lane keeps a hosted runner for now. It asserts a native x64 host
+    # (`assert-platform.mjs win32 x64`), and the organisation's only Windows
+    # runner is arm64. It moves when an x64 Windows runner is registered.
     runs-on: windows-latest
     timeout-minutes: 67
     env:
@@ -447,11 +457,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The x64 leg keeps a hosted runner: the organisation has one Windows
+          # runner and it is arm64.
           - arch: x64
             runner: windows-latest
+            labels: '["windows-latest"]'
+          # The arm64 leg runs natively on the organisation's own Windows
+          # runner, which is an arm64 machine.
           - arch: arm64
-            runner: windows-11-arm
-    runs-on: ${{ matrix.runner }}
+            runner: self-hosted-windows-arm64
+            labels: '["self-hosted", "Windows", "ARM64"]'
+    runs-on: ${{ fromJSON(matrix.labels) }}
     timeout-minutes: 47
     env:
       OVERLOOK_E2E_WORKERS: '1'
@@ -499,6 +515,11 @@ jobs:
       !cancelled() && needs.policy.result == 'success' &&
       ((needs.policy.outputs.run_full == 'true' && needs.preflight-evidence.outputs.validated != 'true') ||
       (needs.policy.outputs.run_post_merge == 'true' && needs.merge-evidence.outputs.validated != 'true'))
+    # This lane keeps a hosted runner for now. It drives Storybook through a
+    # real browser under `xvfb-run`, and both the X server and the browser's
+    # system libraries are installed with root; the organisation's Linux runner
+    # has no passwordless sudo, and the macOS runner has no xvfb. It moves as
+    # soon as the runner can install those packages.
     runs-on: ubuntu-latest
     # The only bound on this job. This job runs test:e2e:inner directly, without the
     # guard's --timeout-s 1800 (30 min). 45 keeps headroom over the test step's 30 —
@@ -613,7 +634,7 @@ jobs:
       always() && needs.policy.result == 'success' &&
       ((needs.policy.outputs.run_full == 'true' && needs.preflight-evidence.outputs.validated != 'true') ||
       (needs.policy.outputs.run_post_merge == 'true' && needs.merge-evidence.outputs.validated != 'true'))
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 5
     steps:
       - name: Verify E2E result
@@ -657,7 +678,7 @@ jobs:
     name: Workflow runtime policy
     needs: policy
     if: needs.policy.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     steps:
       - name: Checkout exact validation commit
@@ -675,6 +696,13 @@ jobs:
           sparse-checkout: tools/ci-runtime
           persist-credentials: false
 
+      # The organisation's Linux runner does not carry Node on its default PATH.
+      # This step reaches for `node`, or runs an action that does, so the
+      # runtime is installed first, with the same pinned action the rest of
+      # the workflow already uses.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
       - name: Enforce bounded workflow runtime
         run: node .ci-runtime-policy/tools/ci-runtime/runtime-policy.mjs --root "$GITHUB_WORKSPACE"
 
@@ -682,7 +710,7 @@ jobs:
     name: Post-merge smoke
     needs: [policy, merge-evidence]
     if: needs.policy.outputs.run_post_merge == 'true' && needs.merge-evidence.outputs.validated == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 20
     env:
       INTEROP_IMAGE_TRAIL_ROOT: ${{ github.workspace }}/.interop-image-trail
@@ -727,7 +755,7 @@ jobs:
         post-merge,
       ]
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 5
     steps:
       - name: Reject cancelled workflow
