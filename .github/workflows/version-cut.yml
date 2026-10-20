@@ -64,6 +64,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+          package-manager-cache: false
       - uses: true-line/trueline-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
         with:
           authorization-only: 'true'
@@ -211,6 +212,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+          package-manager-cache: false
       - name: Determine release operation
         id: release-plan
         env:
