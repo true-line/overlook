@@ -27,8 +27,8 @@ stubs unless they are `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, or root
    coverage floor, build). For E2E-relevant changes also run `npm run test:e2e`.
    A PR whose description claims checks passed but that fails CI will be sent
    back without review. The Husky pre-push hook automatically reruns the exact
-   `npm run lint` entrypoint used by the hosted lint job; do not bypass it with
-   `--no-verify`.
+   `npm run lint` and `npm run format:check` entrypoints used by hosted CI; do
+   not bypass it with `--no-verify`.
 
 4. **Review documentation before merge.** If the PR changes behavior,
    architecture, testing strategy, automation checks, or CI expectations, update
@@ -119,8 +119,9 @@ Automated coding agents follow the same hygiene as human contributors, plus:
 ## Style
 
 - Prettier owns formatting; ESLint owns correctness. The pre-commit hook formats
-  and lints staged files; the pre-push hook runs the complete hosted `npm run
-lint` chain. Do not mix formatting-only churn into feature commits.
+  and lints staged files; the pre-push hook runs the complete hosted
+  `npm run lint && npm run format:check` chain. Do not mix formatting-only churn
+  into feature commits.
 - Comments explain _why_, not _what_.
 - Dependencies use **exact version pins** — Dependabot is the only actor that
   bumps versions (`scripts/check-package-pins.mjs` enforces this).
