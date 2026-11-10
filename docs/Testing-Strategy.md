@@ -146,10 +146,10 @@ npm run test:e2e:visible -- tests/e2e/example.spec.ts  # brief visible debug run
 ```
 
 The pre-commit hook (husky + lint-staged) auto-fixes staged files
-(`eslint --fix` + prettier). The pre-push hook then runs the exact `npm run
-lint` entrypoint used by hosted CI, including both 800-line file-size
-tripwires. Do not use `--no-verify` to bypass either hook. The remaining
-non-browser gates still run through `npm run ci` locally and in hosted CI.
+(`eslint --fix` + prettier). The pre-push hook then runs `npm run lint` and
+`npm run format:check`, including both 800-line file-size tripwires. Do not use
+`--no-verify` to bypass either hook. The remaining non-browser gates still run
+through `npm run ci` locally and in hosted CI.
 
 ### CI — `.github/workflows/ci.yml`
 
