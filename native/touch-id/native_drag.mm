@@ -221,10 +221,20 @@ Napi::Value StartDrag(const Napi::CallbackInfo& info) {
     Napi::Value nameValue = item.Get("fileName");
     Napi::Value typeValue = item.Get("fileType");
     if (!tokenValue.IsString() || !nameValue.IsString() || !typeValue.IsString()) return Napi::Boolean::New(env, false);
-    NSString* token = String(tokenValue.As<Napi::String>().Utf8Value());
-    NSString* name = String(nameValue.As<Napi::String>().Utf8Value());
-    NSString* type = String(typeValue.As<Napi::String>().Utf8Value());
-    if (token.length == 0 || name.length == 0 || [name containsString:@"/"] || type.length == 0) return Napi::Boolean::New(env, false);
+    std::string rawToken = tokenValue.As<Napi::String>().Utf8Value();
+    std::string rawName = nameValue.As<Napi::String>().Utf8Value();
+    std::string rawType = typeValue.As<Napi::String>().Utf8Value();
+    if (rawToken.find('\0') != std::string::npos || rawName.find('\0') != std::string::npos || rawType.find('\0') != std::string::npos ||
+        rawName == "." || rawName == "..") {
+      return Napi::Boolean::New(env, false);
+    }
+    NSString* token = String(rawToken);
+    NSString* name = String(rawName);
+    NSString* type = String(rawType);
+    if (token.length == 0 || name.length == 0 || [name containsString:@"/"] || [name containsString:@"\\"] ||
+        [name containsString:@":"] || [name containsString:@".."] || type.length == 0) {
+      return Napi::Boolean::New(env, false);
+    }
 
     OverlookPromiseDelegate* delegate = [[OverlookPromiseDelegate alloc] initWithCallbacks:callbacks];
     delegate.token = token;
