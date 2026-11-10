@@ -131,7 +131,6 @@ export class FullService {
         status: 416,
         headers: {
           'Cache-Control': 'no-store',
-          'Access-Control-Allow-Origin': '*',
           'Content-Range': `bytes */${String(original.totalBytes)}`,
         },
         body: null,

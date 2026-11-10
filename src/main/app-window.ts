@@ -6,7 +6,7 @@ import { events } from '../shared/ipc/channels.js';
 import { createEmitter } from '../shared/ipc/registry.js';
 import { withAppearanceBootstrapQuery } from './appearance-runtime.js';
 import { reloadWebContentsForLock, type ReloadableWebContents } from './crypto/renderer-lock-reload.js';
-import { initialWindowBehavior } from './e2e-window-visibility.js';
+import { initialWindowBehavior, requestNativeWindowAttention } from './e2e-window-visibility.js';
 import { createInspectorWindowController } from './inspector-window-controller.js';
 import { installWindowNavigationPolicy } from './window-navigation-policy.js';
 import type { InspectorWindowState } from '../shared/inspector-window-contract.js';
@@ -42,9 +42,12 @@ const inspectorController = createInspectorWindowController<BrowserWindow>({
   onDidFinishLoad: (win, listener) => win.webContents.on('did-finish-load', listener),
   send: (win, name, payload) => win.webContents.send(name, payload),
   close: (win) => win.close(),
-  show: (win) => win.show(),
-  focus: (win) => win.focus(),
-  shouldShow: () => process.env['OVERLOOK_E2E'] === undefined,
+  requestAttention: (win) =>
+    requestNativeWindowAttention(win, {
+      packaged: app.isPackaged,
+      harness: process.env['OVERLOOK_E2E'],
+      mode: process.env['OVERLOOK_E2E_WINDOW'],
+    }),
 });
 
 export function openInspectorWindow(state: InspectorWindowState): void {
