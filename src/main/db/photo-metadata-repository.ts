@@ -236,17 +236,25 @@ export class PhotoMetadataRepository {
   }
 
   private rows(photoIds: readonly string[]): MetadataRow[] {
-    if (photoIds.length === 0) return [];
-    const params = Object.fromEntries(photoIds.map((id, index) => [`id${String(index)}`, id]));
-    return queryAll<MetadataRow>(
-      this.db,
-      `SELECT id, user_title AS title, user_description AS description,
-              imported_keywords AS importedKeywords, user_tags AS userTags,
-              suppressed_keywords AS suppressedKeywords, metadata_version AS metadataVersion
-         FROM ordinary_visible_photos
-        WHERE id IN (${photoIds.map((_id, index) => `@id${String(index)}`).join(', ')})`,
-      params,
-    );
+    const uniqueIds = [...new Set(photoIds)];
+    if (uniqueIds.length === 0) return [];
+    const found: MetadataRow[] = [];
+    for (let start = 0; start < uniqueIds.length; start += 500) {
+      const chunk = uniqueIds.slice(start, start + 500);
+      const params = Object.fromEntries(chunk.map((id, index) => [`id${String(index)}`, id]));
+      found.push(
+        ...queryAll<MetadataRow>(
+          this.db,
+          `SELECT id, user_title AS title, user_description AS description,
+                  imported_keywords AS importedKeywords, user_tags AS userTags,
+                  suppressed_keywords AS suppressedKeywords, metadata_version AS metadataVersion
+             FROM ordinary_visible_photos
+            WHERE id IN (${chunk.map((_id, index) => `@id${String(index)}`).join(', ')})`,
+          params,
+        ),
+      );
+    }
+    return found;
   }
 
   private allRows(): MetadataRow[] {

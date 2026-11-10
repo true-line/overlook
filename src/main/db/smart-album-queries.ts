@@ -2,6 +2,7 @@ import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
 
 import { parseSmartPredicate, type EnumeratedFacet, type SmartPredicate } from '../../shared/library/smart-album.js';
 import { buildQueryPlan } from './photo-query.js';
+import { compilePredicate } from './predicate-compiler.js';
 import { queryAll } from './sql.js';
 
 // Read-side Smart Album helpers (#514) that the listing and the backup
@@ -46,6 +47,37 @@ export function smartAlbumCount(db: BetterSqlite3.Database, predicate: SmartPred
     { ...plan.params },
   )[0];
   return row?.n ?? 0;
+}
+
+/** Batches valid Smart Album counts into bounded single-scan projections (#1439)
+ * instead of executing one count query per Smart Album during sidebar listing. */
+export function smartAlbumCounts(db: BetterSqlite3.Database, smart: ReadonlyMap<string, StoredSmartAlbum>): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+  const valid = [...smart.values()].filter(
+    (entry): entry is StoredSmartAlbum & { readonly predicate: SmartPredicate } => entry.predicate !== null,
+  );
+  if (valid.length === 0) return counts;
+  for (let start = 0; start < valid.length; start += 50) {
+    const chunk = valid.slice(start, start + 50);
+    const params: Record<string, string | number | null> = {};
+    const projections = chunk.map((entry, index) => {
+      const compiled = compilePredicate(entry.predicate, `sa${String(index)}_`);
+      Object.assign(params, compiled.params);
+      return `COALESCE(sum(CASE WHEN ${compiled.where} THEN 1 ELSE 0 END), 0) AS c${String(index)}`;
+    });
+    const row = queryAll<Record<string, number>>(
+      db,
+      `SELECT ${projections.join(', ')}
+         FROM ordinary_visible_photos p
+         LEFT JOIN sync_ledger l ON l.photo_id = p.id
+        WHERE p.deleted_at IS NULL`,
+      params,
+    )[0];
+    chunk.forEach((entry, index) => {
+      counts.set(entry.id, row?.[`c${String(index)}`] ?? 0);
+    });
+  }
+  return counts;
 }
 
 export interface FacetValue {
