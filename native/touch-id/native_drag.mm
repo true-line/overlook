@@ -232,7 +232,7 @@ Napi::Value StartDrag(const Napi::CallbackInfo& info) {
     NSString* name = String(rawName);
     NSString* type = String(rawType);
     if (token.length == 0 || name.length == 0 || [name containsString:@"/"] || [name containsString:@"\\"] ||
-        [name containsString:@":"] || [name containsString:@".."] || type.length == 0) {
+        [name containsString:@":"] || type.length == 0) {
       return Napi::Boolean::New(env, false);
     }
 

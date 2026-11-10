@@ -36,12 +36,13 @@ describe('native extension and packaging contracts (#1440)', () => {
     );
   });
 
-  test('native_drag.mm rejects embedded NUL bytes, traversal segments, colons, and path separators', () => {
+  test('native_drag.mm rejects embedded NUL bytes, traversal segments, colons, and path separators while preserving internal double dots', () => {
     const nativeDrag = readText('native/touch-id/native_drag.mm');
     assert.match(nativeDrag, /rawName\.find\('\\0'\)\s*!=\s*std::string::npos/u);
+    assert.match(nativeDrag, /rawName\s*==\s*"\."\s*\|\|\s*rawName\s*==\s*"\.\."/u);
     assert.match(nativeDrag, /\[name containsString:@":"\]/u);
     assert.match(nativeDrag, /\[name containsString:@"\\\\"\]/u);
-    assert.match(nativeDrag, /\[name containsString:@"\.\."\]/u);
+    assert.doesNotMatch(nativeDrag, /\[name containsString:@"\.\."\]/u);
   });
 
   test('electron-builder.yml excludes binding.gyp and test*.cjs from shipped @overlook native packages', () => {
@@ -75,7 +76,7 @@ describe('native extension and packaging contracts (#1440)', () => {
       if (!resolved.startsWith('https://registry.npmjs.org/')) continue;
       const lastNodeModules = pkgPath.lastIndexOf('node_modules/');
       const pkgName = pkgPath.slice(lastNodeModules + 'node_modules/'.length);
-      const version = String(entry['version'] ?? '');
+      const version = typeof entry['version'] === 'string' ? entry['version'] : '';
       assert.ok(
         allowScripts[`${pkgName}@${version}`] === true || allowScripts[pkgName] === false,
         `locked install-script package ${pkgName}@${version} (${pkgPath}) must have an explicit allowScripts decision`,
