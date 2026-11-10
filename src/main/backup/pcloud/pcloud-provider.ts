@@ -126,6 +126,7 @@ async function prepareBoundedUpload(filename: string, bytes: Readable, spoolThre
     if (writer !== null) {
       writer.end();
       await once(writer, 'finish');
+      if (!writer.closed) await once(writer, 'close');
       writer = null;
     }
     const createdSpool = spoolPath;
@@ -139,7 +140,11 @@ async function prepareBoundedUpload(filename: string, bytes: Readable, spoolThre
       },
     };
   } catch (error) {
-    writer?.destroy();
+    if (writer !== null) {
+      writer.on('error', () => undefined);
+      writer.destroy();
+      if (!writer.closed) await once(writer, 'close').catch(() => undefined);
+    }
     if (spoolPath !== null) await unlink(spoolPath).catch(() => undefined);
     throw error;
   }

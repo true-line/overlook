@@ -2,6 +2,8 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createHash } from 'node:crypto';
+import { readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { Readable } from 'node:stream';
 import { buffer } from 'node:stream/consumers';
 
@@ -376,5 +378,18 @@ describe('pCloud provider adapter (#255)', () => {
     assert.equal(upload.entryOrder.at(-1), 'file');
     assert.ok(Number(upload.contentLength) > payload.length);
     assert.deepEqual(upload.fileBytes, payload);
+  });
+
+  test('#1438: closes the temporary spool writer before unlinking when an upload stream fails mid-spill', async () => {
+    const before = new Set(readdirSync(tmpdir()).filter((entry) => entry.startsWith('overlook-pcloud-')));
+    const { provider } = world({ createfolderifnotexists: () => ok() }, {}, 1024);
+    async function* failingBytes(): AsyncGenerator<Buffer> {
+      yield Buffer.alloc(2048, 0x33);
+      await Promise.resolve();
+      throw new Error('source stream failed');
+    }
+    await assert.rejects(() => provider.put('blobs/ab/broken.ovlk', Readable.from(failingBytes())), ProviderError);
+    const leaked = readdirSync(tmpdir()).filter((entry) => entry.startsWith('overlook-pcloud-') && !before.has(entry));
+    assert.deepEqual(leaked, []);
   });
 });
