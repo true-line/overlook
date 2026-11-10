@@ -136,10 +136,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: true-line/agentic-code-analysis
-          # The default GITHUB_TOKEN is scoped to this repository, so a
-          # checkout of a sibling private repository 404s. An empty secret
-          # falls back to github.token, so this stays backwards compatible.
-          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
           ref: 60be121a7b27c94c56f85ac61c20ea61ab1d5d0f # main 2026-08-18 (first pin with the qwen adapter); bump deliberately
           path: .aca
           persist-credentials: false
