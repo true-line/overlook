@@ -388,7 +388,8 @@ jobs:
     needs: policy
     if: >-
       !cancelled() && needs.policy.result == 'success' &&
-      needs.policy.outputs.run_full == 'true'
+      needs.policy.outputs.run_full == 'true' &&
+      vars.OVERLOOK_DML_ARM64_RUNNER == 'true'
     runs-on: [self-hosted, Windows, ARM64]
     timeout-minutes: 20
     # Command-scope config covers checkout and cleanup without changing the laptop.
@@ -742,6 +743,7 @@ jobs:
           WINDOWS_TESTS: ${{ needs.windows-tests.result }}
           WINDOWS_MAIN: ${{ needs.windows-main-smoke.result }}
           DML_ARM64: ${{ needs.dml-arm64-qualification.result }}
+          DML_ARM64_ENABLED: ${{ vars.OVERLOOK_DML_ARM64_RUNNER == 'true' }}
           E2E_GATE: ${{ needs.e2e-gate.result }}
           DOCS_GOV: ${{ needs.docs-gov.result }}
           CODEQL: ${{ needs.codeql.result }}
@@ -753,9 +755,14 @@ jobs:
         run: |
           test "$POLICY" = success
           test "$WORKFLOW_RUNTIME" = success
+          if [ "$DML_ARM64_ENABLED" = true ]; then
+            DML_EXPECTED=success
+          else
+            DML_EXPECTED=skipped
+          fi
           case "$MODE" in
             full)
-              test "$DML_ARM64" = success
+              test "$DML_ARM64" = "$DML_EXPECTED"
               if [ "$PREFLIGHT_VALIDATED" = true ]; then
                 test "$PREFLIGHT" = success
               else
@@ -767,7 +774,7 @@ jobs:
               fi
               ;;
             queue|manual)
-              test "$DML_ARM64" = success
+              test "$DML_ARM64" = "$DML_EXPECTED"
               test "$COMPLETE" = success
               test "$WINDOWS_TESTS" = success
               test "$E2E_GATE" = success
