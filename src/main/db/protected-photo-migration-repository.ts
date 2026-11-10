@@ -6,8 +6,9 @@ import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
 
 import { EditRevisionRepository } from './edit-revision-repository.js';
 import type { BackupManifestEditRevisionV11 } from '../backup/backup-manifest-edit-revisions.js';
+import { SidecarRepository, type SidecarRecord } from './sidecar-repository.js';
 
-import type { ProtectedPhotoMetadata } from '../crypto/protected-photo-metadata.js';
+import type { ProtectedPhotoMetadata, ProtectedSidecarMetadata } from '../crypto/protected-photo-metadata.js';
 import type { PhotoInsert } from '../../shared/library/types.js';
 import { refreshInAllPhotos } from './album-visibility-repository.js';
 import { queryAll, queryGet, run, runNamed } from './sql.js';
@@ -90,6 +91,8 @@ function stored(row: StoredRow): ProtectedPhotoStoredRecord {
 }
 
 export class ProtectedPhotoMigrationRepository {
+  private readonly sidecars: SidecarRepository;
+
   constructor(
     private readonly db: BetterSqlite3.Database,
     /** A supplied collaborator must use this connection so restoration shares the custody transaction. */
@@ -98,7 +101,17 @@ export class ProtectedPhotoMigrationRepository {
       createId: randomUUID,
       activity: new ActivityRepository(db),
     },
-  ) {}
+  ) {
+    this.sidecars = new SidecarRepository(db);
+  }
+
+  ordinarySidecars(photoId: string): readonly SidecarRecord[] {
+    return this.sidecars.listForPhoto(photoId);
+  }
+
+  hasOrdinarySidecarOwner(ownerId: string): boolean {
+    return this.sidecars.hasOwner(ownerId);
+  }
 
   ordinaryMemberships(photoId: string): ProtectedPhotoMetadata['ordinaryMemberships'] {
     return queryAll<{ albumId: string; position: number }>(
@@ -341,6 +354,7 @@ export class ProtectedPhotoMigrationRepository {
         readonly photo: PhotoInsert;
         readonly memberships: ProtectedPhotoMetadata['ordinaryMemberships'];
         readonly editRevisions?: readonly BackupManifestEditRevisionV11[];
+        readonly sidecars?: readonly ProtectedSidecarMetadata[];
       }
     >,
     ordinaryAlbum?: OrdinaryAlbumRestoration,
@@ -358,6 +372,20 @@ export class ProtectedPhotoMigrationRepository {
         }
         this.insertOrdinary(restoration.photo);
         if (restoration.editRevisions !== undefined) this.revisions.restore(restoration.editRevisions);
+        if (restoration.sidecars !== undefined) {
+          for (const sidecar of restoration.sidecars) {
+            this.sidecars.insert({
+              photoId: item.photoId,
+              ownerId: item.photoId,
+              role: sidecar.role,
+              fileName: sidecar.fileName,
+              contentHash: sidecar.contentHash,
+              bytes: sidecar.bytes,
+              keyId: restoration.photo.keyId,
+              importedAt: sidecar.importedAt,
+            });
+          }
+        }
         for (const membership of restoration.memberships) {
           runNamed(
             this.db,
