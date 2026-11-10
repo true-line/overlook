@@ -9,8 +9,9 @@ describe('pre-push lint gate (#767)', () => {
     const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as { readonly scripts?: Record<string, string> };
     const lintCommand = packageJson.scripts?.['lint'] ?? '';
 
-    assert.equal(hook, 'npm run lint');
+    assert.equal(hook, 'npm run lint && npm run format:check');
     assert.match(workflow, /^\s*run: npm run lint$/mu);
+    assert.match(workflow, /^\s*run: npm run format:check$/mu);
     assert.match(lintCommand, /npm run lint:new-files/u);
     assert.match(lintCommand, /eslint \./u);
   });
