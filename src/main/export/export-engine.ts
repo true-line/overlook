@@ -406,9 +406,11 @@ export class ExportEngine {
         await this.deps.writeFile(this.deps.joinPath(destination, fileName), plaintext);
         const editsTravel = mode === 'original-sidecars' && !isIdentityTransform(transform);
         // The generated packet owns the canonical stem (`IMG.xmp`): sidecar
-        // consumers associate XMP by stem, so it is written first and a
-        // retained companion that would take the same name is preserved
-        // under the collision suffix rather than displacing the edits.
+        // consumers associate XMP by stem, so it is written first and, under
+        // Metadata: Source (`metadata === 'original'`), a retained companion
+        // that would take the same name is preserved under the collision suffix
+        // rather than displacing the edits. Metadata: Edits (`'overlook'`) and
+        // None omit unfiltered source companions (ADR-0032 §6, #1142, #1438).
         const sidecarNames =
           mode === 'original'
             ? []
