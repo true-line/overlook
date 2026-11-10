@@ -36,6 +36,7 @@ export interface NativeCommandRouterDeps {
   readonly resetDropped: () => void;
   readonly closeOffload: () => void;
   readonly pcloudEnabled: boolean;
+  readonly lockConfigured?: boolean | undefined;
 }
 
 export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command: CommandId) => void {
@@ -54,6 +55,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
     resetDropped,
     closeOffload,
     pcloudEnabled,
+    lockConfigured,
   } = deps;
   const { openPhotos: onExport, setPhotoIds: setExportPhotoIds, setAllPhotos: setExportAllPhotos } = exportDialog;
   const intl = useIntl();
@@ -262,6 +264,12 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
           // renderer); the Windows/Linux titlebar Help menu reaches it here.
           void window.overlook.help.open();
           return;
+        case 'app.lock.now':
+          // macOS dispatches Lock Now in main; the Windows/Linux titlebar ⋯
+          // Overlook menu reaches it through runCommand here (#1433).
+          if (lockConfigured === false) return;
+          void window.overlook.appLock.lockNow();
+          return;
         case 'album.rename':
         case 'album.delete':
         case 'album.transfer':
@@ -288,7 +296,6 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
         case 'photo.original.unmark':
         case 'photo.purge':
         case 'trash.empty':
-        case 'app.lock.now':
         case 'app.search.focus':
         case 'view.lightbox.previous':
         case 'view.lightbox.next':
@@ -328,6 +335,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
       resetDropped,
       closeOffload,
       pcloudEnabled,
+      lockConfigured,
     ],
   );
 
