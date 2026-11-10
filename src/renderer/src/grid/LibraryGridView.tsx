@@ -39,9 +39,10 @@ import {
   quickActionTargetIds,
   reduceQuickActionVisibility,
 } from '../../../shared/commands/quick-actions.js';
-import { resolveCommand, type CommandPlatform, type QuickActionCommandId } from '../../../shared/commands/registry.js';
+import { type CommandPlatform, type QuickActionCommandId } from '../../../shared/commands/registry.js';
 import { DEFAULT_QUICK_ACTIONS } from '../../../shared/settings/settings.js';
 import { QuickActions, type QuickActionItem } from './QuickActions';
+import { handlePurgeShortcut } from './purge-shortcut.js';
 import { useFavoriteMutations } from '../state/use-favorite-mutations';
 
 // Library view (#76/#77): PhotoTile or ListRow over the #74 engine, thumbs
@@ -234,44 +235,24 @@ export function LibraryGridView({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.defaultPrevented || originalDeleteIds !== null) return;
-      const editable =
-        event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]') !== null;
-      const dialogOpen = anyDialogOpen(state) || purgeIds !== null || quickAlbumIds !== null;
-      const command = resolveCommand(event, {
-        surface: state.lightboxId === null ? 'grid' : 'lightbox',
-        dialogOpen,
-        editable,
+      handlePurgeShortcut({
+        event,
+        inTrash,
+        lightboxId: state.lightboxId,
+        selection: state.selection,
+        photos: state.photos,
+        dialogOpen: anyDialogOpen(state) || purgeIds !== null || quickAlbumIds !== null,
+        originalDeleteOpen: originalDeleteIds !== null,
         platform,
+        onPurge: setPurgeIds,
+        onOriginalDelete: setOriginalDeleteIds,
+        originalDeletePreflight: (request) => window.overlook.library.originalDeletePreflight(request),
+        originalDeleteCancel: (request) => window.overlook.library.originalDeleteCancel(request),
       });
-      if (command?.id !== 'photo.purge') return;
-      const targetIds = state.selection.size > 0 ? [...state.selection] : state.lightboxId === null ? [] : [state.lightboxId];
-      if (targetIds.length === 0) return;
-      if (state.photos.some((photo) => targetIds.includes(photo.id) && photo.isOriginal)) {
-        event.preventDefault();
-        setOriginalDeleteIds(targetIds);
-        return;
-      }
-      // A complete Select All spans unloaded pages (#884), so loaded rows can
-      // never rule a protected Original out. Main owns that answer: preflight
-      // rejects a selection with nothing protected, and the probe challenge is
-      // cancelled straight away so the dialog opens its own ceremony.
-      const loaded = new Set(state.photos.map(({ id }) => id));
-      if (targetIds.every((id) => loaded.has(id))) return;
-      event.preventDefault();
-      void window.overlook.library
-        .originalDeletePreflight({ photoIds: targetIds })
-        .then(({ challengeId }) => {
-          void window.overlook.library.originalDeleteCancel({ challengeId });
-          setOriginalDeleteIds(targetIds);
-        })
-        .catch(() => {
-          // Nothing protected in the unloaded pages: no ceremony is owed.
-        });
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [originalDeleteIds, platform, purgeIds, quickAlbumIds, state]);
+  }, [inTrash, originalDeleteIds, platform, purgeIds, quickAlbumIds, state]);
   const trashPolicy = intl.formatMessage(retentionDays === null ? messages.trashPolicyOff : messages.trashPolicyDays, {
     days: retentionDays,
   });

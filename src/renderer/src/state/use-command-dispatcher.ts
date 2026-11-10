@@ -6,6 +6,7 @@ import { directionOf } from '../../../shared/i18n/locales.js';
 import { useAppDispatch, useAppState } from './app-state-context';
 import { lightboxStepForKey } from './lightbox-direction';
 import { getApplicationThemeLayer } from '../theme/user-theme-layer';
+import { deletePhoto } from '../shell/delete-photo';
 
 function commandPlatform(platform: string): CommandPlatform {
   if (platform === 'darwin') return 'darwin';
@@ -144,7 +145,7 @@ export function useCommandDispatcher(
         }
         case 'photo.favorite.toggle': {
           const photo = state.photos.find(({ id: photoId }) => photoId === state.lightboxId);
-          if (photo === undefined) return false;
+          if (photo === undefined || photo.deletedAt !== null) return false;
           void window.overlook.library.toggleFavorite({ id: photo.id }).then(({ pendingCount }) => {
             dispatch({ type: 'pendingCount/set', count: pendingCount });
           });
@@ -153,15 +154,7 @@ export function useCommandDispatcher(
         case 'photo.trash': {
           const photo = state.photos.find(({ id: photoId }) => photoId === state.lightboxId);
           if (photo === undefined || photo.deletedAt !== null) return false;
-          void window.overlook.library.delete({ photoIds: [photo.id] }).then(({ protected: protectedCount }) => {
-            dispatch({
-              type: 'toast/shown',
-              toast: {
-                title: protectedCount === 0 ? 'Moved 1 photo to Trash' : 'Preserved 1 protected Original',
-                tone: protectedCount === 0 ? 'neutral' : 'amber',
-              },
-            });
-          });
+          deletePhoto(photo.id, dispatch);
           return true;
         }
         case 'view.lightbox.zoomIn':
