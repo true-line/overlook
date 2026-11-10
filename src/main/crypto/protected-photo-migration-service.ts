@@ -6,6 +6,7 @@ import type { BackupManifestEditRevisionV11 } from '../backup/backup-manifest-ed
 import type { BlobStore } from '../blobs/blob-store.js';
 import type { ProtectedBlobStore } from '../blobs/protected-blob-store.js';
 import type { PhotosRepository } from '../db/photos-repository.js';
+import { variantDerivativeKey } from '../db/variant-repository.js';
 import type {
   OrdinaryAlbumRestoration,
   ProtectedMigrationJournal,
@@ -17,6 +18,29 @@ import type {
 import type { EnvelopeKey, KeyResolver } from './envelope.js';
 import { openProtectedPhotoMetadata, sealProtectedPhotoMetadata, type ProtectedPhotoMetadata } from './protected-photo-metadata.js';
 import type { PhotoInsert, PhotoRecord } from '../../shared/library/types.js';
+
+interface UnprotectItemLayout {
+  readonly ownerPhotoId: string;
+  readonly derivativeKey: string;
+}
+
+function unprotectBatchLayout(items: readonly ProtectedMigrationItem[]): ReadonlyMap<string, UnprotectItemLayout> {
+  const ownerByHash = new Map<string, string>();
+  const layout = new Map<string, UnprotectItemLayout>();
+  for (const item of items) {
+    const existingOwner = ownerByHash.get(item.targetBlobRef);
+    if (existingOwner === undefined) {
+      ownerByHash.set(item.targetBlobRef, item.photoId);
+      layout.set(item.photoId, { ownerPhotoId: item.photoId, derivativeKey: item.targetBlobRef });
+    } else {
+      layout.set(item.photoId, {
+        ownerPhotoId: existingOwner,
+        derivativeKey: variantDerivativeKey(item.photoId, item.targetBlobRef),
+      });
+    }
+  }
+  return layout;
+}
 
 export interface ProtectedMigrationAuthority {
   readonly sourceAlbumKey?: Buffer;
@@ -41,7 +65,7 @@ export interface ProtectedPhotoMigrationServiceOptions {
   readonly protectedBlobs: ProtectedBlobStore;
   readonly photos: PhotosRepository;
   readonly migrations: ProtectedPhotoMigrationRepository;
-  /** Protection removes an ordinary row from the backup manifest. */
+  /** Marks backup manifest debt when custody or protected records commit. */
   readonly oweManifest: () => void;
   /** Eagerly zeroizes ordinary media generations before the row becomes
    * hidden. Repository admission remains the second, durable boundary. */
@@ -233,7 +257,7 @@ export class ProtectedPhotoMigrationService {
       case 'verify':
         await this.verifyTarget(journal, authority);
         this.commit(journal, authority);
-        if (journal.operation === 'protect') this.options.oweManifest();
+        this.options.oweManifest();
         break;
       case 'commit':
         this.options.migrations.markPurging(migrationId);
@@ -266,7 +290,7 @@ export class ProtectedPhotoMigrationService {
     const awaitingAuthority: string[] = [];
     for (const journal of this.options.migrations.listJournals()) {
       if (journal.phase === 'commit' || journal.phase === 'purge') {
-        if (journal.operation === 'protect') this.options.oweManifest();
+        this.options.oweManifest();
         awaitingAuthority.push(journal.migrationId);
         continue;
       }
@@ -278,9 +302,10 @@ export class ProtectedPhotoMigrationService {
   }
 
   private async copy(journal: ProtectedMigrationJournal, authority: ProtectedMigrationAuthority): Promise<void> {
+    const unprotectLayout = journal.operation === 'unprotect' ? unprotectBatchLayout(journal.items) : undefined;
     for (const item of journal.items) {
       if (journal.operation === 'protect') await this.copyProtect(journal, item, authority);
-      else if (journal.operation === 'unprotect') await this.copyUnprotect(journal, item, authority);
+      else if (journal.operation === 'unprotect') await this.copyUnprotect(journal, item, authority, unprotectLayout!.get(item.photoId)!);
       else await this.copyMove(journal, item, authority);
     }
   }
@@ -322,31 +347,37 @@ export class ProtectedPhotoMigrationService {
     journal: ProtectedMigrationJournal,
     item: ProtectedMigrationItem,
     authority: ProtectedMigrationAuthority,
+    itemLayout: UnprotectItemLayout,
   ): Promise<void> {
     const albumId = journal.sourceAlbumId!;
     const albumKey = requireAlbumKey(authority.sourceAlbumKey, 'source album');
     const targetKey = authority.targetLibraryKey;
     if (targetKey === undefined) throw new ProtectedPhotoMigrationServiceError('ordinary library write authority is required');
-    const written = await this.options.ordinaryBlobs.putOriginal(
-      this.options.protectedBlobs.getStream(albumId, item.sourceBlobRef, 'original', albumKey),
-      targetKey,
-      item.photoId,
-    );
-    if (written.contentHash !== item.targetBlobRef || written.keyId !== targetKey.id) {
-      throw new ProtectedPhotoMigrationServiceError('ordinary target did not use the active library key');
+    if (item.photoId === itemLayout.ownerPhotoId) {
+      const written = await this.options.ordinaryBlobs.putOriginal(
+        this.options.protectedBlobs.getStream(albumId, item.sourceBlobRef, 'original', albumKey),
+        targetKey,
+        itemLayout.ownerPhotoId,
+      );
+      if (written.contentHash !== item.targetBlobRef || written.keyId !== targetKey.id) {
+        throw new ProtectedPhotoMigrationServiceError('ordinary target did not use the active library key');
+      }
+    } else {
+      const validSource = await this.options.protectedBlobs.verify(albumId, item.sourceBlobRef, 'original', albumKey, item.targetBlobRef);
+      if (!validSource) throw new ProtectedPhotoMigrationServiceError('protected source original failed verification');
     }
     await this.options.ordinaryBlobs.putThumb(
       this.options.protectedBlobs.getStream(albumId, item.sourceBlobRef, 'thumb', albumKey),
       targetKey,
       item.photoId,
-      item.targetBlobRef,
+      itemLayout.derivativeKey,
       'thumb',
     );
     await this.options.ordinaryBlobs.putThumb(
       this.options.protectedBlobs.getStream(albumId, item.sourceBlobRef, 'mid', albumKey),
       targetKey,
       item.photoId,
-      item.targetBlobRef,
+      itemLayout.derivativeKey,
       'mid',
     );
   }
@@ -380,15 +411,17 @@ export class ProtectedPhotoMigrationService {
   }
 
   private async verifyTarget(journal: ProtectedMigrationJournal, authority: ProtectedMigrationAuthority): Promise<void> {
+    const unprotectLayout = journal.operation === 'unprotect' ? unprotectBatchLayout(journal.items) : undefined;
     for (const item of journal.items) {
       const metadata = this.metadata(journal, item, authority);
       if (journal.operation === 'unprotect') {
+        const itemLayout = unprotectLayout!.get(item.photoId)!;
         const targetKey = authority.targetLibraryKey;
         if (targetKey === undefined) throw new ProtectedPhotoMigrationServiceError('ordinary library write authority is required');
         const fallback = authority.libraryResolver;
         const resolver: KeyResolver = (keyId) => (keyId === targetKey.id ? targetKey.key : fallback?.(keyId));
-        const validOriginal = await this.options.ordinaryBlobs.verifyOriginal(item.targetBlobRef, resolver, item.photoId);
-        const validThumbs = await this.options.ordinaryBlobs.verifyThumbs(item.targetBlobRef, resolver, item.photoId);
+        const validOriginal = await this.options.ordinaryBlobs.verifyOriginal(item.targetBlobRef, resolver, itemLayout.ownerPhotoId);
+        const validThumbs = await this.options.ordinaryBlobs.verifyThumbs(itemLayout.derivativeKey, resolver, item.photoId);
         if (!validOriginal || !validThumbs) throw new ProtectedPhotoMigrationServiceError('ordinary destination failed verification');
         continue;
       }
@@ -420,6 +453,7 @@ export class ProtectedPhotoMigrationService {
     }
     const targetKey = authority.targetLibraryKey;
     if (targetKey === undefined) throw new ProtectedPhotoMigrationServiceError('ordinary library write authority is required');
+    const unprotectLayout = unprotectBatchLayout(journal.items);
     const restorations = new Map<
       string,
       {
@@ -431,9 +465,17 @@ export class ProtectedPhotoMigrationService {
     for (const item of journal.items) {
       const metadata = this.metadata(journal, item, authority);
       if (metadata.photo.deletedAt !== null) throw new ProtectedPhotoMigrationServiceError('deleted photos cannot be unprotected');
+      const itemLayout = unprotectLayout.get(item.photoId)!;
+      const isBatchOwner = item.photoId === itemLayout.ownerPhotoId;
       const { deletedAt: _deletedAt, ...photo } = metadata.photo;
       restorations.set(item.photoId, {
-        photo: { ...photo, keyId: targetKey.id },
+        photo: {
+          ...photo,
+          keyId: targetKey.id,
+          derivativeKey: itemLayout.derivativeKey,
+          variantSourceId: isBatchOwner ? null : itemLayout.ownerPhotoId,
+          assetOwnerId: isBatchOwner ? null : itemLayout.ownerPhotoId,
+        },
         memberships: metadata.ordinaryMemberships,
         ...(metadata.version === 2 ? { editRevisions: metadata.editRevisions } : {}),
       });
@@ -478,10 +520,17 @@ export class ProtectedPhotoMigrationService {
   }
 
   private async deleteUncommittedTarget(journal: ProtectedMigrationJournal): Promise<void> {
+    const unprotectLayout = journal.operation === 'unprotect' ? unprotectBatchLayout(journal.items) : undefined;
     for (const item of journal.items) {
       if (journal.operation === 'unprotect') {
-        await this.options.ordinaryBlobs.deleteOriginal(item.targetBlobRef);
-        await this.options.ordinaryBlobs.deleteThumbs(item.targetBlobRef);
+        const itemLayout = unprotectLayout!.get(item.photoId)!;
+        if (this.options.migrations.countOrdinaryBlobOwners(item.targetBlobRef) === 0) {
+          await this.options.ordinaryBlobs.deleteOriginal(item.targetBlobRef);
+          await this.options.ordinaryBlobs.deleteThumbs(item.targetBlobRef);
+        }
+        if (itemLayout.derivativeKey !== item.targetBlobRef) {
+          await this.options.ordinaryBlobs.deleteThumbs(itemLayout.derivativeKey);
+        }
       } else if (this.options.migrations.countProtectedBlobOwners(journal.targetAlbumId!, item.targetBlobRef) === 0) {
         await this.options.protectedBlobs.deleteBlob(journal.targetAlbumId!, item.targetBlobRef);
       }
