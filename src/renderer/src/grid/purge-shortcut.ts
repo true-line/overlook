@@ -4,6 +4,7 @@ import type { PhotoRecord } from '../../../shared/library/types.js';
 interface PurgeShortcutOptions {
   readonly event: KeyboardEvent;
   readonly inTrash: boolean;
+  readonly isInTrash?: () => boolean;
   readonly lightboxId: string | null;
   readonly selection: ReadonlySet<string>;
   readonly photos: readonly Pick<PhotoRecord, 'id' | 'isOriginal'>[];
@@ -55,7 +56,9 @@ export function handlePurgeShortcut(options: PurgeShortcutOptions): void {
     })
     .catch(() => {
       // Nothing protected in the unloaded pages: open Trash purge confirmation
-      // when in Trash, and remain a no-op outside Trash.
-      if (inTrash) options.onPurge(targetIds);
+      // only if the user is still in Trash when the async probe settles.
+      if (options.isInTrash !== undefined ? options.isInTrash() : inTrash) {
+        options.onPurge(targetIds);
+      }
     });
 }

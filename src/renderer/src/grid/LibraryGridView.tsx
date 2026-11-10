@@ -232,16 +232,21 @@ export function LibraryGridView({
     quickAlbumIds !== null ||
     contextPhoto !== null;
   const retentionDays = trashRetentionDays(trashRetention);
+  const inTrashRef = useRef(inTrash);
+  useEffect(() => {
+    inTrashRef.current = inTrash;
+  }, [inTrash]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       handlePurgeShortcut({
         event,
         inTrash,
+        isInTrash: () => inTrashRef.current,
         lightboxId: state.lightboxId,
         selection: state.selection,
         photos: state.photos,
-        dialogOpen: anyDialogOpen(state) || purgeIds !== null || quickAlbumIds !== null,
+        dialogOpen: anyDialogOpen(state) || purgeIds !== null || quickAlbumIds !== null || contextPhoto !== null,
         originalDeleteOpen: originalDeleteIds !== null,
         platform,
         onPurge: setPurgeIds,
@@ -252,7 +257,7 @@ export function LibraryGridView({
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [inTrash, originalDeleteIds, platform, purgeIds, quickAlbumIds, state]);
+  }, [contextPhoto, inTrash, originalDeleteIds, platform, purgeIds, quickAlbumIds, state]);
   const trashPolicy = intl.formatMessage(retentionDays === null ? messages.trashPolicyOff : messages.trashPolicyDays, {
     days: retentionDays,
   });

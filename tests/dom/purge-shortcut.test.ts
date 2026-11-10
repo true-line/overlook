@@ -106,4 +106,50 @@ test('Shift+Delete preserves OriginalDeleteDialog for protected Originals and un
   await Promise.resolve();
   assert.deepEqual(purged, [['loaded-1', 'unloaded-2']]);
   assert.deepEqual(cancelled, []);
+
+  // Leaving Trash before the async preflight settles suppresses PurgeConfirm,
+  // and dialogOpen (including an open context menu) blocks the shortcut.
+  let stillInTrash = true;
+  let rejectPreflight = (_reason?: unknown): void => {};
+  handlePurgeShortcut({
+    event: shiftDeleteEvent(),
+    inTrash: true,
+    isInTrash: () => stillInTrash,
+    lightboxId: null,
+    selection: new Set(['loaded-1', 'unloaded-2']),
+    photos: [{ id: 'loaded-1', isOriginal: false }],
+    dialogOpen: false,
+    originalDeleteOpen: false,
+    platform: 'linux',
+    onPurge: (ids) => purged.push(ids),
+    onOriginalDelete: (ids) => originalDeletes.push(ids),
+    originalDeletePreflight: () =>
+      new Promise((_resolve, reject) => {
+        rejectPreflight = reject;
+      }),
+    originalDeleteCancel: () => Promise.resolve(),
+  });
+  stillInTrash = false;
+  rejectPreflight(new Error('no protected originals'));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(purged, [['loaded-1', 'unloaded-2']]);
+
+  const contextMenuOpenEvent = shiftDeleteEvent();
+  handlePurgeShortcut({
+    event: contextMenuOpenEvent,
+    inTrash: true,
+    lightboxId: null,
+    selection: new Set(['loaded-1']),
+    photos: [{ id: 'loaded-1', isOriginal: false }],
+    dialogOpen: true,
+    originalDeleteOpen: false,
+    platform: 'darwin',
+    onPurge: (ids) => purged.push(ids),
+    onOriginalDelete: (ids) => originalDeletes.push(ids),
+    originalDeletePreflight: () => Promise.reject(new Error('unexpected preflight')),
+    originalDeleteCancel: () => Promise.resolve(),
+  });
+  assert.equal(contextMenuOpenEvent.defaultPrevented, false);
+  assert.deepEqual(purged, [['loaded-1', 'unloaded-2']]);
 });
