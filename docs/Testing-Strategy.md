@@ -38,31 +38,28 @@
 
 `npm test` and `npm run test:cov` dispatch the unit, renderer DOM, and
 guard-conformance lanes through `scripts/run-test-lanes.mjs`: all three run to
-completion and the runner fails once at the end, naming every failed lane. It
-replaced an `&&` chain that let the first red lane skip the rest — which under
-c8 also moved the numbers, since the DOM lane is what covers the renderer files
-`.c8rc.json` admits, and a lane that never runs reports them at 0% (PR #995: a
-single broken test file read as a coverage-floor breach for ten runs while three
-real DOM failures sat in the skipped lane). A lane killed by a signal — the
-guard's `rss-limit` kill, a timeout, the kernel OOM killer, Ctrl-C — still stops
-the run; the lanes after it are reported as not-run, never as passed. That holds
-even when a compound lane script's shell outlives its killed child and reports
-the death as exit 128+N instead of a signal.
+completion and the runner fails once at the end, naming every failed lane. That
+replaced an `&&` chain where a first red lane skipped the DOM lane and zeroed
+admitted renderer c8 coverage (PR #995: one broken test file masked three DOM
+failures behind a coverage breach). A signal kill (timeout, OOM, Ctrl-C, or
+shell exit 128+N) still stops the run and marks remaining lanes not-run, never
+passed.
 
 ### Compile-then-run model
 
-Unit tests run against compiled JS: `tsconfig.test.json` emits unit-testable
-sources (`src/shared/` + `tests/`, `jsx: react-jsx` ready for future `.tsx`)
-to `.test-dist/`, then `node --test` runs the output — no loader magic.
-**The unit runtime is Electron's own Node** (`ELECTRON_RUN_AS_NODE=1 electron
---test`, #72): native modules in `node_modules` must load in the same runtime as
-the app. Encrypted SQLite v13 uses bundled Node-API prebuilds across supported
-Electron majors. The shipped native set is now entirely Node-API or loadable
-extensions, so electron-builder's ABI rebuild is disabled; adding an ABI-bound
-module requires restoring a selective rebuild strategy. Plain `node` is not the
-native-runtime proof. E2E builds the app once in
-`tests/e2e/global-setup.ts` (concurrent builds would clobber each other's
-output).
+Unit tests run compiled JS: `tsconfig.test.json` emits `src/shared/` + `tests/`
+(`jsx: react-jsx`) to `.test-dist/` for `--test` without loader magic. **The
+unit runtime on shipped desktop targets (macOS, Windows) is Electron's own
+Node** (`ELECTRON_RUN_AS_NODE=1 electron --test`, #72): native modules in
+`node_modules` must load in the same runtime as the app. Encrypted SQLite v13
+uses bundled Node-API prebuilds across supported Electron majors. Because all
+shipped native modules are Node-API or loadable extensions, electron-builder's
+ABI rebuild is disabled; adding an ABI-bound module requires restoring selective
+rebuilds. On hosted Linux CI, `run-electron-node-test.mjs` uses `.nvmrc` `node`
+to avoid `SharpElectronLinux` GLib symbol collisions under
+`ELECTRON_RUN_AS_NODE=1`; Windows CI covers `ELECTRON_RUN_AS_NODE=1` and Linux
+Xvfb E2E exercises full Electron. E2E builds the app once in
+`tests/e2e/global-setup.ts` so parallel workers do not clobber build output.
 
 ### Electron multi-process gate coverage (#51)
 

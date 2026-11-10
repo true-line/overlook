@@ -297,4 +297,28 @@ describe('BlobStore', () => {
     const expected = join(dataDir, 'blobs', ref.contentHash.slice(0, 2), ref.contentHash.slice(2, 4), ref.contentHash);
     assert.ok(statSync(expected).isFile());
   });
+
+  test('restoreSidecar replaces a corrupt existing sidecar atomically and deleteSidecar spares valid siblings (#1431)', async () => {
+    const { store, dataDir } = await freshStore();
+    const firstPlain = Buffer.from('companion-xmp-one');
+    const secondPlain = Buffer.from('companion-aae-two');
+    const first = await store.putSidecar(Readable.from([firstPlain]), KEY, 'photo-sidecar');
+    const second = await store.putSidecar(Readable.from([secondPlain]), KEY, 'photo-sidecar');
+    const validCiphertext = await buffer(store.getEncryptedSidecarStream('photo-sidecar', first.contentHash));
+
+    // Corrupt the on-disk sidecar file as if a resumed restore had a damaged checkpointed file.
+    const firstPath = join(dataDir, 'sidecars', 'ph', 'photo-sidecar', first.contentHash);
+    writeFileSync(firstPath, randomBytes(validCiphertext.length));
+    assert.equal(await store.verifySidecar('photo-sidecar', first.contentHash, RESOLVE), false);
+
+    // Retrying restoreSidecar with valid provider ciphertext replaces the corrupt file cleanly.
+    await store.restoreSidecar('photo-sidecar', first.contentHash, Readable.from([validCiphertext]), RESOLVE);
+    assert.equal(await store.verifySidecar('photo-sidecar', first.contentHash, RESOLVE), true);
+    assert.deepEqual(await buffer(store.getSidecarStream('photo-sidecar', first.contentHash, RESOLVE)), firstPlain);
+
+    // deleteSidecar removes only the targeted companion, leaving the sibling companion intact.
+    await store.deleteSidecar('photo-sidecar', first.contentHash);
+    assert.equal(await store.verifySidecar('photo-sidecar', first.contentHash, RESOLVE), false);
+    assert.equal(await store.verifySidecar('photo-sidecar', second.contentHash, RESOLVE), true);
+  });
 });

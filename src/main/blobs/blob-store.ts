@@ -225,15 +225,26 @@ export class BlobStore {
         if (!isErrno(error, 'EEXIST')) throw error;
         existed = true;
       }
-      await rm(stagePath, { force: true });
-      if (existed && !(await this.verifySidecar(photoId, contentHash, resolveKey))) {
-        throw new BlobStoreError(`restored sidecar ${contentHash} of ${photoId} failed verification`);
+      if (existed) {
+        if (await this.verifySidecar(photoId, contentHash, resolveKey)) {
+          await rm(stagePath, { force: true });
+        } else {
+          await rename(stagePath, finalPath);
+        }
+      } else {
+        await rm(stagePath, { force: true });
       }
       await syncDirectoryEntry(dirname(finalPath));
     } catch (error) {
       await rm(stagePath, { force: true });
       throw error;
     }
+  }
+
+  /** Removes a single corrupt companion file without disturbing valid siblings on the same owner. */
+  async deleteSidecar(photoId: string, contentHash: string): Promise<void> {
+    assertHash(contentHash);
+    await rm(this.sidecarPath(photoId, contentHash), { force: true });
   }
 
   /** Removes the photo's entire companion set — purge travels with the
