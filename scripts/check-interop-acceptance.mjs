@@ -6,11 +6,11 @@ import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-const LOCAL_REPOSITORY = 'qwts/photos';
-const COMPANION_REPOSITORY = 'qwts/image-trail';
+const LOCAL_REPOSITORY = 'true-line/overlook';
+const COMPANION_REPOSITORY = 'true-line/image-trail';
 const COMPANION_COMMIT = 'cf3fe884c7729db73cfe0ddb7c90be6c4d881c09';
 const MANIFEST_PATH = 'design/handoff/contracts/v1/acceptance-evidence.json';
-const REPOSITORIES = new Set(['qwts/image-trail', 'qwts/photos']);
+const REPOSITORIES = new Set(['true-line/image-trail', 'true-line/overlook']);
 const EXPECTED_SCENARIOS = new Set([
   'move-overlook-to-image-trail',
   'move-image-trail-to-overlook',
@@ -119,12 +119,12 @@ async function validateEvidence(evidence, scenarioId, repositoryRoots, failures)
 function validateManualCheck(check, requireManual, failures) {
   const label = nonEmptyString(check?.id) ? check.id : 'manual check';
   if (!['pending', 'verified'].includes(check?.status)) failures.push(`${label}: status must be pending or verified.`);
-  if (!nonEmptyString(check?.runbook) || !check.runbook.startsWith('https://github.com/qwts/')) {
-    failures.push(`${label}: runbook must be a qwts GitHub URL.`);
+  if (!nonEmptyString(check?.runbook) || !check.runbook.startsWith('https://github.com/true-line/')) {
+    failures.push(`${label}: runbook must be a true-line GitHub URL.`);
   }
   if (check?.status === 'verified') {
-    if (!nonEmptyString(check?.evidence?.url) || !check.evidence.url.startsWith('https://github.com/qwts/')) {
-      failures.push(`${label}: verified evidence requires a qwts GitHub URL.`);
+    if (!nonEmptyString(check?.evidence?.url) || !check.evidence.url.startsWith('https://github.com/true-line/')) {
+      failures.push(`${label}: verified evidence requires a true-line GitHub URL.`);
     }
     if (!nonEmptyString(check?.evidence?.runAt) || Number.isNaN(Date.parse(check.evidence.runAt))) {
       failures.push(`${label}: verified evidence requires an ISO runAt timestamp.`);
@@ -145,11 +145,11 @@ export async function verifyInteropAcceptance(options = {}) {
 
   if (manifest.schemaVersion !== 1) failures.push('schemaVersion must be 1.');
   if (manifest.contractVersion !== 1) failures.push('contractVersion must be 1.');
-  if (manifest.canonicalRepository !== 'qwts/photos') failures.push('canonicalRepository must be qwts/photos.');
+  if (manifest.canonicalRepository !== 'true-line/overlook') failures.push('canonicalRepository must be true-line/overlook.');
   if (
     !arrayOfStrings(manifest.parentIssues) ||
-    !manifest.parentIssues.includes('qwts/image-trail#560') ||
-    !manifest.parentIssues.includes('qwts/photos#283')
+    !manifest.parentIssues.includes('true-line/image-trail#560') ||
+    !manifest.parentIssues.includes('true-line/overlook#283')
   ) {
     failures.push('parentIssues must name both companion epics.');
   }

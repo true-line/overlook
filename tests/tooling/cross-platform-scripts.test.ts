@@ -6,6 +6,7 @@ import { describe, test } from 'node:test';
 
 interface ScriptUtilities {
   readonly electronTestEnvironment: (environment: NodeJS.ProcessEnv) => NodeJS.ProcessEnv;
+  readonly unitTestExecutable: (platform?: NodeJS.Platform, nodeExecutable?: string) => string;
   readonly resolveRemoval: (root: string, candidate: string) => string;
   readonly assertPlatform: (
     expectedPlatform: string,
@@ -15,10 +16,9 @@ interface ScriptUtilities {
 }
 
 const root = process.cwd();
-const { electronTestEnvironment } = (await import(pathToFileURL(path.join(root, 'scripts/run-electron-node-test.mjs')).href)) as Pick<
-  ScriptUtilities,
-  'electronTestEnvironment'
->;
+const { electronTestEnvironment, unitTestExecutable } = (await import(
+  pathToFileURL(path.join(root, 'scripts/run-electron-node-test.mjs')).href
+)) as Pick<ScriptUtilities, 'electronTestEnvironment' | 'unitTestExecutable'>;
 const { resolveRemoval } = (await import(pathToFileURL(path.join(root, 'scripts/remove-paths.mjs')).href)) as Pick<
   ScriptUtilities,
   'resolveRemoval'
@@ -42,6 +42,9 @@ describe('cross-platform test commands (#1083)', () => {
       SENTINEL: 'kept',
       ELECTRON_RUN_AS_NODE: '1',
     });
+    assert.equal(unitTestExecutable('linux', '/opt/node/bin/node'), '/opt/node/bin/node');
+    assert.notEqual(unitTestExecutable('darwin', '/opt/node/bin/node'), '/opt/node/bin/node');
+    assert.notEqual(unitTestExecutable('win32', '/opt/node/bin/node'), '/opt/node/bin/node');
   });
 
   test('native runner assertions fail closed on an emulated architecture', () => {

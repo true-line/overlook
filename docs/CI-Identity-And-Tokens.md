@@ -23,9 +23,9 @@ stranded-tag recovery; version, tag, and release-verification lanes share
 Changesets' semantic release count.
 
 A bot rather than a human PAT, for a concrete reason: a PAT opens the version PR
-as `qwts`, who cannot approve their own PR, so every release cut needed a ruleset
-bypass. Repository chores get a bot identity; agents get their own Apps, and the
-two never share one.
+under an individual maintainer account, which cannot approve its own PR, so every
+release cut needed a ruleset bypass. Repository chores get a bot identity; agents
+get their own Apps, and the two never share one.
 
 ## Why `GITHUB_TOKEN` is not enough
 
@@ -45,7 +45,7 @@ tools cannot influence those evidence checks.
 **The App credential may reach only `actions/*` steps and our own `run:` blocks
 — never a third-party action**, whose future versions nobody here controls. When a
 third-party action is the only thing standing between the App credential and the
-run you need, replace it or drop it. Third-party `uses:` are SHA-pinned with `# vX.Y.Z` (`pinact run --verify`, config `.pinact.yml`); `ci-policy@40d1c46` is immutable and ignored by both Dependabot and `pinact` (#1038, #1024); the `zizmor` `unpinned-uses` gate (`.github/zizmor.yml`, job `zizmor` in `ci.yml`) blocks any new unpinned reference — only `unpinned-uses` is merge-blocking until `qwts/agent-sop#6` ships the shared `security-scan.yml` (see [#716](https://github.com/qwts/overlook/issues/716)). Two precedents:
+run you need, replace it or drop it. Third-party `uses:` are SHA-pinned with `# vX.Y.Z` (`pinact run --verify`, config `.pinact.yml`); `true-line/trueline-agent-ci/.github/actions/ci-policy@8ec38da3` is immutable and ignored by both Dependabot and `pinact` (#1038, #1024); the `zizmor` `unpinned-uses` gate (`.github/zizmor.yml`, job `zizmor` in `ci.yml`) blocks any new unpinned reference — only `unpinned-uses` is merge-blocking until `qwts/agent-sop#6` ships the shared `security-scan.yml` (see [#716](https://github.com/true-line/overlook/issues/716)). Two precedents:
 
 - versioning is a script in `version-cut.yml` rather than `changesets/action`,
   for exactly this reason;
@@ -57,10 +57,10 @@ Each agent worktree runs as its own `<slug>[bot]` App installation, minted by th
 `WorktreeCreate` hook in the harness user-directory configuration
 ([ENG-0016](https://github.com/qwts/agent-sop/blob/master/docs/decisions/ENG-0016-agent-pr-bot-identity.md)).
 `git` and `gh` are the only sanctioned write paths: a GitHub MCP connector
-carries the human's OAuth and bypasses both, so a PR appearing as `qwts` despite
-a working shim means a connector made it. Agent checkouts use **HTTPS remotes**,
-because an SSH remote authenticates the push with the human's key regardless of
-`GH_TOKEN`.
+carries the human's OAuth and bypasses both, so a PR appearing under a human
+maintainer account despite a working shim means a connector made it. Agent
+checkouts use **HTTPS remotes**, because an SSH remote authenticates the push
+with the human's key regardless of `GH_TOKEN`.
 
 Commits created with `git commit` in a bot worktree cannot be Verified — the
 worktree deliberately sets `commit.gpgsign=false`, since signing a bot's commit
@@ -69,18 +69,19 @@ through the Git Data API, which GitHub signs server-side.
 
 ## Merge automation
 
-GitHub's native merge queue is organization-only, so this user-owned repository
-keeps `.github/workflows/auto-update-prs.yml`. After a `main` push, PR open, or
-ready transition, the workflow uses `chores-dumb[bot]` to merge current `main`
-into each eligible ready branch through the update-branch API. The resulting
-`synchronize` event runs the complete suite, and strict required checks prevent
-auto-merge from landing stale evidence.
+`true-line/overlook` is a private repository in the `true-line` organization and
+currently retains `.github/workflows/auto-update-prs.yml` until a native merge
+queue is rolled out. After a `main` push, PR open, or ready transition, the
+workflow uses `chores-dumb[bot]` to merge current `main` into each eligible
+ready branch through the update-branch API. The resulting `synchronize` event
+runs the complete suite, and strict required checks prevent auto-merge from
+landing stale evidence.
 
 The final merge commit has a new SHA, so it is not treated as the validated PR
 head. Its `main` push therefore runs the complete-suite fallback plus
 default-branch CodeQL. The `merge_group` lane and the shared policy action's
-narrow merge-queue actor exception remain dormant compatibility for a future
-transfer to an organization; they do not justify skipping exact-commit checks.
+narrow merge-queue actor exception remain dormant compatibility until native
+merge-queue enablement; they do not justify skipping exact-commit checks.
 
 Worker jobs use explicit `!cancelled()` status conditions so skipped evidence
 jobs still permit required fallback work, while superseded runs release their
@@ -119,14 +120,15 @@ Consequences worth knowing before touching a branch:
 
 ## Workflow actor boundary
 
-The immutable playbook CI-policy action permits only `qwts`,
-`chores-dumb[bot]`, `dependabot[bot]`, and active `<agent-slug>[bot]` Apps from
-the governed roster. It checks both `github.actor` and
+The immutable playbook CI-policy action permits only authorized `true-line`
+maintainers, `chores-dumb[bot]`, `dependabot[bot]`, and active `<agent-slug>[bot]`
+Apps from the governed roster. It checks both `github.actor` and
 `github.triggering_actor`; credentials do not grant actor authorization. The one
 system exception requires both actor fields to be `github-merge-queue[bot]`, the
 event to be `push`, and the ref to be `refs/heads/main`. That exception cannot
-authorize PR, queue-candidate, manual, tag, or non-main events and is dormant in
-this user-owned repository. Public-fork runs are never approved.
+authorize PR, queue-candidate, manual, tag, or non-main events and remains
+dormant until a native merge queue is enabled. External fork runs are never
+approved.
 
 Every direct non-CI entrypoint runs that same immutable action in
 authorization-only mode before checkout, credential minting, or repository
@@ -143,7 +145,7 @@ after the replacement contexts first report successfully:
    preview picker cannot express event-scoped GitHub system exceptions, while
    using the Write role would authorize unrelated current and future writers.
    Require approval for all external-contributor workflows, never approve
-   public-fork runs, keep the default workflow token read-only, and retain the
+   external fork runs, keep the default workflow token read-only, and retain the
    action-source allowlist and full-SHA pinning.
 2. Switch **Advanced Security → CodeQL analysis** from default to Advanced
    after a manual CI run proves both configured languages and the stable
@@ -157,8 +159,8 @@ after the replacement contexts first report successfully:
    context only after its Advanced replacement reports successfully.
 4. Retain strict status checks, approval, CODEOWNERS, resolved-thread
    requirements, auto-merge, and merge commits. Keep the governed branch updater
-   enabled until the repository is transferred to an organization; only then may
-   a native `MERGE` queue replace it after exact-SHA validation is proven.
+   enabled in `true-line/overlook` until a native `MERGE` queue is enabled and
+   exact-SHA merge-group validation is proven.
 
 No secret is added merely for actor authorization. The existing `CHORES_DUMB`
 credentials remain required by the governed branch updater and version/tag
