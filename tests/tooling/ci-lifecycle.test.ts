@@ -29,7 +29,7 @@ describe('governed CI lifecycle (ENG-0004)', () => {
   });
 
   test('loads actor and fork enforcement from the reviewed immutable policy commit', () => {
-    assert.match(ci, /uses: true-line\/trueline-agent-ci\/\.github\/actions\/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a/u);
+    assert.match(ci, /uses: true-line\/trueline-agent-ci\/\.github\/actions\/ci-policy@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad/u);
     assert.doesNotMatch(ci, /uses: \.\/\.github\/actions\/ci-policy/u);
     assert.match(ci, /github\.event\.pull_request\.draft == false/u);
   });
@@ -48,7 +48,7 @@ describe('governed CI lifecycle (ENG-0004)', () => {
     for (const workflow of workflows) {
       assert.match(workflow, /^ {2}policy:$/mu);
       assert.match(workflow, /authorization-only: 'true'/u);
-      assert.match(workflow, /ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a/u);
+      assert.match(workflow, /ci-policy@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad/u);
     }
     for (const [workflow, jobs] of [
       [autoUpdate, ['update']],
@@ -118,10 +118,10 @@ describe('governed CI lifecycle (ENG-0004)', () => {
     assert.doesNotMatch(sources, /^\s*run: (?:npm (?:ci|install)|npm --prefix .* clean-install|npx playwright install)/gmu);
     assert.match(
       sources,
-      /uses: true-line\/trueline-agent-ci\/\.github\/actions\/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a/u,
+      /uses: true-line\/trueline-agent-ci\/\.github\/actions\/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad/u,
     );
     assert.match(ci, /name: Workflow runtime policy/u);
-    assert.match(ci, /ref: 87c6b301057992f79a723f63c64624bf40c9d06a/u);
+    assert.match(ci, /ref: 8ec38da39c9b43af2181d1f5e5b7e09226c0bfad/u);
     assert.match(ci, /runtime-policy\.mjs --root "\$GITHUB_WORKSPACE"/u);
     assert.match(ci, /WORKFLOW_RUNTIME: \$\{\{ needs\.workflow-runtime\.result \}\}/u);
     assert.match(ci, /test "\$WORKFLOW_RUNTIME" = success/u);
