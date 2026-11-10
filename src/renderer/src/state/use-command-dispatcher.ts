@@ -3,6 +3,7 @@ import { useIntl } from 'react-intl';
 
 import { resolveCommand, type CommandId, type CommandPlatform, type CommandSurface } from '../../../shared/commands/registry.js';
 import { directionOf } from '../../../shared/i18n/locales.js';
+import { anyDialogOpen } from '../../../shared/library/app-state.js';
 import { useAppDispatch, useAppState } from './app-state-context';
 import { lightboxStepForKey } from './lightbox-direction';
 import { getApplicationThemeLayer } from '../theme/user-theme-layer';
@@ -22,6 +23,7 @@ export function useCommandDispatcher(
   onHelp: (surface: CommandSurface) => void,
   helpOpen: boolean,
   onSelectAll: () => void,
+  onCommand?: (id: CommandId) => void,
 ): void {
   const state = useAppState();
   const dispatch = useAppDispatch();
@@ -32,13 +34,16 @@ export function useCommandDispatcher(
   // effect runs after paint, so a key pressed as a dialog closes or the
   // Lightbox opens was judged by the previous render and could be dropped.
   useLayoutEffect(() => {
-    const dialogOpen =
-      helpOpen || state.importOpen || state.exportOpen || state.settingsOpen || state.librariesOpen || state.duplicatesOpen;
+    const dialogOpen = helpOpen || anyDialogOpen(state);
     const surface: CommandSurface = state.lightboxId === null ? 'grid' : 'lightbox';
     const execute = (id: CommandId, event: KeyboardEvent): boolean => {
       switch (id) {
         case 'view.appearance.reset':
           void window.overlook.themes.reset().then(() => getApplicationThemeLayer().reset());
+          return true;
+        case 'library.duplicates':
+          if (platform === 'darwin' || state.protectedAlbum !== null || onCommand === undefined) return false;
+          onCommand(id);
           return true;
         case 'app.settings.open':
         case 'app.settings.open.storage':
@@ -50,7 +55,6 @@ export function useCommandDispatcher(
         case 'library.new':
         case 'library.import':
         case 'library.exportAll':
-        case 'library.duplicates':
         case 'view.sidebar.toggle':
         case 'view.mode.feed':
         case 'library.source.all':
@@ -205,7 +209,7 @@ export function useCommandDispatcher(
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [direction, dispatch, helpOpen, onHelp, onSelectAll, platform, state]);
+  }, [direction, dispatch, helpOpen, onCommand, onHelp, onSelectAll, platform, state]);
 }
 
 export { commandPlatform };

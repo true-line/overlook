@@ -2653,7 +2653,11 @@
         },
         {
           "type": "unit-dom",
-          "paths": ["tests/commands/app-menu.test.ts", "tests/main/application-menu-model.test.ts"]
+          "paths": [
+            "tests/commands/app-menu.test.ts",
+            "tests/main/application-menu-model.test.ts",
+            "tests/dom/titlebar-app-menu-commands.test.tsx"
+          ]
         },
         {
           "type": "manual",
