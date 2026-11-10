@@ -191,7 +191,7 @@ export async function exerciseDisasterRecoveryContract(
       'disaster-recovery contract removes every remote object',
     );
     masterKey?.fill(0);
-    rmSync(sourceDir, { recursive: true, force: true });
-    rmSync(targetRoot, { recursive: true, force: true });
+    rmSync(sourceDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    rmSync(targetRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }
