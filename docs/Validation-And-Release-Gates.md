@@ -37,10 +37,10 @@ All third-party `uses:` in `.github/workflows/*.yml` are pinned to a full commit
 
 Two gates need an external checkout, both env-gated in the same shape:
 
-| Variable                   | Points at                                                                                                        |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Variable                   | Points at                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `DOCS_GOV_TOOLING_ROOT`    | a `true-line/trueline-agent-docs-gov` checkout with `tools/docs-gov` at commit `67db7dc9c20bc29222fb605b7ff9432fd58a2a3f` |
-| `INTEROP_IMAGE_TRAIL_ROOT` | a `qwts/image-trail` checkout pinned to the commit the manifest names                                            |
+| `INTEROP_IMAGE_TRAIL_ROOT` | a `qwts/image-trail` checkout pinned to the commit the manifest names                                                     |
 
 ## Advisory semantic checks
 
@@ -268,19 +268,22 @@ not stand in for hardware qualification. This proves
 native integration with a deterministic fixture, not production CLIP quality
 or accelerator performance; packaged payload checks remain separate gates.
 
-The `Native ARM64 DirectML qualification` job runs automatically after the
-reviewed policy authorizes a full suite: ready PRs, merge groups, and manual CI
-runs. It uses labels `[self-hosted, Windows, ARM64]` (currently `SURFACE-13`),
-uses command-scoped Git configuration for LF checkout, asserts native ARM64
-Node and Electron, records adapter/driver names, and runs
-the strict native-worker fixture with CPU fallback disabled and its negative
-CPU control. The stable required `CI` aggregate requires hardware success in
-each full-suite lifecycle, including PRs that reuse exact-SHA preflight evidence.
-Failed, cancelled, or skipped qualification cannot pass that gate; an offline
-runner leaves it waiting. Failed policy checks and draft PRs never select the
-laptop. Post-merge smoke retains its existing hosted Windows architecture lanes.
-For diagnostics, dispatch CI on an inspected commit with `purpose=diagnostics`;
-no separate hardware opt-in is needed. A successful job qualifies only that
+The `Native ARM64 DirectML qualification` job runs automatically when repository
+variable `OVERLOOK_DML_ARM64_RUNNER` is `'true'` and the reviewed policy
+authorizes a full suite: ready PRs, merge groups, and manual CI runs. It uses
+labels `[self-hosted, Windows, ARM64]` (currently `SURFACE-13`), uses
+command-scoped Git configuration for LF checkout, asserts native ARM64 Node and
+Electron, records adapter/driver names, and runs the strict native-worker
+fixture with CPU fallback disabled and its negative CPU control. When
+`OVERLOOK_DML_ARM64_RUNNER` is `'true'`, the stable required `CI` aggregate
+requires hardware `success` in each full-suite lifecycle, including PRs that
+reuse exact-SHA preflight evidence; when unset or `'false'` (for example while
+no self-hosted Windows ARM64 runner is registered), the job is skipped and the
+gate requires `skipped`, still rejecting `failure` or `cancelled`. Failed policy
+checks and draft PRs never select the laptop. Post-merge smoke retains its
+existing hosted Windows architecture lanes. For diagnostics, dispatch CI on an
+inspected commit with `purpose=diagnostics`; no separate hardware opt-in is
+needed when the runner variable is enabled. A successful job qualifies only that
 commit, runtime, architecture, and adapter; it does not establish x64 adapter
 availability or replace the remaining hosted CI results. No secret configuration
 is required.
