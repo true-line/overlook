@@ -1,7 +1,7 @@
 # Interop Closeout Evidence
 
-Issues: [Photos #337](https://github.com/qwts/photos/issues/337) and
-[Image Trail #590](https://github.com/qwts/image-trail/issues/590)
+Issues: [Overlook #337](https://github.com/true-line/overlook/issues/337) and
+[Image Trail #590](https://github.com/true-line/image-trail/issues/590)
 
 This is the release-evidence runbook for the bidirectional Image Trail and
 Overlook interoperability epics. Do not close either issue from implementation
@@ -9,7 +9,7 @@ or mocked-provider evidence alone.
 
 ## Executable evidence map
 
-Photos owns the canonical
+Overlook owns the canonical
 `design/handoff/contracts/v1/acceptance-evidence.json`. The contract checksum
 includes that file, and Image Trail vendors the exact canonical bytes.
 
@@ -21,7 +21,7 @@ includes that file, and Image Trail vendors the exact canonical bytes.
   any owner-run check is pending.
 
 After a test or file is renamed, update the canonical evidence reference and
-checksum in Photos, then vendor that exact contract commit in Image Trail. Do
+checksum in Overlook, then vendor that exact contract commit in Image Trail. Do
 not weaken the checker or replace a removed assertion with a path-only claim.
 
 ## Evidence record
@@ -139,6 +139,6 @@ repositories.
 1. All repository CI, E2E, Storybook, provider contracts, privacy/security, and
    hardened package/release checks pass on the exact release commits.
 2. All four manual entries contain current evidence from released products.
-3. `npm run check:interop-closeout` passes in Photos and Image Trail against the
-   same canonical checksum.
+3. `npm run check:interop-closeout` passes in Overlook and Image Trail against
+   the same canonical checksum.
 4. Only then close #337, #590, #283, and #560.

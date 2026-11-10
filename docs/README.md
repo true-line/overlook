@@ -28,11 +28,13 @@ existing links resolve — never add content there.
 - [Original Preservation Policy](./Original-Preservation-Policy.md) — protected marker, deletion override, duplicate boundary, and custody invariants
 - [Testing Strategy](./Testing-Strategy.md) — test lanes, coverage floors, when each lane must grow
 - [Validation And Release Gates](./Validation-And-Release-Gates.md) — gate-by-gate detail, ratchet values, license and dependency policy, packaging and release/signing
+- [Windows Code Signing](./Signing.md) — Azure Trusted Signing secrets, secret-scope boundary, first-time setup, and Authenticode verification (#683)
 - [CI Identity And Tokens](./CI-Identity-And-Tokens.md) — bot identities, token blast radius, and the branch-update/merge automation
 - [Agent Golden Tasks](./Agent-Golden-Tasks.md) — the eval set an instruction or skill change cites as evidence (#718, ENG-0006)
 - [E2E & Storybook Timing Audit](./E2E-Timing-Audit.md) — every wall-clock wait classified, its synchronization contract, and the shared launch/reload/teardown fixture (#630)
 - [Localization Workflow](./Localization.md) — adding and reviewing catalogs, pseudo-locales, and RTL evidence
 - [Architecture Decision Records](./adr/Architecture-Decision-Records.md) — ADR index + template
+- [Interop Closeout Evidence](./Interop-Closeout-Evidence.md) — owner-run release closeout runbook and executable evidence map (#337)
 - [Deterministic Reviewed Sync acceptance](./acceptance/Acceptance-Test-Deterministic-Reviewed-Sync.md) — replay, conflict, tombstone, and restart evidence
 - [Semantic embedding index acceptance](./acceptance/Acceptance-Test-Semantic-Embedding-Index.md) — #391 model checkpoint, encrypted lifecycle, scheduler, and packaged evidence
 - [Semantic search acceptance](./acceptance/Acceptance-Test-Semantic-Search.md) — #392 text queries, fused ranking, fallback UX, selection parity, and performance

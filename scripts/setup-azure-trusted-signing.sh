@@ -18,7 +18,7 @@
 # real setup; the comments say which failure each one prevents.
 set -euo pipefail
 
-REPO="${REPO:-qwts/overlook}"
+REPO="${REPO:-true-line/overlook}"
 SP_NAME="${SP_NAME:-overlook-trusted-signing}"
 SP_APP_ID="${SP_APP_ID:-}"
 
