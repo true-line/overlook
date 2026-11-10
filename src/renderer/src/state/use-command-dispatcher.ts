@@ -23,6 +23,7 @@ export function useCommandDispatcher(
   onHelp: (surface: CommandSurface) => void,
   helpOpen: boolean,
   onSelectAll: () => void,
+  onCommand?: (id: CommandId) => void,
 ): void {
   const state = useAppState();
   const dispatch = useAppDispatch();
@@ -41,9 +42,8 @@ export function useCommandDispatcher(
           void window.overlook.themes.reset().then(() => getApplicationThemeLayer().reset());
           return true;
         case 'library.duplicates':
-          if (platform === 'darwin' || state.protectedAlbum !== null) return false;
-          dispatch({ type: 'lightbox/closed' });
-          dispatch({ type: 'dialog/set', dialog: 'duplicates', open: true });
+          if (platform === 'darwin' || state.protectedAlbum !== null || onCommand === undefined) return false;
+          onCommand(id);
           return true;
         case 'app.settings.open':
         case 'app.settings.open.storage':
@@ -209,7 +209,7 @@ export function useCommandDispatcher(
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [direction, dispatch, helpOpen, onHelp, onSelectAll, platform, state]);
+  }, [direction, dispatch, helpOpen, onCommand, onHelp, onSelectAll, platform, state]);
 }
 
 export { commandPlatform };

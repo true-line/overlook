@@ -65,7 +65,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
     (commandId: CommandId): void => {
       // A deterministic photo target: the focused lightbox photo, else the selection.
       const targetIds = state.lightboxId !== null ? [state.lightboxId] : [...state.selection];
-      const closeOverlays = (): void => {
+      const closeOverlays = (options?: { readonly preserveLightbox?: boolean }): void => {
         setShortcutSurface(null);
         resetInteropEntry();
         resetUnlockAlbum();
@@ -73,7 +73,9 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
         resetDropped();
         setExportPhotoIds(null);
         setExportAllPhotos(false);
-        dispatch({ type: 'lightbox/closed' });
+        if (!options?.preserveLightbox) {
+          dispatch({ type: 'lightbox/closed' });
+        }
         dispatch({ type: 'dialog/set', dialog: 'import', open: false });
         dispatch({ type: 'dialog/set', dialog: 'export', open: false });
         dispatch({ type: 'dialog/set', dialog: 'settings', open: false });
@@ -256,7 +258,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
           return;
         case 'library.duplicates':
           if (state.protectedAlbum !== null) return;
-          closeOverlays();
+          closeOverlays({ preserveLightbox: true });
           dispatch({ type: 'dialog/set', dialog: 'duplicates', open: true });
           return;
         case 'help.open':

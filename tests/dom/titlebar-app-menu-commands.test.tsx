@@ -46,18 +46,14 @@ afterEach(() => {
 let latestState: AppState;
 let latestDispatch: Dispatch<AppAction>;
 
+let offloadClosedCount = 0;
+
 function Harness({ platform, lockConfigured }: { readonly platform: string; readonly lockConfigured: boolean }): ReactElement {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const exportDialog = useExportDialog();
   latestState = state;
   latestDispatch = dispatch;
-  useCommandDispatcher(
-    platform,
-    () => undefined,
-    false,
-    () => undefined,
-  );
   const runCommand = useNativeCommandRouter({
     nativeCommand: null,
     state,
@@ -71,10 +67,19 @@ function Harness({ platform, lockConfigured }: { readonly platform: string; read
     resetInteropEntry: () => undefined,
     resetUnlockAlbum: () => undefined,
     resetDropped: () => undefined,
-    closeOffload: () => undefined,
+    closeOffload: () => {
+      offloadClosedCount += 1;
+    },
     pcloudEnabled: false,
     lockConfigured,
   });
+  useCommandDispatcher(
+    platform,
+    () => undefined,
+    false,
+    () => undefined,
+    runCommand,
+  );
   const context: CommandMenuContext = {
     ...EMPTY_COMMAND_MENU_CONTEXT,
     surface: state.lightboxId === null ? 'grid' : 'lightbox',
@@ -86,6 +91,7 @@ function Harness({ platform, lockConfigured }: { readonly platform: string; read
 }
 
 function renderHarness(platform: string, lockConfigured = true): void {
+  offloadClosedCount = 0;
   act(() => {
     root?.render(
       <IntlProvider locale="en" defaultLocale="en">
@@ -114,14 +120,20 @@ test('Windows/Linux TitlebarAppMenu Lock Now invokes appLock.lockNow (#1433)', (
   assert.equal(lockCalls, 1);
 });
 
-test('Ctrl+Alt+D opens Review Duplicates on Windows/Linux without double-firing on macOS (#1433)', () => {
+test('Ctrl+Alt+D routes through the shared command router, preserves Lightbox, and avoids double-firing on macOS (#1433)', () => {
   installOverlookMock();
   renderHarness('linux', true);
+  act(() => {
+    latestDispatch({ type: 'lightbox/opened', photoId: 'photo-1' });
+  });
   assert.equal(latestState.duplicatesOpen, false);
+  assert.equal(latestState.lightboxId, 'photo-1');
   act(() => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD', ctrlKey: true, altKey: true, cancelable: true }));
   });
   assert.equal(latestState.duplicatesOpen, true);
+  assert.equal(latestState.lightboxId, 'photo-1');
+  assert.equal(offloadClosedCount, 1);
 
   // While Activity dialog is open, global shortcuts stay suppressed.
   act(() => {
