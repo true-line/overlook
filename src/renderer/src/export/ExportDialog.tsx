@@ -65,6 +65,11 @@ const messages = defineMessages({
     id: 'export.photoKit.done',
     defaultMessage: '{count} {count, plural, one {photo} other {photos}} exported and decrypted to Apple Photos.',
   },
+  exportReasonEdits: {
+    id: 'export.reason.edits',
+    defaultMessage: 'Confirm the edits that won’t be exported, or choose another mode.',
+  },
+  exportReasonBlocked: { id: 'export.reason.blocked', defaultMessage: 'Include the withheld field, or export Baked.' },
 });
 
 // ExportDialog (#99): the design's 420px export flow, safety copy verbatim
@@ -102,10 +107,13 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
   const { announce } = useAnnouncer();
   const destinationLabelId = useId();
   const metadataLabelId = useId();
+  const exportReasonId = useId();
   const [phase, setPhase] = useState<Phase>('options');
   const [mode, setMode] = useState<ExportPayloadMode>('original-sidecars');
   const [quality, setQuality] = useState<ExportJpegQuality>('high');
-  const [acknowledged, setAcknowledged] = useState(false);
+  // The confirmation belongs to one loss list: when the list changes, it
+  // resets (#1307).
+  const [acknowledgedLosses, setAcknowledgedLosses] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<'original' | 'overlook' | 'none'>('original');
   const [destinationKind, setDestinationKind] = useState<'folder' | 'apple-photos'>('folder');
   const [decrypt, setDecrypt] = useState(true);
@@ -176,7 +184,16 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
   // One declared payload mode (ADR-0031 §6); `format` keeps the wire shape.
   const format = mode === 'baked' ? 'jpeg' : 'original';
   const edits = mode === 'baked' ? { mode, quality: EXPORT_JPEG_QUALITIES[quality] } : { mode };
-  const editsBlocked = destinationKind === 'folder' && (preflight?.losses.length ?? 0) > 0 && !acknowledged;
+  const lossKey = (preflight?.losses ?? []).map((loss) => `${loss.photoId}:${loss.reason}`).join('\n');
+  const acknowledged = lossKey !== '' && acknowledgedLosses === lossKey;
+  const editsBlocked = destinationKind === 'folder' && lossKey !== '' && !acknowledged;
+  // Export is unavailable, not disabled, when the user has something to do
+  // about it, and says what (#1307).
+  const exportReason = editsBlocked
+    ? intl.formatMessage(messages.exportReasonEdits)
+    : disclosurePreview !== null && disclosurePreview.blocked.length > 0
+      ? intl.formatMessage(messages.exportReasonBlocked)
+      : undefined;
   const intent: ExportDestinationIntent = allPhotos
     ? { operation: 'all', metadata, ...edits, disclosure: disclosureIntent }
     : { operation: 'selected', photoIds: [...photoIds], format, metadata, ...edits, disclosure: disclosureIntent };
@@ -270,11 +287,20 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
             <Button
               variant="primary"
               icon="share"
-              disabled={!decrypt || editsBlocked || disclosureBlocked || (destinationKind === 'folder' && destination === null)}
-              onClick={start}
+              disabled={
+                exportReason === undefined && (!decrypt || disclosureBlocked || (destinationKind === 'folder' && destination === null))
+              }
+              aria-disabled={exportReason === undefined ? undefined : true}
+              aria-describedby={exportReason === undefined ? undefined : exportReasonId}
+              onClick={exportReason === undefined ? start : undefined}
             >
               {exportLabel}
             </Button>
+            {exportReason === undefined ? null : (
+              <p id={exportReasonId} className="ovl-export__footerReason prose-note" data-testid="export-reason">
+                {exportReason}
+              </p>
+            )}
           </>
         ) : phase === 'running' ? (
           <Button
@@ -321,7 +347,7 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
             onModeChange={(next) => {
               if (next !== mode) discardDestination();
               setMode(next);
-              setAcknowledged(false);
+              setAcknowledgedLosses(null);
             }}
             quality={quality}
             onQualityChange={(next) => {
@@ -331,7 +357,7 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
             disabled={destinationKind === 'apple-photos'}
             preflight={preflight}
             acknowledged={acknowledged}
-            onAcknowledge={setAcknowledged}
+            onAcknowledge={(checked) => setAcknowledgedLosses(checked ? lossKey : null)}
           />
           <div className="ovl-export__row" role="group" aria-labelledby={metadataLabelId}>
             <span id={metadataLabelId}>{intl.formatMessage(messages.metadata)}</span>

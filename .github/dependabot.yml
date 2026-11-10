@@ -92,15 +92,12 @@ updates:
       # together with .nvmrc when the runtime moves.
       - dependency-name: '@types/node'
         versions: ['>=25']
-      # Vite is capped at the 7 line: electron-vite@5 (stable) peers vite ^5||^6||^7,
-      # with Vite 8 support only in the unreleased 6.0 betas, and @vitejs/plugin-react@6
-      # peers vite ^8 (plus new babel-plugin-react-compiler peers), so both are gated on
-      # the same wall. Remove both once electron-vite ships a stable Vite 8 release and
-      # bump vite + @vitejs/plugin-react + electron-vite together (blocked PR #153).
-      - dependency-name: vite
-        versions: ['>=8']
-      - dependency-name: '@vitejs/plugin-react'
-        versions: ['>=6']
+      # Vite was capped at the 7 line while electron-vite@5 (stable) peered
+      # vite ^5||^6||^7, and @vitejs/plugin-react@6 peers vite ^8, so both were
+      # gated on the same wall. electron-vite@6.0.0 peers vite ^6||^7||^8 and
+      # @storybook/react-vite@10 peers vite ^5||^6||^7||^8, so the wall is gone:
+      # vite, @vitejs/plugin-react and electron-vite now move together in the
+      # build-toolchain group, and dependabot is free to take the Vite 8 bump.
       # React is held on the 18 line: React 19 is a deliberate migration (new JSX
       # transform, ref-as-prop, removed legacy APIs), not a nod-through bump. Remove
       # these four together when React 19 is taken on as its own reviewed PR.
@@ -126,4 +123,4 @@ updates:
       # ci-policy is an authorization boundary, not an ordinary dependency. Its
       # immutable commit advances only with the matching reviewed contract tests
       # and must never ride Dependabot's catch-all action group (#1038).
-      - dependency-name: 'qwts/qwts-agent-ci/.github/actions/ci-policy'
+      - dependency-name: 'true-line/trueline-agent-ci/.github/actions/ci-policy'

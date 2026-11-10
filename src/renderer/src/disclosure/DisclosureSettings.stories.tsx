@@ -113,7 +113,29 @@ export const Preview: StoryObj = {
     const canvas = within(canvasElement);
     await expect(canvas.getByTestId('disclosure-row-title')).toHaveTextContent('Harbour at dusk');
     await expect(canvas.getByTestId('disclosure-row-location')).toHaveTextContent('Withheld');
+    // Neutral class badges, each with its icon; Mixed would have none (#1308).
+    for (const badge of canvasElement.querySelectorAll('.ovl-disclosure__field .ovl-badge')) {
+      await expect(badge).toHaveClass('ovl-badge--neutral');
+      await expect(badge.querySelector('svg')).not.toBeNull();
+    }
+    // Destination: a named recipient by default, each with its own hint.
+    const destination = canvas.getByRole('radiogroup', { name: 'Destination' });
+    await expect(within(destination).getByRole('radio', { name: 'Named recipient' })).toBeChecked();
+    await expect(destination).toHaveAccessibleDescription(
+      'A folder you choose, Apple Photos, or a keyed provider. Shared and Public fields cross.',
+    );
+    await userEvent.click(within(destination).getByRole('radio', { name: 'Public' }));
+    await expect(destination).toHaveAccessibleDescription('Anyone with the link or address. Only Public fields cross.');
+    await userEvent.click(within(destination).getByRole('radio', { name: 'Named recipient' }));
+    // The blocked notice asks for a choice: no alert, a polite announcement.
     await expect(canvas.getByTestId('disclosure-blocked')).toBeVisible();
+    await expect(canvas.queryByRole('alert')).toBeNull();
+    const body = within(canvasElement.ownerDocument.body);
+    await waitFor(() =>
+      expect(body.getByTestId('screen-reader-announcer-polite')).toHaveTextContent(
+        'The originals can’t leave while Precise location is withheld.',
+      ),
+    );
     await userEvent.click(within(canvas.getByTestId('disclosure-widen-location')).getByRole('checkbox'));
     await waitFor(async () => {
       await expect(canvas.queryByTestId('disclosure-blocked')).toBeNull();

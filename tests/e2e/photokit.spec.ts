@@ -34,7 +34,9 @@ test('explicit Apple Photos review imports and add-only export writes the select
   // #509: the fixture carries GPS and precise location is Private by default, so the
   // original cannot leave until the user includes it for this one export.
   await expect(page.getByTestId('disclosure-blocked')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Export 1 photo', exact: true })).toBeDisabled();
+  // Unavailable, and saying why (#1307).
+  await expect(page.getByRole('button', { name: 'Export 1 photo', exact: true })).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.getByTestId('export-reason')).toHaveText('Include the withheld field, or export Baked.');
   await page.getByTestId('disclosure-widen-location').getByRole('checkbox').click();
   await expect(page.getByTestId('disclosure-blocked')).toHaveCount(0);
   await page.getByRole('button', { name: 'Export 1 photo', exact: true }).click();

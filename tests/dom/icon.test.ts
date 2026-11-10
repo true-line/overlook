@@ -132,6 +132,9 @@ const VOCABULARY = [
   'music',
   'volume-2',
   'volume-x',
+  // Disclosure class badges (Pass E, #1308): Shared and Public; Private uses 'lock'.
+  'users',
+  'globe',
 ] as const;
 
 describe('Icon', () => {

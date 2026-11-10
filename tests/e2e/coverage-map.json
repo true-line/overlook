@@ -659,7 +659,7 @@
         },
         {
           "type": "manual",
-          "reason": "Follow docs/acceptance/Acceptance-Test-Disclosure-Policy.md for the Send to Apple Photos refusal over the real bridge, the File Provider date in Finder, and the relaunch persistence of a changed class."
+          "reason": "Follow docs/acceptance/Acceptance-Test-Disclosure-Policy.md for the Send to Apple Photos refusal over the real bridge, the File Provider date in Finder, and the relaunch persistence of a changed class. Check the Destination choice (Named recipient · Public) with its hint and the neutral class badges in dark, light and high contrast, and that a screen reader hears the blocked notice politely, not as an alert (#1308). Consent copy in the preview reads at --text-sm body; only the loading, empty and decline notes are faint (#1309)."
         }
       ]
     },
@@ -703,7 +703,7 @@
         },
         {
           "type": "manual",
-          "reason": "Follow docs/acceptance/Acceptance-Test-Edited-Export.md for the loss report over a newer-build revision, the mid-batch cancel of a baked export, and the library-wide mode check; with a screen reader, Edits and JPEG quality are each read as one named radio group, the mode's hint as its description (#1306)."
+          "reason": "Follow docs/acceptance/Acceptance-Test-Edited-Export.md for the loss report over a newer-build revision, the mid-batch cancel of a baked export, and the library-wide mode check; with a screen reader, Edits and JPEG quality are each read as one named radio group, the mode's hint as its description (#1306). The loss list is announced politely rather than as an alert, and a screen reader hears why Export is unavailable (confirm the edits, or include the withheld field) from the button's description (#1307)."
         }
       ]
     },

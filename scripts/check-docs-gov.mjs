@@ -3,11 +3,11 @@
 // Local half of the documentation-governance gate (docs-gov, ENG-0009).
 //
 // CI runs docs-gov through the reusable workflow
-// `qwts/qwts-agent-docs-gov/.github/workflows/docs-governance.yml@67db7dc9c20bc29222fb605b7ff9432fd58a2a3f`,
+// `true-line/trueline-agent-docs-gov/.github/workflows/docs-governance.yml@67db7dc9c20bc29222fb605b7ff9432fd58a2a3f`,
 // which fetches the check implementation fresh at that same commit (its
 // `tooling-ref` input). There is no npm dependency to vendor it, so this
 // wrapper lets `npm run ci` / `/check` run the exact same check locally: point
-// DOCS_GOV_TOOLING_ROOT at a qwts/qwts-agent-docs-gov checkout and it invokes
+// DOCS_GOV_TOOLING_ROOT at a true-line/trueline-agent-docs-gov checkout and it invokes
 // that repo's CLI against photos' docs-gov.config.json. Same
 // env-gated-external-checkout shape as check-interop-acceptance.mjs (see
 // AGENTS.md → Documentation And Validation).
@@ -18,7 +18,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-const PLAYBOOK_REPOSITORY = 'qwts/qwts-agent-docs-gov';
+const PLAYBOOK_REPOSITORY = 'true-line/trueline-agent-docs-gov';
 // Must match the commit the reusable workflow is pinned to in ci.yml (and
 // passes as `tooling-ref`), so a local pass proves the same thing a CI pass does.
 const TOOLING_REF = '67db7dc9c20bc29222fb605b7ff9432fd58a2a3f';

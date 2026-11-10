@@ -6,7 +6,7 @@ import { mkE2eTmpDir } from './support/tmp-dir.js';
 // classifiable field with its ADR-0032 §6 default and the pinned-private
 // set; a class change round-trips through main and survives a relaunch;
 // the Export dialog shows the disclosure preview — what crosses, what is
-// withheld, and the public-destination switch — before anything leaves.
+// withheld, and the destination choice — before anything leaves.
 
 test('disclosure: §6 defaults, a persisted class change, and the pre-export preview', async () => {
   const userData = mkE2eTmpDir('overlook-e2e-disclosure-');
@@ -48,13 +48,28 @@ test('disclosure: §6 defaults, a persisted class change, and the pre-export pre
     const preview = page.getByTestId('disclosure-preview');
     await expect(preview).toBeVisible();
     await expect(preview).toContainText('What leaves');
-    await expect(preview.getByRole('switch', { name: 'Publishing to a public destination' })).not.toBeChecked();
+    // Destination is a named choice (#1308), defaulting to a named recipient.
+    const destination = preview.getByRole('radiogroup', { name: 'Destination' });
+    await expect(destination.getByRole('radio', { name: 'Named recipient' })).toBeChecked();
+    await expect(destination).toHaveAccessibleDescription(
+      'A folder you choose, Apple Photos, or a keyed provider. Shared and Public fields cross.',
+    );
     await expect(page.getByTestId('disclosure-preview-loading')).toHaveCount(0);
     // Seeded photos carry a capture time in their bytes and no GPS: with capture
     // time now private, an Original export is blocked until it is included.
     await expect(page.getByTestId('disclosure-row-captureTime')).toHaveAttribute('data-disclosed', '0');
     await expect(page.getByTestId('disclosure-blocked')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Export 1 photo' })).toBeDisabled();
+    // A choice, not an error: no alert, a polite announcement instead.
+    await expect(preview.getByRole('alert')).toHaveCount(0);
+    await expect(page.getByTestId('screen-reader-announcer-polite')).toHaveText(
+      'The originals can’t leave while Capture time is withheld.',
+      {
+        timeout: 20_000,
+      },
+    );
+    // Unavailable, and saying why (#1307).
+    await expect(page.getByRole('button', { name: 'Export 1 photo' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByTestId('export-reason')).toHaveText('Include the withheld field, or export Baked.');
     await page.getByTestId('disclosure-widen-captureTime').getByRole('checkbox').click();
     await expect(page.getByTestId('disclosure-blocked')).toHaveCount(0);
     await expect(page.getByTestId('disclosure-row-captureTime')).toHaveAttribute('data-disclosed', '1');
