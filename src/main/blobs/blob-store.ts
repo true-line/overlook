@@ -213,16 +213,20 @@ export class BlobStore {
     try {
       await pipeline(ciphertext, createWriteStream(stagePath, { flags: 'wx' }));
       await syncFileData(stagePath);
+      if (!(await this.verifyEnvelopePath(stagePath, contentHash, resolveKey, BlobStore.sidecarContext(photoId)))) {
+        throw new BlobStoreError(`restored sidecar ${contentHash} of ${photoId} failed verification`);
+      }
       const finalPath = this.sidecarPath(photoId, contentHash);
       await mkdir(dirname(finalPath), { recursive: true });
+      let existed = false;
       try {
         await link(stagePath, finalPath);
       } catch (error) {
         if (!isErrno(error, 'EEXIST')) throw error;
+        existed = true;
       }
       await rm(stagePath, { force: true });
-      if (!(await this.verifySidecar(photoId, contentHash, resolveKey))) {
-        await rm(finalPath, { force: true });
+      if (existed && !(await this.verifySidecar(photoId, contentHash, resolveKey))) {
         throw new BlobStoreError(`restored sidecar ${contentHash} of ${photoId} failed verification`);
       }
       await syncDirectoryEntry(dirname(finalPath));
@@ -348,18 +352,22 @@ export class BlobStore {
       // BEFORE publishing — a power loss never leaves a present-but-
       // incomplete blob behind a synced ledger row (PR #205 review).
       await syncFileData(stagePath);
+      if (!(await this.verifyEnvelopePath(stagePath, contentHash, resolveKey, photoId))) {
+        throw new BlobStoreError(`restored blob ${contentHash} failed verification`);
+      }
       const finalPath = this.originalPath(contentHash);
       await mkdir(dirname(finalPath), { recursive: true });
+      let existed = false;
       try {
         await link(stagePath, finalPath);
       } catch (error) {
         if (!isErrno(error, 'EEXIST')) {
           throw error;
         }
+        existed = true;
       }
       await rm(stagePath, { force: true });
-      if (!(await this.verifyOriginal(contentHash, resolveKey, photoId))) {
-        await rm(finalPath, { force: true });
+      if (existed && !(await this.verifyOriginal(contentHash, resolveKey, photoId))) {
         throw new BlobStoreError(`restored blob ${contentHash} failed verification`);
       }
       await syncDirectoryEntry(dirname(finalPath));
