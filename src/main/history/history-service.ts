@@ -9,7 +9,8 @@ import type {
 } from '../../shared/history/types.js';
 import type { LibraryService } from '../library/library-service.js';
 import { parseBoard, serializeBoard } from '../../shared/moodboard/board.js';
-import { ActivityRepository } from '../activity/activity-repository.js';
+import { enforceActivityRetention } from '../activity/activity-publication.js';
+import { ActivityRepository, type ActivityRetentionPolicy } from '../activity/activity-repository.js';
 import { ulid } from '../import/ulid.js';
 import { CommandRepository } from './command-repository.js';
 import { MoveCompensationError } from './move-compensation-runtime.js';
@@ -37,9 +38,10 @@ export class HistoryService {
     private readonly move?: MoveCompensationRuntime,
     private readonly onManifestChanged?: () => void,
     private readonly onBoardsChanged?: (boardId: string) => void,
+    retentionPolicy?: ActivityRetentionPolicy,
   ) {
     this.commands = new CommandRepository(db);
-    this.activity = new ActivityRepository(db);
+    this.activity = new ActivityRepository(db, retentionPolicy);
   }
 
   status(now = new Date()): HistoryStatus {
@@ -143,7 +145,9 @@ export class HistoryService {
         }
         throw error;
       }
-      return this.commands.transaction(() => this.complete(record, direction, requestId, capability, now, 'command.compensated'));
+      const result = this.commands.transaction(() => this.complete(record, direction, requestId, capability, now, 'command.compensated'));
+      this.onManifestChanged?.();
+      return result;
     }
 
     if (capability.reason !== 'ready') return { applied: false, direction, capability };
@@ -152,15 +156,11 @@ export class HistoryService {
       this.applyLibraryChange(record, direction);
       return this.complete(record, direction, requestId, capability, now, direction === 'undo' ? 'command.undone' : 'command.redone');
     });
-    if (record.inverse.kind === 'trash') {
-      const target = direction === 'undo' ? record.inverse.before : record.inverse.after;
-      if (target === 'trashed') this.onManifestChanged?.();
-    }
-    if (record.inverse.kind === 'album-order') this.onManifestChanged?.();
+    // Every committed Undo/Redo mutates manifest-backed state (`trash` both
+    // 'live' and 'trashed', `favorite`, `favorites`, `album-membership`,
+    // `album-order`, `board-layout`, plus the appended activity event).
+    this.onManifestChanged?.();
     if (record.inverse.kind === 'board-layout') {
-      // Reverting a board layout must both reload the canvas and owe a fresh
-      // backup manifest, so the reverted layout is what a later restore sees.
-      this.onManifestChanged?.();
       this.onBoardsChanged?.(record.inverse.boardId);
     }
     return result;
@@ -190,6 +190,7 @@ export class HistoryService {
     if (eventType === 'command.compensated') this.commands.discard(record.recordId, 'undo');
     else this.commands.transition(record.recordId, direction);
     this.commands.rememberExecution(requestId, record.recordId, result, now.toISOString());
+    enforceActivityRetention(this.activity, now);
     return result;
   }
 
