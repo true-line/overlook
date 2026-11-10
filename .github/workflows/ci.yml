@@ -61,7 +61,7 @@ jobs:
       release_gate_mode: ${{ steps.policy.outputs.release_gate_mode }}
     steps:
       - id: policy
-        uses: true-line/trueline-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/ci-policy@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
 
   merge-evidence:
     name: Verify merged commit evidence
@@ -178,7 +178,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           task: Install locked dependencies
           executable: npm
@@ -285,7 +285,7 @@ jobs:
       # The whole job is lifecycle-gated, so Storybook runs only as part of a
       # complete suite; draft events start no jobs.
       - name: Install Playwright browsers (interaction tests)
-        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           task: Install Playwright Chromium for interaction tests
           executable: npx
@@ -345,7 +345,7 @@ jobs:
       - name: Assert native x64 runner
         run: node scripts/assert-platform.mjs win32 x64
       - name: Install dependencies
-        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           task: Install locked Windows test dependencies
           executable: cmd.exe
@@ -421,7 +421,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-CimInstance Win32_VideoController | Select-Object Name, DriverVersion, Status | Format-List
       - name: Install locked dependencies
-        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           task: Install native ARM64 DirectML qualification dependencies
           executable: cmd.exe
@@ -472,7 +472,7 @@ jobs:
       - name: Assert native runner architecture
         run: node scripts/assert-platform.mjs win32 ${{ matrix.arch }}
       - name: Install dependencies
-        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           task: Install locked native Windows smoke dependencies
           executable: cmd.exe
@@ -524,7 +524,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           task: Install locked dependencies for E2E
           executable: npm
@@ -537,7 +537,7 @@ jobs:
       # brings its own Chromium but needs the OS libraries and a display server.
       # install-deps covers the shared libraries; xvfb provides the display.
       - name: Install Electron system dependencies
-        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           task: Install Electron Chromium system dependencies
           executable: npx
@@ -547,7 +547,7 @@ jobs:
           retry-delay-seconds: '5'
 
       - name: Install Xvfb
-        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           task: Install Xvfb
           executable: sudo
@@ -671,7 +671,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: true-line/trueline-agent-ci
-          ref: 87c6b301057992f79a723f63c64624bf40c9d06a
+          ref: 8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
           path: .ci-runtime-policy
           sparse-checkout: tools/ci-runtime
           persist-credentials: false
