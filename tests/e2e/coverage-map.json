@@ -1804,7 +1804,7 @@
         },
         {
           "type": "unit-dom",
-          "paths": ["tests/ipc/registry.test.ts", "tests/main/purge-authorization.test.ts"]
+          "paths": ["tests/ipc/registry.test.ts", "tests/main/purge-authorization.test.ts", "tests/dom/purge-shortcut.test.ts"]
         },
         {
           "type": "storybook",
