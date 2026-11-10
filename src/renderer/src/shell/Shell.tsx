@@ -42,8 +42,7 @@ import { ProtectedAlbumUnlockDialog } from '../protected/ProtectedAlbumUnlockDia
 import { ProtectedAlbumView } from '../protected/ProtectedAlbumView';
 import { createBoundedExternalDropReporter, installExternalFileDropBoundary } from './external-file-drop';
 import { ShortcutHelp } from '../commands/ShortcutHelp';
-import type { CommandSurface } from '../../../shared/commands/registry.js';
-import type { CommandId } from '../../../shared/commands/registry.js';
+import type { CommandId, CommandSurface } from '../../../shared/commands/registry.js';
 import type { CommandMenuContext } from '../../../shared/commands/menu-contract.js';
 import { ActivityDialog } from '../activity/ActivityDialog';
 import { DuplicatesDialog } from '../duplicates/DuplicatesDialog';
@@ -65,6 +64,7 @@ const viewMessages = defineMessages({
   protected: { id: 'shell.view.protected', defaultMessage: 'Protected album' },
   results: { id: 'shell.results.count', defaultMessage: '{count, plural, one {# result} other {# results}}' },
   restoreTitle: { id: 'settings.restore.title', defaultMessage: 'Restore from cloud backup' },
+  switchLibrarySuffix: { id: 'shell.switchLibrarySuffix', defaultMessage: ' — Switch library' },
 });
 
 function mergeDropPaths(current: readonly string[] | null, incoming: readonly string[]): readonly string[] {
@@ -537,13 +537,11 @@ export function Shell({
             type="button"
             className="ovl-library-trigger"
             data-testid="library-trigger"
-            aria-label={`Switch library — ${libraryName ?? 'Overlook'}`}
-            onClick={() => {
-              dispatch({ type: 'dialog/set', dialog: 'libraries', open: true });
-            }}
+            onClick={() => dispatch({ type: 'dialog/set', dialog: 'libraries', open: true })}
           >
             <Icon name="images" size={13} />
             <span>{libraryName ?? 'Overlook'}</span>
+            <span className="ovl-sr-only">{intl.formatMessage(viewMessages.switchLibrarySuffix)}</span>
             <Icon name="chevrons-up-down" size={12} color="var(--text-faint)" />
           </button>
         }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type Dispatch } from 'react';
-import { useIntl } from 'react-intl';
+import { defineMessages, useIntl } from 'react-intl';
 import type { ExportDialogController } from '../export/use-export-dialog.js';
 import { duplicatePhotos } from '../grid/duplicate-photos.js';
 
@@ -9,6 +9,30 @@ import type { AppAction, AppState } from '../../../shared/library/app-state.js';
 import type { SettingsSection } from '../settings/SettingsDialog';
 import { getApplicationThemeLayer } from '../theme/user-theme-layer';
 import { deletePhoto } from './delete-photo';
+
+const routerMessages = defineMessages({
+  undid: { id: 'commands.toast.undid', defaultMessage: 'Undid last action' },
+  redid: { id: 'commands.toast.redid', defaultMessage: 'Redid last action' },
+  cannotUndo: { id: 'commands.toast.cannotUndo', defaultMessage: 'Cannot undo — {reason}' },
+  cannotRedo: { id: 'commands.toast.cannotRedo', defaultMessage: 'Cannot redo — {reason}' },
+  trashedCount: {
+    id: 'commands.toast.trashedCount',
+    defaultMessage: 'Moved {count, plural, one {# photo} other {# photos}} to Trash',
+  },
+  trashedWithProtected: {
+    id: 'commands.toast.trashedWithProtected',
+    defaultMessage:
+      'Moved {deleted, number} to Trash · preserved {protectedCount, plural, one {# protected Original} other {# protected Originals}}',
+  },
+  restoredCount: {
+    id: 'commands.toast.restoredCount',
+    defaultMessage: 'Restored {count, plural, one {# photo} other {# photos}}',
+  },
+  removedFromAlbum: {
+    id: 'commands.toast.removedFromAlbum',
+    defaultMessage: 'Removed {count, plural, one {# photo} other {# photos}} from the album',
+  },
+});
 
 /**
  * Routes a native-menu / shortcut command (delivered over IPC as an
@@ -154,10 +178,10 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
               type: 'toast/shown',
               toast: {
                 title: result.applied
-                  ? commandId === 'history.undo'
-                    ? 'Undid last action'
-                    : 'Redid last action'
-                  : `Cannot ${commandId === 'history.undo' ? 'undo' : 'redo'} — ${result.capability.reason}`,
+                  ? intl.formatMessage(commandId === 'history.undo' ? routerMessages.undid : routerMessages.redid)
+                  : intl.formatMessage(commandId === 'history.undo' ? routerMessages.cannotUndo : routerMessages.cannotRedo, {
+                      reason: result.capability.reason,
+                    }),
                 tone: result.applied ? 'neutral' : 'red',
               },
             });
@@ -205,8 +229,8 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
               toast: {
                 title:
                   protectedCount === 0
-                    ? `Moved ${deleted} ${deleted === 1 ? 'photo' : 'photos'} to Trash`
-                    : `Moved ${deleted} to Trash · preserved ${protectedCount} protected ${protectedCount === 1 ? 'Original' : 'Originals'}`,
+                    ? intl.formatMessage(routerMessages.trashedCount, { count: deleted })
+                    : intl.formatMessage(routerMessages.trashedWithProtected, { deleted, protectedCount }),
                 tone: protectedCount === 0 ? 'neutral' : 'amber',
               },
             });
@@ -224,7 +248,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
           void window.overlook.library.restore({ photoIds: targetIds }).then(({ restored }) => {
             dispatch({
               type: 'toast/shown',
-              toast: { title: `Restored ${restored} ${restored === 1 ? 'photo' : 'photos'}`, tone: 'green' },
+              toast: { title: intl.formatMessage(routerMessages.restoredCount, { count: restored }), tone: 'green' },
             });
           });
           return;
@@ -237,7 +261,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
           void window.overlook.albums.removePhotos({ albumId, photoIds: targetIds }).then(({ removed }) => {
             dispatch({
               type: 'toast/shown',
-              toast: { title: `Removed ${removed} ${removed === 1 ? 'photo' : 'photos'} from the album`, tone: 'neutral' },
+              toast: { title: intl.formatMessage(routerMessages.removedFromAlbum, { count: removed }), tone: 'neutral' },
             });
           });
           return;

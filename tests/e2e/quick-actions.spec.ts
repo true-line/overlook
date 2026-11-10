@@ -40,7 +40,7 @@ test('Command-hover Quick Actions share targets and cleanup across gallery views
   const pane = page.getByTestId('settings-pane');
   await pane.getByRole('switch', { name: 'Move photo to Trash' }).click();
   await pane.getByRole('switch', { name: 'Restore photo' }).click();
-  await pane.getByRole('button', { name: 'Move Restore photo up' }).click();
+  await pane.getByRole('button', { name: 'Up — Move Restore photo up' }).click();
   await expect
     .poll(() => page.evaluate(`window.overlook.settings.get().then(({ settings }) => settings.quickActions)`))
     .toEqual(['photo.favorite.toggle', 'album.membership.add', 'photo.restore', 'photo.export']);
@@ -89,7 +89,7 @@ test('configured Quick Actions drive platform-neutral More Actions menus (#532)'
   const pane = page.getByTestId('settings-pane');
   await pane.getByRole('switch', { name: 'Move photo to Trash' }).click();
   await pane.getByRole('switch', { name: 'Restore photo' }).click();
-  await pane.getByRole('button', { name: 'Move Restore photo up' }).click();
+  await pane.getByRole('button', { name: 'Up — Move Restore photo up' }).click();
   await expect
     .poll(() => page.evaluate(`window.overlook.settings.get().then(({ settings }) => settings.quickActions)`))
     .toEqual(['photo.favorite.toggle', 'album.membership.add', 'photo.restore', 'photo.export']);
