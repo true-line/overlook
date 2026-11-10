@@ -129,11 +129,16 @@ test('PhotoMetadataEditor sequences tagSuggestions and syncs untouched drafts on
   assert.equal(titleInput.value, 'Initial title');
   assert.equal(descInput.value, 'Initial description');
 
+  const setNativeInputValue = (input: HTMLInputElement, value: string): void => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value') as
+      { set?: (this: HTMLInputElement, next: string) => void } | undefined;
+    descriptor?.set?.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
   // Trigger a second tagSuggestions query, then resolve the newer request BEFORE the older one.
   act(() => {
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-    setter?.call(tagInput, 'sun');
-    tagInput.dispatchEvent(new Event('input', { bubbles: true }));
+    setNativeInputValue(tagInput, 'sun');
   });
   assert.equal(suggestionResolvers.length, 2);
   suggestionResolvers[1]?.({ tags: [{ name: 'sunset', count: 3 }] });
@@ -146,9 +151,7 @@ test('PhotoMetadataEditor sequences tagSuggestions and syncs untouched drafts on
   // Touch title locally, then emit an external library.onChanged (e.g. Undo / Feed edit):
   // untouched description refreshes while touched title draft is preserved.
   act(() => {
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-    setter?.call(titleInput, 'Draft in progress');
-    titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+    setNativeInputValue(titleInput, 'Draft in progress');
   });
   currentTitle = 'External title';
   currentDesc = 'External description';
