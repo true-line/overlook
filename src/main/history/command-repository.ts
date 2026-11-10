@@ -116,13 +116,17 @@ export class CommandRepository {
       },
     );
     if (admitted && draft.classification !== 'irreversible') {
+      const holdExpiresAt =
+        draft.sensitiveExpiresAt !== undefined && draft.sensitiveExpiresAt !== null && draft.sensitiveExpiresAt < draft.expiresAt
+          ? draft.sensitiveExpiresAt
+          : draft.expiresAt;
       run(
         this.db,
         `INSERT INTO activity_retention_holds (event_id, hold_id, expires_at) VALUES (?, ?, ?)
          ON CONFLICT (event_id, hold_id) DO UPDATE SET expires_at = excluded.expires_at`,
         draft.activityEventId,
         draft.recordId,
-        draft.expiresAt,
+        holdExpiresAt,
       );
     }
     this.prune(new Date(draft.createdAt));
