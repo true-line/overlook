@@ -6,6 +6,7 @@ import { Readable } from 'node:stream';
 import type { KeyResolver } from '../crypto/envelope.js';
 import type { EditRevisionView } from '../db/edit-revision-repository.js';
 import { editsXmpAttributes, xmpPacket } from './edit-xmp.js';
+import { resolveContainedExportPath, sanitizeExportFileName, sanitizeSidecarExtension } from './export-path-safety.js';
 import type { TranscodeOptions, TranscodeResult } from './transcode.js';
 import type { PhotoRecord } from '../../shared/library/types.js';
 import type { PhotoCustodyStatus } from '../../shared/backup/custody-status.js';
@@ -391,7 +392,9 @@ export class ExportEngine {
         const stream = opened?.stream ?? this.deps.blobs.getStream(photo.contentHash, this.deps.resolveKey, assetOwnerOf(photo));
         releaseOriginal = opened?.release;
         let plaintext: Readable = stream;
-        let targetName = photo.fileName;
+        const safeSourceName = sanitizeExportFileName(photo.fileName, photo.id);
+        const nominalTargetName = mode === 'baked' ? reExtension(photo.fileName, '.jpg') : photo.fileName;
+        let targetName = safeSourceName;
         let fromPreview = false;
         if (mode === 'baked') {
           const { jpeg, fromPreview: capped } = await this.deps.transcodeJpeg(await this.deps.bufferStream(stream), photo.fileKind, {
@@ -399,11 +402,11 @@ export class ExportEngine {
             quality: edits.quality,
           });
           plaintext = Readable.from([jpeg]);
-          targetName = reExtension(photo.fileName, '.jpg');
+          targetName = reExtension(safeSourceName, '.jpg');
           fromPreview = capped;
         }
         const fileName = await this.resolveCollision(destination, targetName);
-        await this.deps.writeFile(this.deps.joinPath(destination, fileName), plaintext);
+        await this.deps.writeFile(this.containedPath(destination, fileName), plaintext);
         const editsTravel = mode === 'original-sidecars' && !isIdentityTransform(transform);
         // The generated packet owns the canonical stem (`IMG.xmp`): sidecar
         // consumers associate XMP by stem, so it is written first and a
@@ -424,7 +427,7 @@ export class ExportEngine {
         files.push({
           photoId: photo.id,
           fileName,
-          renamed: fileName !== targetName,
+          renamed: fileName !== nominalTargetName,
           fromPreview,
           sidecarNames,
           editsBaked: mode === 'baked' && !isIdentityTransform(transform),
@@ -469,11 +472,10 @@ export class ExportEngine {
     const stem = dot <= 0 ? resolvedName : resolvedName.slice(0, dot);
     const written: string[] = [];
     for (const sidecar of sidecars) {
-      const sidecarDot = sidecar.fileName.lastIndexOf('.');
-      const extension = sidecarDot <= 0 ? '' : sidecar.fileName.slice(sidecarDot);
+      const extension = sanitizeSidecarExtension(sidecar.fileName);
       const target = await this.resolveCollision(destination, `${stem}${extension}`);
       await this.deps.writeFile(
-        this.deps.joinPath(destination, target),
+        this.containedPath(destination, target),
         this.deps.sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash),
       );
       written.push(target);
@@ -492,19 +494,23 @@ export class ExportEngine {
     const dot = resolvedName.lastIndexOf('.');
     const stem = dot <= 0 ? resolvedName : resolvedName.slice(0, dot);
     const target = await this.resolveCollision(destination, `${stem}.xmp`);
-    await this.deps.writeFile(this.deps.joinPath(destination, target), Readable.from([xmp]));
+    await this.deps.writeFile(this.containedPath(destination, target), Readable.from([xmp]));
     return [target];
   }
 
   private async resolveCollision(destination: string, fileName: string): Promise<string> {
-    if (!(await this.deps.exists(this.deps.joinPath(destination, fileName)))) {
+    if (!(await this.deps.exists(this.containedPath(destination, fileName)))) {
       return fileName;
     }
     for (let counter = 1; ; counter += 1) {
       const candidate = withSuffix(fileName, counter);
-      if (!(await this.deps.exists(this.deps.joinPath(destination, candidate)))) {
+      if (!(await this.deps.exists(this.containedPath(destination, candidate)))) {
         return candidate;
       }
     }
+  }
+
+  private containedPath(destination: string, fileName: string): string {
+    return resolveContainedExportPath(this.deps.joinPath, destination, fileName);
   }
 }
