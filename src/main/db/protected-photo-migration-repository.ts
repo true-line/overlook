@@ -8,8 +8,10 @@ import { EditRevisionRepository } from './edit-revision-repository.js';
 import type { BackupManifestEditRevisionV11 } from '../backup/backup-manifest-edit-revisions.js';
 
 import type { ProtectedPhotoMetadata } from '../crypto/protected-photo-metadata.js';
+import { effectivePhotoTags, normalizePhotoTags } from '../../shared/library/photo-metadata.js';
 import type { PhotoInsert } from '../../shared/library/types.js';
 import { refreshInAllPhotos } from './album-visibility-repository.js';
+import { mediaInfoJson } from './photo-row.js';
 import { queryAll, queryGet, run, runNamed } from './sql.js';
 
 export type ProtectedMigrationOperation = 'protect' | 'unprotect' | 'move';
@@ -463,15 +465,36 @@ export class ProtectedPhotoMigrationRepository {
       `INSERT INTO photos (
          id, file_name, file_kind, width, height, bytes, content_hash,
          camera, lens, iso, aperture, shutter, focal_length, taken_at,
-         gps_lat, gps_lon, place, imported_at, import_source, favorite, key_id, derivative_key
+         gps_lat, gps_lon, place, imported_at, import_source, favorite, key_id,
+         media_info, user_title, user_description, imported_keywords, user_tags,
+         suppressed_keywords, metadata_tags_search, metadata_version, derivative_key, variant_source_id, asset_owner_id
        ) VALUES (
          @id, @fileName, @fileKind, @width, @height, @bytes, @contentHash,
          @camera, @lens, @iso, @aperture, @shutter, @focalLength, @takenAt,
-         @gpsLat, @gpsLon, @place, @importedAt, @importSource, @favorite, @keyId, @derivativeKey
+         @gpsLat, @gpsLon, @place, @importedAt, @importSource, @favorite, @keyId,
+         @mediaInfoJson, @title, @description, @importedKeywordsJson, @userTagsJson,
+         @suppressedKeywordsJson, @metadataTagsSearch, @metadataVersion, @derivativeKey, @variantSourceId, @assetOwnerId
        )`,
       // The derivative key is unique per row (#496): a restored photo owns its
       // hash's derivatives again unless the record names its own key.
-      { ...photo, favorite: photo.favorite === true ? 1 : 0, derivativeKey: photo.derivativeKey ?? photo.contentHash },
+      {
+        ...photo,
+        derivativeKey: photo.derivativeKey ?? photo.contentHash,
+        variantSourceId: photo.variantSourceId ?? null,
+        assetOwnerId: photo.assetOwnerId ?? null,
+        favorite: photo.favorite === true ? 1 : 0,
+        mediaInfo: null,
+        mediaInfoJson: mediaInfoJson(photo.mediaInfo),
+        title: photo.title ?? null,
+        description: photo.description ?? null,
+        importedKeywordsJson: JSON.stringify(normalizePhotoTags(photo.importedKeywords ?? [])),
+        userTagsJson: JSON.stringify(normalizePhotoTags(photo.userTags ?? [])),
+        suppressedKeywordsJson: JSON.stringify(normalizePhotoTags(photo.suppressedKeywords ?? [])),
+        metadataTagsSearch: effectivePhotoTags(photo.importedKeywords ?? [], photo.userTags ?? [], photo.suppressedKeywords ?? []).join(
+          ' ',
+        ),
+        metadataVersion: photo.metadataVersion ?? 1,
+      },
     );
     run(this.db, `INSERT INTO sync_ledger (photo_id, status, dirty) VALUES (?, 'local', 1)`, photo.id);
   }

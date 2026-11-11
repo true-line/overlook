@@ -213,7 +213,7 @@ describe('HistoryService (#615, ADR-0025)', () => {
     state.db.close();
   });
 
-  test('marks manifest debt when Redo moves restored photos back to Trash', async () => {
+  test('marks manifest debt on Undo/Redo of Trash, favorite, favorites, and album-membership (#1437)', async () => {
     let manifestDebts = 0;
     const state = world(() => {
       manifestDebts += 1;
@@ -229,9 +229,86 @@ describe('HistoryService (#615, ADR-0025)', () => {
       }),
     );
     await state.history.undo('restore-photo');
-    assert.equal(manifestDebts, 0);
-    await state.history.redo('retrash-photo');
     assert.equal(manifestDebts, 1);
+    await state.history.redo('retrash-photo');
+    assert.equal(manifestDebts, 2);
+    await state.history.undo('restore-photo-again');
+    assert.equal(manifestDebts, 3);
+
+    mutateWithActivity(
+      () => state.activity,
+      () => state.service.toggleFavorite('photo-one'),
+      (result) => ({ eventType: 'photo.favorite-changed', outcome: 'succeeded', payload: { favorite: result.favorite } }),
+      (result) => ({
+        commandId: 'photo.favorite.toggle',
+        classification: 'immediately-reversible',
+        inverse: { kind: 'favorite', photoId: 'photo-one', before: !result.favorite, after: result.favorite },
+      }),
+    );
+    await state.history.undo('undo-fav-manifest');
+    await state.history.redo('redo-fav-manifest');
+    assert.equal(manifestDebts, 5);
+
+    mutateWithActivity(
+      () => state.activity,
+      () => state.service.toggleFavorites(['photo-one', 'photo-two']),
+      (result) => ({ eventType: 'photo.favorite-changed', outcome: 'succeeded', payload: { count: result.updated } }),
+      (result) => favoritesCommand(result.changes),
+    );
+    await state.history.undo('undo-favs-manifest');
+    await state.history.redo('redo-favs-manifest');
+    assert.equal(manifestDebts, 7);
+
+    state.service.createAlbum('album-manifest', 'Manifest');
+    mutateWithActivity(
+      () => state.activity,
+      () => state.service.addToAlbum('album-manifest', ['photo-one']),
+      (result) => ({ eventType: 'album.membership-added', outcome: 'succeeded', payload: { count: result.added } }),
+      (result) => ({
+        commandId: 'album.membership.add',
+        classification: 'immediately-reversible',
+        inverse: {
+          kind: 'album-membership',
+          albumId: 'album-manifest',
+          photoIds: result.changedPhotoIds,
+          before: 'absent',
+          after: 'present',
+        },
+      }),
+    );
+    await state.history.undo('undo-album-manifest');
+    await state.history.redo('redo-album-manifest');
+    assert.equal(manifestDebts, 9);
+    state.db.close();
+  });
+
+  test('enforces activity retention when recording command.undone while holding live redo command (#1437)', async () => {
+    const state = world();
+    state.activity.record({ eventType: 'import.completed', outcome: 'succeeded', payload: { imported: 1 } });
+    state.activity.record({ eventType: 'import.completed', outcome: 'succeeded', payload: { imported: 2 } });
+    mutateWithActivity(
+      () => state.activity,
+      () => state.service.toggleFavorite('photo-one'),
+      (result) => ({ eventType: 'photo.favorite-changed', outcome: 'succeeded', payload: { favorite: result.favorite } }),
+      (result) => ({
+        commandId: 'photo.favorite.toggle',
+        classification: 'immediately-reversible',
+        inverse: { kind: 'favorite', photoId: 'photo-one', before: !result.favorite, after: result.favorite },
+      }),
+    );
+    const tightHistory = new HistoryService(state.db, state.service, undefined, undefined, undefined, {
+      maxEvents: 2,
+      maxAgeMs: 365 * 24 * 60 * 60 * 1_000,
+      maxPayloadBytes: 64 * 1024 * 1024,
+    });
+    const undone = await tightHistory.undo('undo-with-retention');
+    assert.equal(undone.applied, true);
+    const page = state.activity.page(10);
+    assert.deepEqual(
+      page.events.map((event) => event.eventType),
+      ['activity.pruned', 'command.undone', 'photo.favorite-changed'],
+    );
+    assert.equal((await tightHistory.redo('redo-after-retention')).applied, true);
     state.db.close();
   });
 });

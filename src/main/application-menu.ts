@@ -4,6 +4,7 @@ import { createWindow, isInspectorWindow } from './app-window.js';
 import { requestNativeWindowAttention } from './e2e-window-visibility.js';
 import { buildApplicationMenuTemplate, commandEnabled } from './application-menu-model.js';
 import { channels, events } from '../shared/ipc/channels.js';
+import { HELP_URL } from '../shared/commands/help-menu.js';
 import { commandById, type CommandId, type CommandPlatform } from '../shared/commands/registry.js';
 import { EMPTY_COMMAND_MENU_CONTEXT, type CommandMenuContext } from '../shared/commands/menu-contract.js';
 import { createEmitter, wrapHandler } from '../shared/ipc/registry.js';
@@ -32,11 +33,6 @@ function commandPlatform(): CommandPlatform {
   if (process.platform === 'win32') return 'win32';
   return 'linux';
 }
-
-// `help.open` opens the project README externally. On macOS the native Help menu
-// dispatches it in-process (see `dispatch`); on Windows/Linux the renderer
-// titlebar Help menu reaches the same action through the `helpOpen` channel.
-const HELP_URL = 'https://github.com/qwts/photos#readme';
 
 function isAuthorized(state: string): boolean {
   return state === 'unconfigured-unlocked' || state === 'unlocked';
