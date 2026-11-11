@@ -7,8 +7,8 @@ import { Icon } from '../components/Icon';
 import { Switch } from '../components/Switch';
 
 const messages = defineMessages({
-  moveUp: { id: 'settings.general.quickActions.moveUp', defaultMessage: 'Move {action} up' },
-  moveDown: { id: 'settings.general.quickActions.moveDown', defaultMessage: 'Move {action} down' },
+  moveUp: { id: 'settings.general.quickActions.moveUp', defaultMessage: ' — Move {action} up' },
+  moveDown: { id: 'settings.general.quickActions.moveDown', defaultMessage: ' — Move {action} down' },
   maxReached: {
     id: 'settings.general.quickActions.maxReached',
     defaultMessage: 'Disable an action before enabling another.',
@@ -96,23 +96,23 @@ export function QuickActionsSettings({ value, onChange }: QuickActionsSettingsPr
                   variant="ghost"
                   size="sm"
                   disabled={index === 0}
-                  aria-label={intl.formatMessage(messages.moveUp, { action: label })}
                   onClick={() => {
                     move(index, -1);
                   }}
                 >
                   {intl.formatMessage(messages.up)}
+                  <span className="ovl-sr-only">{intl.formatMessage(messages.moveUp, { action: label })}</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   disabled={index === optimisticValue.length - 1}
-                  aria-label={intl.formatMessage(messages.moveDown, { action: label })}
                   onClick={() => {
                     move(index, 1);
                   }}
                 >
                   {intl.formatMessage(messages.down)}
+                  <span className="ovl-sr-only">{intl.formatMessage(messages.moveDown, { action: label })}</span>
                 </Button>
               </div>
             ) : maxReached ? (

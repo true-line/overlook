@@ -13,5 +13,5 @@
   "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts", "!tests/fixtures/**", "scripts/**/*.mjs"],
   "ignoreExportsUsedInFile": true,
   "ignoreBinaries": ["ditto", "plutil", "mount", "ioreg", "otool", "reg"],
-  "ignoreDependencies": ["node-test-github-reporter"]
+  "ignoreDependencies": ["node-test-github-reporter", "node-gyp"]
 }

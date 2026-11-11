@@ -29,7 +29,7 @@ describe('governed CI lifecycle (ENG-0004)', () => {
   });
 
   test('loads actor and fork enforcement from the reviewed immutable policy commit', () => {
-    assert.match(ci, /uses: true-line\/trueline-agent-ci\/\.github\/actions\/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a/u);
+    assert.match(ci, /uses: true-line\/trueline-agent-ci\/\.github\/actions\/ci-policy@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad/u);
     assert.doesNotMatch(ci, /uses: \.\/\.github\/actions\/ci-policy/u);
     assert.match(ci, /github\.event\.pull_request\.draft == false/u);
   });
@@ -37,7 +37,7 @@ describe('governed CI lifecycle (ENG-0004)', () => {
   test('documents the narrow native-queue exception and disabled preview policy', () => {
     assert.match(identityPolicy, /both actor fields to be `github-merge-queue\[bot\]`/u);
     assert.match(identityPolicy, /Workflow execution protections\*\* disabled/u);
-    assert.match(identityPolicy, /never approve\s+public-fork runs/u);
+    assert.match(identityPolicy, /never approve\s+external fork runs/u);
     assert.match(identityPolicy, /Bind\s+`CodeQL` to the GitHub Advanced Security App/u);
     assert.match(identityPolicy, /other four contexts\s+to GitHub Actions — never to `chores-dumb`/u);
     assert.match(identityPolicy, /only its stable `E2E gate` verdict belongs in branch protection/u);
@@ -48,7 +48,7 @@ describe('governed CI lifecycle (ENG-0004)', () => {
     for (const workflow of workflows) {
       assert.match(workflow, /^ {2}policy:$/mu);
       assert.match(workflow, /authorization-only: 'true'/u);
-      assert.match(workflow, /ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a/u);
+      assert.match(workflow, /ci-policy@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad/u);
     }
     for (const [workflow, jobs] of [
       [autoUpdate, ['update']],
@@ -61,6 +61,8 @@ describe('governed CI lifecycle (ENG-0004)', () => {
       for (const job of jobs) assert.match(workflow, new RegExp(`^  ${job}:\\n {4}needs: policy`, 'mu'));
     }
     assert.match(versionCut, /^ {2}tag:\n {4}needs: \[policy, version-pr\]$/mu);
+    assert.equal((aca.match(/github\.actor != 'dependabot\[bot\]'/gu) ?? []).length, 3);
+    assert.equal((aca.match(/github\.event\.pull_request\.user\.login != 'dependabot\[bot\]'/gu) ?? []).length, 3);
   });
 
   test('reuses only exact-SHA complete-suite evidence', () => {
@@ -115,9 +117,12 @@ describe('governed CI lifecycle (ENG-0004)', () => {
   test('enforces finite workflow runtime with the reviewed immutable contract', () => {
     const sources = [aca, autoUpdate, ci, closeLinkedIssues, codeql, packageWorkflow, perf, release, versionCut].join('\n');
     assert.doesNotMatch(sources, /^\s*run: (?:npm (?:ci|install)|npm --prefix .* clean-install|npx playwright install)/gmu);
-    assert.match(sources, /uses: true-line\/trueline-agent-ci\/\.github\/actions\/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a/u);
+    assert.match(
+      sources,
+      /uses: true-line\/trueline-agent-ci\/\.github\/actions\/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad/u,
+    );
     assert.match(ci, /name: Workflow runtime policy/u);
-    assert.match(ci, /ref: 87c6b301057992f79a723f63c64624bf40c9d06a/u);
+    assert.match(ci, /ref: 8ec38da39c9b43af2181d1f5e5b7e09226c0bfad/u);
     assert.match(ci, /runtime-policy\.mjs --root "\$GITHUB_WORKSPACE"/u);
     assert.match(ci, /WORKFLOW_RUNTIME: \$\{\{ needs\.workflow-runtime\.result \}\}/u);
     assert.match(ci, /test "\$WORKFLOW_RUNTIME" = success/u);

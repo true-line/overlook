@@ -30,9 +30,11 @@ files:
   # The workspace is linked during packaging, so electron-builder otherwise
   # copies native build inputs and a duplicate node-gyp output. Runtime needs
   # only the runtime loaders, package metadata, and the N-API prebuilds.
+  - '!node_modules/@overlook/touch-id/binding.gyp'
   - '!node_modules/@overlook/touch-id/build/**'
   - '!node_modules/@overlook/touch-id/install.cjs'
   - '!node_modules/@overlook/touch-id/prepare-prebuild.cjs'
+  - '!node_modules/@overlook/touch-id/test*.cjs'
   - '!node_modules/@overlook/touch-id/touch_id.mm'
   - '!node_modules/@overlook/touch-id/icloud_drive.mm'
   - '!node_modules/@overlook/touch-id/raw_preview.mm'
@@ -40,9 +42,11 @@ files:
   - '!node_modules/@overlook/touch-id/photokit.mm'
   - '!node_modules/@overlook/touch-id/file_provider.mm'
   - '!node_modules/@overlook/touch-id/library_master.mm'
+  - '!node_modules/@overlook/windows-interop/binding.gyp'
   - '!node_modules/@overlook/windows-interop/build/**'
   - '!node_modules/@overlook/windows-interop/install.cjs'
   - '!node_modules/@overlook/windows-interop/prepare-prebuild.cjs'
+  - '!node_modules/@overlook/windows-interop/test*.cjs'
   - '!node_modules/@overlook/windows-interop/windows_pipe.cc'
 # Everything ships bundled by electron-vite (no runtime node_modules yet);
 # native modules must land in "dependencies" so electron-builder includes and

@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { createReadStream, createWriteStream, existsSync } from 'node:fs';
+import { closeSync, createReadStream, createWriteStream, existsSync, openSync, readSync } from 'node:fs';
 import { link, mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import type { Readable } from 'node:stream';
@@ -177,6 +177,23 @@ export class BlobStore {
     return existsSync(this.sidecarPath(photoId, contentHash));
   }
 
+  /** Reads the envelope key id of an on-disk companion so unprotect commit
+   * records the true key when an existing shared sidecar envelope was kept. */
+  sidecarKeyId(photoId: string, contentHash: string): number {
+    assertHash(contentHash);
+    const path = this.sidecarPath(photoId, contentHash);
+    const fd = openSync(path, 'r');
+    try {
+      const header = Buffer.alloc(9);
+      if (readSync(fd, header, 0, 9, 0) < 9 || header.subarray(0, 4).toString('ascii') !== 'OVLK') {
+        throw new BlobStoreError(`existing sidecar at ${path} is not an Overlook envelope`);
+      }
+      return header.readUInt32BE(5);
+    } finally {
+      closeSync(fd);
+    }
+  }
+
   /** Decrypting read stream for one companion. */
   getSidecarStream(photoId: string, contentHash: string, resolveKey: KeyResolver): Readable {
     assertHash(contentHash);
@@ -213,16 +230,20 @@ export class BlobStore {
     try {
       await pipeline(ciphertext, createWriteStream(stagePath, { flags: 'wx' }));
       await syncFileData(stagePath);
+      if (!(await this.verifyEnvelopePath(stagePath, contentHash, resolveKey, BlobStore.sidecarContext(photoId)))) {
+        throw new BlobStoreError(`restored sidecar ${contentHash} of ${photoId} failed verification`);
+      }
       const finalPath = this.sidecarPath(photoId, contentHash);
       await mkdir(dirname(finalPath), { recursive: true });
+      let existed = false;
       try {
         await link(stagePath, finalPath);
       } catch (error) {
         if (!isErrno(error, 'EEXIST')) throw error;
+        existed = true;
       }
       await rm(stagePath, { force: true });
-      if (!(await this.verifySidecar(photoId, contentHash, resolveKey))) {
-        await rm(finalPath, { force: true });
+      if (existed && !(await this.verifySidecar(photoId, contentHash, resolveKey))) {
         throw new BlobStoreError(`restored sidecar ${contentHash} of ${photoId} failed verification`);
       }
       await syncDirectoryEntry(dirname(finalPath));
@@ -230,6 +251,12 @@ export class BlobStore {
       await rm(stagePath, { force: true });
       throw error;
     }
+  }
+
+  /** Removes a single corrupt companion file without disturbing valid siblings on the same owner. */
+  async deleteSidecar(photoId: string, contentHash: string): Promise<void> {
+    assertHash(contentHash);
+    await rm(this.sidecarPath(photoId, contentHash), { force: true });
   }
 
   /** Removes the photo's entire companion set — purge travels with the
@@ -348,18 +375,22 @@ export class BlobStore {
       // BEFORE publishing — a power loss never leaves a present-but-
       // incomplete blob behind a synced ledger row (PR #205 review).
       await syncFileData(stagePath);
+      if (!(await this.verifyEnvelopePath(stagePath, contentHash, resolveKey, photoId))) {
+        throw new BlobStoreError(`restored blob ${contentHash} failed verification`);
+      }
       const finalPath = this.originalPath(contentHash);
       await mkdir(dirname(finalPath), { recursive: true });
+      let existed = false;
       try {
         await link(stagePath, finalPath);
       } catch (error) {
         if (!isErrno(error, 'EEXIST')) {
           throw error;
         }
+        existed = true;
       }
       await rm(stagePath, { force: true });
-      if (!(await this.verifyOriginal(contentHash, resolveKey, photoId))) {
-        await rm(finalPath, { force: true });
+      if (existed && !(await this.verifyOriginal(contentHash, resolveKey, photoId))) {
         throw new BlobStoreError(`restored blob ${contentHash} failed verification`);
       }
       await syncDirectoryEntry(dirname(finalPath));

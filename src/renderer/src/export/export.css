@@ -109,6 +109,8 @@
   font-family: var(--font-ui);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
+  user-select: text;
+  -webkit-app-region: no-drag;
 }
 
 .ovl-export__photosNotice {
@@ -142,6 +144,8 @@
   gap: var(--space-2);
   color: var(--accent-amber);
   font-size: var(--text-md);
+  user-select: text;
+  -webkit-app-region: no-drag;
 }
 
 /* Edits loss report (#497, ADR-0031 §6) */

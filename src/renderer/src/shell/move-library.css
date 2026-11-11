@@ -139,10 +139,14 @@
 .ovl-libmove__error {
   font-size: var(--text-sm);
   color: var(--accent-red);
+  user-select: text;
+  -webkit-app-region: no-drag;
 }
 
 .ovl-libmove__error-detail {
   color: var(--text-faint);
+  user-select: text;
+  -webkit-app-region: no-drag;
 }
 
 /* Resume banner: above the grid, below toasts (handoff z-order). */

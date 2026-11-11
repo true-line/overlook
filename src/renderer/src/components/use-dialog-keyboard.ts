@@ -20,10 +20,11 @@ function trapTab(event: KeyboardEvent, panel: HTMLDivElement): void {
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
   const active = document.activeElement;
-  if (event.shiftKey && (active === first || active === panel)) {
+  const outside = active === null || !panel.contains(active);
+  if (event.shiftKey && (active === first || active === panel || outside)) {
     event.preventDefault();
     last?.focus();
-  } else if (!event.shiftKey && active === last) {
+  } else if (!event.shiftKey && (active === last || outside)) {
     event.preventDefault();
     first?.focus();
   }

@@ -208,7 +208,7 @@ describe('dropped-file scan (#237)', () => {
     assert.equal(files.length, 0);
   });
 
-  test('#489: symlinks and package directories are never expanded into Move candidates', async () => {
+  test('#489/#1438: symlinks and package directories (including .overlooklibrary) are never expanded into scan candidates', async () => {
     const root = mkdtempSync(join(tmpdir(), 'overlook-drop-boundaries-'));
     const outside = join(mkdtempSync(join(tmpdir(), 'overlook-drop-target-')), 'outside.jpg');
     writeFileSync(outside, randomBytes(64));
@@ -216,13 +216,20 @@ describe('dropped-file scan (#237)', () => {
     const photosLibrary = join(root, 'System.photoslibrary');
     mkdirSync(photosLibrary);
     writeFileSync(join(photosLibrary, 'hidden.jpg'), randomBytes(64));
+    const overlookBundle = join(root, 'Personal.overlooklibrary');
+    mkdirSync(join(overlookBundle, 'blobs'), { recursive: true });
+    writeFileSync(join(overlookBundle, 'blobs', 'inside-bundle.jpg'), randomBytes(64));
     const admitted = join(root, 'admitted.jpg');
     writeFileSync(admitted, randomBytes(64));
 
-    const { files } = await scanFiles([root, join(root, 'linked.jpg')], { hasContentHash: () => false });
-
+    const dropped = await scanFiles([root, join(root, 'linked.jpg')], { hasContentHash: () => false });
     assert.deepEqual(
-      files.map((file) => file.path),
+      dropped.files.map((file) => file.path),
+      [admitted],
+    );
+    const scanned = await scanSource(root, { hasContentHash: () => false });
+    assert.deepEqual(
+      scanned.files.map((file) => file.path),
       [admitted],
     );
   });

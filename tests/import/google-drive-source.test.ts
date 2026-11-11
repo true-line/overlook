@@ -210,4 +210,23 @@ describe('Google Drive import source (#465)', () => {
     assert.equal(existsSync(keep), true);
     assert.equal(existsSync(remove), false);
   });
+
+  test('sanitizes remote path-traversal, separator, and control-character filenames (#1428)', async () => {
+    const world = testSource({
+      metadata: {
+        trav_posix: { id: 'trav_posix', name: '../../outside.jpg', mimeType: 'image/jpeg', capabilities: { canDownload: true } },
+        trav_win: { id: 'trav_win', name: '..\\..\\win.png', mimeType: 'image/png', capabilities: { canDownload: true } },
+        dated: { id: 'dated', name: '2026/07/Beach\u0000Shot.JPG', mimeType: 'image/jpeg', capabilities: { canDownload: true } },
+        dots_only: { id: 'dots_only', name: '../..', mimeType: 'image/jpeg', capabilities: { canDownload: true } },
+      },
+    });
+    const result = await world.source.pick();
+    assert.equal(result.status, 'ready');
+    if (result.status !== 'ready') return;
+    assert.equal(result.selection.skipped, 1);
+    assert.deepEqual(
+      result.selection.files.map((file) => file.fileName),
+      ['outside.jpg', 'win.png', '2026_07_Beach_Shot.JPG'],
+    );
+  });
 });
