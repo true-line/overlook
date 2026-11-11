@@ -24,10 +24,41 @@ interface UnprotectItemLayout {
   readonly derivativeKey: string;
 }
 
+interface PreparedUnprotectSource {
+  readonly photoId: string;
+  readonly sourceBlobRef: string;
+  readonly contentHash: string;
+  readonly sealedMetadata: Buffer;
+  readonly metadata: ProtectedPhotoMetadata;
+  readonly hasThumb: boolean;
+  readonly hasMid: boolean;
+}
+
+function chooseBatchOwnerId(group: readonly PreparedUnprotectSource[]): string {
+  const sorted = [...group].sort((a, b) => a.photoId.localeCompare(b.photoId));
+  const groupIds = new Set(sorted.map((entry) => entry.photoId));
+  const explicitRoot = sorted.find(
+    (entry) =>
+      entry.metadata.version === 2 && entry.metadata.photo.variantSourceId === null && (entry.metadata.photo.assetOwnerId ?? null) === null,
+  );
+  if (explicitRoot !== undefined) return explicitRoot.photoId;
+  const externalAncestor = sorted.find(
+    (entry) =>
+      entry.metadata.version === 2 &&
+      entry.metadata.photo.variantSourceId !== undefined &&
+      (entry.metadata.photo.variantSourceId === null || !groupIds.has(entry.metadata.photo.variantSourceId)),
+  );
+  return (externalAncestor ?? sorted[0]!).photoId;
+}
+
 function unprotectBatchLayout(items: readonly ProtectedMigrationItem[]): ReadonlyMap<string, UnprotectItemLayout> {
   const ownerByHash = new Map<string, string>();
   const layout = new Map<string, UnprotectItemLayout>();
   for (const item of items) {
+    if (item.sourceAssetOwnerId !== undefined && item.sourceDerivativeRef !== undefined) {
+      layout.set(item.photoId, { ownerPhotoId: item.sourceAssetOwnerId, derivativeKey: item.sourceDerivativeRef });
+      continue;
+    }
     const existingOwner = ownerByHash.get(item.targetBlobRef);
     if (existingOwner === undefined) {
       ownerByHash.set(item.targetBlobRef, item.photoId);
@@ -108,6 +139,9 @@ function photoMetadata(photo: PhotoRecord): ProtectedPhotoMetadata['photo'] {
     importSource: photo.importSource,
     favorite: photo.favorite,
     deletedAt: photo.deletedAt,
+    derivativeKey: photo.derivativeKey,
+    variantSourceId: photo.variantSourceId,
+    assetOwnerId: photo.assetOwnerId,
   };
 }
 
@@ -161,7 +195,7 @@ export class ProtectedPhotoMigrationService {
   prepareUnprotect(input: { readonly albumId: string; readonly albumKey: Buffer; readonly photoIds: readonly string[] }): string {
     const albumKey = requireAlbumKey(input.albumKey, 'source album');
     const migrationId = this.options.createMigrationId?.() ?? randomUUID();
-    const items = input.photoIds.map((photoId) => {
+    const opened: PreparedUnprotectSource[] = input.photoIds.map((photoId) => {
       const source = this.options.migrations.getProtected(photoId);
       if (source === undefined || source.albumId !== input.albumId) {
         throw new ProtectedPhotoMigrationServiceError(`protected photo ${photoId} is unavailable`);
@@ -179,10 +213,43 @@ export class ProtectedPhotoMigrationService {
       return {
         photoId,
         sourceBlobRef: source.blobRef,
-        targetBlobRef: metadata.photo.contentHash,
-        sealedTargetMetadata: source.sealedMetadata,
+        contentHash: metadata.photo.contentHash,
+        sealedMetadata: source.sealedMetadata,
+        metadata,
         hasThumb: source.hasThumb,
         hasMid: source.hasMid,
+      };
+    });
+    const groupsByHash = new Map<string, PreparedUnprotectSource[]>();
+    for (const entry of opened) {
+      const group = groupsByHash.get(entry.contentHash) ?? [];
+      group.push(entry);
+      groupsByHash.set(entry.contentHash, group);
+    }
+    const ownerByHash = new Map<string, string>();
+    for (const [contentHash, group] of groupsByHash) {
+      ownerByHash.set(contentHash, chooseBatchOwnerId(group));
+    }
+    const usedDerivativeKeys = new Set<string>(ownerByHash.keys());
+    const items = opened.map((entry) => {
+      const ownerPhotoId = ownerByHash.get(entry.contentHash)!;
+      const savedKey = entry.metadata.version === 2 ? entry.metadata.photo.derivativeKey : undefined;
+      const derivativeKey =
+        entry.photoId === ownerPhotoId
+          ? entry.contentHash
+          : savedKey !== undefined && !usedDerivativeKeys.has(savedKey)
+            ? savedKey
+            : variantDerivativeKey(entry.photoId, entry.contentHash);
+      usedDerivativeKeys.add(derivativeKey);
+      return {
+        photoId: entry.photoId,
+        sourceBlobRef: entry.sourceBlobRef,
+        sourceAssetOwnerId: ownerPhotoId,
+        sourceDerivativeRef: derivativeKey,
+        targetBlobRef: entry.contentHash,
+        sealedTargetMetadata: entry.sealedMetadata,
+        hasThumb: entry.hasThumb,
+        hasMid: entry.hasMid,
       };
     });
     this.options.migrations.prepare({
@@ -454,6 +521,7 @@ export class ProtectedPhotoMigrationService {
     const targetKey = authority.targetLibraryKey;
     if (targetKey === undefined) throw new ProtectedPhotoMigrationServiceError('ordinary library write authority is required');
     const unprotectLayout = unprotectBatchLayout(journal.items);
+    const unprotectedIds = new Set(journal.items.map((item) => item.photoId));
     const restorations = new Map<
       string,
       {
@@ -467,13 +535,19 @@ export class ProtectedPhotoMigrationService {
       if (metadata.photo.deletedAt !== null) throw new ProtectedPhotoMigrationServiceError('deleted photos cannot be unprotected');
       const itemLayout = unprotectLayout.get(item.photoId)!;
       const isBatchOwner = item.photoId === itemLayout.ownerPhotoId;
+      const savedSourceId = metadata.version === 2 ? metadata.photo.variantSourceId : undefined;
+      const restoredVariantSourceId = isBatchOwner
+        ? null
+        : savedSourceId !== undefined && savedSourceId !== null && unprotectedIds.has(savedSourceId)
+          ? savedSourceId
+          : itemLayout.ownerPhotoId;
       const { deletedAt: _deletedAt, ...photo } = metadata.photo;
       restorations.set(item.photoId, {
         photo: {
           ...photo,
           keyId: targetKey.id,
           derivativeKey: itemLayout.derivativeKey,
-          variantSourceId: isBatchOwner ? null : itemLayout.ownerPhotoId,
+          variantSourceId: restoredVariantSourceId,
           assetOwnerId: isBatchOwner ? null : itemLayout.ownerPhotoId,
         },
         memberships: metadata.ordinaryMemberships,
