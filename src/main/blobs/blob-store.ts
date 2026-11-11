@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { createReadStream, createWriteStream, existsSync } from 'node:fs';
+import { closeSync, createReadStream, createWriteStream, existsSync, openSync, readSync } from 'node:fs';
 import { link, mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import type { Readable } from 'node:stream';
@@ -175,6 +175,23 @@ export class BlobStore {
   hasSidecar(photoId: string, contentHash: string): boolean {
     assertHash(contentHash);
     return existsSync(this.sidecarPath(photoId, contentHash));
+  }
+
+  /** Reads the envelope key id of an on-disk companion so unprotect commit
+   * records the true key when an existing shared sidecar envelope was kept. */
+  sidecarKeyId(photoId: string, contentHash: string): number {
+    assertHash(contentHash);
+    const path = this.sidecarPath(photoId, contentHash);
+    const fd = openSync(path, 'r');
+    try {
+      const header = Buffer.alloc(9);
+      if (readSync(fd, header, 0, 9, 0) < 9 || header.subarray(0, 4).toString('ascii') !== 'OVLK') {
+        throw new BlobStoreError(`existing sidecar at ${path} is not an Overlook envelope`);
+      }
+      return header.readUInt32BE(5);
+    } finally {
+      closeSync(fd);
+    }
   }
 
   /** Decrypting read stream for one companion. */

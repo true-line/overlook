@@ -6,8 +6,10 @@ import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
 
 import { EditRevisionRepository } from './edit-revision-repository.js';
 import type { BackupManifestEditRevisionV11 } from '../backup/backup-manifest-edit-revisions.js';
+import { SidecarRepository, type SidecarRecord } from './sidecar-repository.js';
 
-import type { ProtectedPhotoMetadata } from '../crypto/protected-photo-metadata.js';
+import type { ProtectedBlobKind } from '../blobs/protected-blob-store.js';
+import type { ProtectedPhotoMetadata, ProtectedSidecarMetadata } from '../crypto/protected-photo-metadata.js';
 import { effectivePhotoTags, normalizePhotoTags } from '../../shared/library/photo-metadata.js';
 import type { PhotoInsert } from '../../shared/library/types.js';
 import { refreshInAllPhotos } from './album-visibility-repository.js';
@@ -23,6 +25,7 @@ export interface ProtectedMigrationItem {
   readonly sourceAssetOwnerId?: string;
   readonly sourceDerivativeRef?: string;
   readonly targetBlobRef: string;
+  readonly targetSidecarRefs?: readonly string[];
   readonly sealedTargetMetadata: Buffer;
   readonly hasThumb: boolean;
   readonly hasMid: boolean;
@@ -61,10 +64,16 @@ interface ItemRow {
   readonly sourceAssetOwnerId: string | null;
   readonly sourceDerivativeRef: string | null;
   readonly targetBlobRef: string;
+  readonly targetSidecarRefsJson: string;
   readonly sealedTargetMetadata: Buffer;
   readonly hasThumb: number;
   readonly hasMid: number;
   readonly phase: ProtectedMigrationPhase;
+}
+
+function parseSidecarRefs(json: string): readonly string[] {
+  const parsed: unknown = JSON.parse(json);
+  return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
 }
 
 interface StoredRow {
@@ -92,6 +101,8 @@ function stored(row: StoredRow): ProtectedPhotoStoredRecord {
 }
 
 export class ProtectedPhotoMigrationRepository {
+  private readonly sidecars: SidecarRepository;
+
   constructor(
     private readonly db: BetterSqlite3.Database,
     /** A supplied collaborator must use this connection so restoration shares the custody transaction. */
@@ -100,7 +111,17 @@ export class ProtectedPhotoMigrationRepository {
       createId: randomUUID,
       activity: new ActivityRepository(db),
     },
-  ) {}
+  ) {
+    this.sidecars = new SidecarRepository(db);
+  }
+
+  ordinarySidecars(photoId: string): readonly SidecarRecord[] {
+    return this.sidecars.listForPhoto(photoId);
+  }
+
+  hasOrdinarySidecarOwner(ownerId: string): boolean {
+    return this.sidecars.hasOwner(ownerId);
+  }
 
   ordinaryMemberships(photoId: string): ProtectedPhotoMetadata['ordinaryMemberships'] {
     return queryAll<{ albumId: string; position: number }>(
@@ -211,17 +232,18 @@ export class ProtectedPhotoMigrationRepository {
         runNamed(
           this.db,
           `INSERT INTO protected_photo_migration_items (
-             migration_id, photo_id, source_blob_ref, source_asset_owner_id, source_derivative_ref, target_blob_ref, sealed_target_metadata,
-             has_thumb, has_mid, item_phase
+             migration_id, photo_id, source_blob_ref, source_asset_owner_id, source_derivative_ref, target_blob_ref, target_sidecar_refs_json,
+             sealed_target_metadata, has_thumb, has_mid, item_phase
            ) VALUES (
-             @migrationId, @photoId, @sourceBlobRef, @sourceAssetOwnerId, @sourceDerivativeRef, @targetBlobRef, @sealedTargetMetadata,
-             @hasThumb, @hasMid, 'prepare'
+             @migrationId, @photoId, @sourceBlobRef, @sourceAssetOwnerId, @sourceDerivativeRef, @targetBlobRef, @targetSidecarRefsJson,
+             @sealedTargetMetadata, @hasThumb, @hasMid, 'prepare'
            )`,
           {
             migrationId: input.migrationId,
             ...item,
             sourceAssetOwnerId: item.sourceAssetOwnerId ?? null,
             sourceDerivativeRef: item.sourceDerivativeRef ?? null,
+            targetSidecarRefsJson: JSON.stringify(item.targetSidecarRefs ?? []),
             hasThumb: item.hasThumb ? 1 : 0,
             hasMid: item.hasMid ? 1 : 0,
           },
@@ -250,14 +272,15 @@ export class ProtectedPhotoMigrationRepository {
       this.db,
       `SELECT photo_id AS photoId, source_blob_ref AS sourceBlobRef,
               source_asset_owner_id AS sourceAssetOwnerId, source_derivative_ref AS sourceDerivativeRef, target_blob_ref AS targetBlobRef,
-              sealed_target_metadata AS sealedTargetMetadata, has_thumb AS hasThumb,
+              target_sidecar_refs_json AS targetSidecarRefsJson, sealed_target_metadata AS sealedTargetMetadata, has_thumb AS hasThumb,
               has_mid AS hasMid, item_phase AS phase
          FROM protected_photo_migration_items WHERE migration_id = @migrationId ORDER BY photo_id`,
       { migrationId },
-    ).map(({ sourceAssetOwnerId, sourceDerivativeRef, ...item }): ProtectedMigrationItem => ({
+    ).map(({ sourceAssetOwnerId, sourceDerivativeRef, targetSidecarRefsJson, ...item }): ProtectedMigrationItem => ({
       ...item,
       ...(sourceAssetOwnerId === null ? {} : { sourceAssetOwnerId }),
       ...(sourceDerivativeRef === null ? {} : { sourceDerivativeRef }),
+      targetSidecarRefs: parseSidecarRefs(targetSidecarRefsJson),
       sealedTargetMetadata: Buffer.from(item.sealedTargetMetadata),
       hasThumb: item.hasThumb === 1,
       hasMid: item.hasMid === 1,
@@ -328,7 +351,7 @@ export class ProtectedPhotoMigrationRepository {
             now,
           },
         );
-        this.insertRemoteObjects(item.photoId, item.hasThumb, item.hasMid);
+        this.insertRemoteObjects(item.photoId, item.hasThumb, item.hasMid, item.targetSidecarRefs ?? []);
         run(this.db, 'DELETE FROM photos WHERE id = ?', item.photoId);
       }
       this.transition(migrationId, 'verify', 'commit', now);
@@ -343,6 +366,7 @@ export class ProtectedPhotoMigrationRepository {
         readonly photo: PhotoInsert;
         readonly memberships: ProtectedPhotoMetadata['ordinaryMemberships'];
         readonly editRevisions?: readonly BackupManifestEditRevisionV11[];
+        readonly sidecars?: readonly (ProtectedSidecarMetadata & { readonly keyId?: number })[];
       }
     >,
     ordinaryAlbum?: OrdinaryAlbumRestoration,
@@ -360,6 +384,25 @@ export class ProtectedPhotoMigrationRepository {
         }
         this.insertOrdinary(restoration.photo);
         if (restoration.editRevisions !== undefined) this.revisions.restore(restoration.editRevisions);
+        if (restoration.sidecars !== undefined) {
+          const sidecarOwnerId = restoration.photo.assetOwnerId ?? item.photoId;
+          for (const sidecar of restoration.sidecars) {
+            const sidecarKeyId = sidecar.keyId ?? restoration.photo.keyId;
+            this.sidecars.insert({
+              photoId: item.photoId,
+              ownerId: sidecarOwnerId,
+              role: sidecar.role,
+              fileName: sidecar.fileName,
+              contentHash: sidecar.contentHash,
+              bytes: sidecar.bytes,
+              keyId: sidecarKeyId,
+              importedAt: sidecar.importedAt,
+            });
+            if (sidecarKeyId !== restoration.photo.keyId) {
+              run(this.db, 'INSERT OR IGNORE INTO retained_photo_keys (photo_id, key_id) VALUES (?, ?)', item.photoId, sidecarKeyId);
+            }
+          }
+        }
         for (const membership of restoration.memberships) {
           runNamed(
             this.db,
@@ -400,7 +443,7 @@ export class ProtectedPhotoMigrationRepository {
           },
         );
         if (updated === undefined) throw new ProtectedPhotoMigrationRepositoryError('protected source changed during migration');
-        this.insertRemoteObjects(item.photoId, item.hasThumb, item.hasMid);
+        this.insertRemoteObjects(item.photoId, item.hasThumb, item.hasMid, item.targetSidecarRefs ?? []);
       }
       this.transition(migrationId, 'verify', 'commit', now);
     })();
@@ -434,8 +477,14 @@ export class ProtectedPhotoMigrationRepository {
     return journal;
   }
 
-  private insertRemoteObjects(photoId: string, hasThumb: boolean, hasMid: boolean): void {
-    for (const kind of ['original', ...(hasThumb ? (['thumb'] as const) : []), ...(hasMid ? (['mid'] as const) : [])] as const) {
+  private insertRemoteObjects(photoId: string, hasThumb: boolean, hasMid: boolean, sidecarRefs: readonly string[] = []): void {
+    const kinds: readonly ProtectedBlobKind[] = [
+      'original',
+      ...(hasThumb ? (['thumb'] as const) : []),
+      ...(hasMid ? (['mid'] as const) : []),
+      ...sidecarRefs.map((ref): ProtectedBlobKind => `sidecar.${ref}`),
+    ];
+    for (const kind of kinds) {
       runNamed(this.db, 'INSERT INTO protected_remote_objects (photo_id, kind) VALUES (@photoId, @kind)', { photoId, kind });
     }
   }

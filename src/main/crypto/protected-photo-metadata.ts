@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { protectedPhotoMetadataSchema, type ProtectedPhotoMetadata } from './protected-photo-metadata-schema.js';
 
-export type { ProtectedPhotoMetadata } from './protected-photo-metadata-schema.js';
+export type { ProtectedPhotoMetadata, ProtectedSidecarMetadata } from './protected-photo-metadata-schema.js';
 
 const MAGIC = Buffer.from('OVPP', 'ascii');
 const VERSION = 1;

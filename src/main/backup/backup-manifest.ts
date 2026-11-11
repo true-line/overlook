@@ -2,6 +2,7 @@ import type { BackupManifestSidecarV16 } from './backup-manifest-sidecars.js';
 import { backupManifestSidecarV6Schema, backupManifestSidecarV16Schema, checkSharedSidecars } from './backup-manifest-sidecars.js';
 export { backupManifestSidecarV6Schema } from './backup-manifest-sidecars.js';
 import { z } from 'zod';
+import { isProtectedBlobKind } from '../blobs/protected-blob-store.js';
 
 import {
   backupManifestEditRevisionV11Schema,
@@ -143,7 +144,7 @@ export const protectedBackupAlbumV3Schema = z.strictObject({
 });
 
 export const protectedBackupObjectV3Schema = z.strictObject({
-  kind: z.enum(['original', 'thumb', 'mid']),
+  kind: z.string().refine(isProtectedBlobKind, 'invalid protected object kind'),
   path: z.string().min(1),
   sha256: sha256Schema,
   bytes: z.number().int().nonnegative(),
