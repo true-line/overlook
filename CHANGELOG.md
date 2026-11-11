@@ -1,5 +1,26 @@
 # photos
 
+## 0.76.43
+
+### Patch Changes
+
+- c747b11: Sanitize Google Drive import filenames and enforce destination path containment for exported originals and sidecars (#1428).
+- 5b82396: Seal and migrate companion sidecars (`photo_sidecars` and sidecar blobs) across protected album `protect`, `move`, `unprotect`, and crash-recovery rollback phases (#1429).
+- 494811e: Preserve full Schema V24+/ADR-0031 photo metadata and variant lineage on unprotect, owe backup manifests on unprotect and protected-album moves, support batch-unprotecting sibling variants, and guard pre-commit unprotect rollback against shared ordinary blob owners (#1430).
+- 876d3b5: Preserve preexisting `EEXIST` blobs in `BlobStore.restoreOriginal`/`restoreSidecar` and shared-hash sibling variants in `RestoreEngine` when verification fails (#1431).
+- 14cc9ac: Privacy Lock and global protected-album relock now revoke active album generations and evict decrypted protected thumbnails and full-resolution media buffers from memory immediately (#1432).
+- 93c3488: Wire `app.lock.now` in the Windows/Linux titlebar Overlook menu and execute `Ctrl+Alt+D` (`library.duplicates`) in the non-macOS keyboard dispatcher (#1433).
+- 9ea95d7: Wire `Shift+Delete` (`photo.purge`) in Trash to open the purge confirmation dialog on ordinary photos without opening it outside Trash, align bare-key Cocoa menu accelerators and Lightbox favorite/delete guards with ADR-0024 surface policy, and update the Help README target to `true-line/overlook`.
+- ee7f4ba: Harden main-process IPC sender verification, detached Inspector window channel scope and E2E attention routing, locked-library registry mutation guards, offscreen video poster navigation policy, and `overlook-full://` CORS origin validation (#1436).
+- 5fe4b8b: Mark backup manifest debt across all committed Undo/Redo/compensation history mutations, enforce activity retention on history events, and recursively reject nested sensitive fields and paths in activity payloads (#1437).
+- c2de4b2: Stream Google Drive and pCloud backup uploads without full-stream V8 heap buffering, skip `.overlooklibrary` package bundles during folder import scans, and await background worker shutdown when closing library maintenance services (#1438).
+- e501e54: Chunk SQLite ID bind lists, index `album_photos(photo_id)`, batch Smart Album listing counts, and deduplicate shared-asset byte totals in `PhotosRepository.stats()` (#1439).
+- eea7aca: Fix `windows-interop` hoisted `node-gyp` lookup, clean up staged File Provider and PhotoKit temporary files on error/cancellation, harden `native_drag.mm` filename validation, exclude `binding.gyp`/`test*.cjs` from packaged builds, and sync `package.json` `allowScripts` with `package-lock.json` (#1440).
+- 3e48f49: Fix renderer metadata/grid async races, align Quick Actions and titlebar accessible names with WCAG 2.5.3 while trapping outside-panel Tab focus, enable text selection on error diagnostics, and migrate remaining hardcoded English strings to react-intl (#1441).
+- 913a47f: When an Export mode can't carry some edits, the dialog now lists them calmly (up to five, then how many more) and asks you to confirm exporting without them with a checkbox that resets whenever the list changes. An unavailable Export button now says why beneath it, including when a public destination withholds a field (#1307).
+- 913a47f: The Export dialog's “What leaves” preview now asks for a Destination (Named recipient or Public), with a hint for each. Disclosure class badges are neutral with an icon (lock, people, globe) instead of warning colours. Including a withheld field uses the app's standard checkbox, and the blocked notice is announced calmly rather than as an alert (#1308).
+- 913a47f: The Export dialog's disclosure preview is easier to read: consent copy (the embedded-metadata, blocked and sidecar notes, and the “Include … in this export” choice) is now regular body text at the small size instead of the tiniest, faintest type; only the loading, empty and cancel notes stay faint (#1309).
+
 ## 0.76.42
 
 ### Patch Changes
