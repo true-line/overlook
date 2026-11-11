@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
@@ -43,7 +44,7 @@ interface MacSignModule {
     configuration: { readonly identity?: string },
     bundlePath: string,
     entitlements: string,
-    run?: (cmd: string, args: readonly string[], options: { readonly stdio: 'inherit' }) => void,
+    run?: (cmd: string, args: readonly string[], options: ExecFileSyncOptionsWithStringEncoding) => string,
     options?: {
       readonly attempts?: number;
       readonly baseDelayMs?: number;
@@ -473,7 +474,7 @@ describe('transient Apple timestamp authority resilience (#1463)', () => {
     assert.match(signer, /batchCodesignCalls:\s*configuration\.batchCodesignCalls\s*\?\?\s*true/u);
     assert.match(signer, /await withTimestampRetry\(\(\)\s*=>\s*sign\(/u);
 
-    const { isTransientTimestampError, signNestedBundle, withTimestampRetry } = await macSignModule();
+    const { isTransientTimestampError, withTimestampRetry } = await macSignModule();
     assert.equal(isTransientTimestampError(new Error('kn.lproj/locale.pak: A timestamp was expected but was not found.')), true);
     assert.equal(isTransientTimestampError({ stderr: Buffer.from('The timestamp service is not available.\n') }), true);
     assert.equal(isTransientTimestampError('unable to communicate with the timestamp service'), true);
@@ -504,16 +505,27 @@ describe('transient Apple timestamp authority resilience (#1463)', () => {
       /invalid entitlement/u,
     );
     assert.deepEqual(delays, [500, 1000]);
+  });
 
+  test('signNestedBundle pipes codesign stderr so execFileSync TSA failures retry', async () => {
+    const { signNestedBundle } = await macSignModule();
     const syncDelays: number[] = [];
     let syncAttempts = 0;
     signNestedBundle(
       { identity: 'Developer ID hash' },
       '/tmp/OverlookQuickLook.appex',
       '/tmp/quick-look-entitlements.plist',
-      () => {
+      (_cmd, _args, options) => {
+        assert.deepEqual(options, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
         syncAttempts += 1;
-        if (syncAttempts === 1) throw Object.assign(new Error('Command failed'), { stderr: 'The timestamp service is not available.' });
+        if (syncAttempts === 1) {
+          return execFileSync(
+            process.execPath,
+            ['-e', 'process.stderr.write("A timestamp was expected but was not found.\\n"); process.exit(1);'],
+            options,
+          );
+        }
+        return '';
       },
       { attempts: 3, baseDelayMs: 250, sleepSync: (ms) => syncDelays.push(ms) },
     );

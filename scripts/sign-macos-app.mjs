@@ -96,6 +96,14 @@ export async function withTimestampRetry(operation, { attempts = 4, baseDelayMs 
   }
 }
 
+function forwardCapturedOutput(error) {
+  if (error === null || error === undefined || typeof error !== 'object') return;
+  if (typeof error.stdout === 'string' && error.stdout !== '') process.stdout.write(error.stdout);
+  else if (Buffer.isBuffer(error.stdout) && error.stdout.length > 0) process.stdout.write(error.stdout);
+  if (typeof error.stderr === 'string' && error.stderr !== '') process.stderr.write(error.stderr);
+  else if (Buffer.isBuffer(error.stderr) && error.stderr.length > 0) process.stderr.write(error.stderr);
+}
+
 export function signNestedBundle(
   configuration,
   bundlePath,
@@ -106,9 +114,11 @@ export function signNestedBundle(
   const args = nestedCodeSignArguments(configuration, bundlePath, entitlements);
   for (let attempt = 1; ; attempt += 1) {
     try {
-      run('codesign', args, { stdio: 'inherit' });
+      const output = run('codesign', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      if (typeof output === 'string' && output !== '') process.stdout.write(output);
       return;
     } catch (error) {
+      forwardCapturedOutput(error);
       if (attempt >= attempts || !isTransientTimestampError(error)) throw error;
       const delayMs = baseDelayMs * 2 ** (attempt - 1);
       process.stderr.write(
