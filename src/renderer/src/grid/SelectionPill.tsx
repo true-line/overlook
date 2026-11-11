@@ -1,5 +1,5 @@
 import { useCallback, useId, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { useIntl } from 'react-intl';
+import { defineMessages, useIntl } from 'react-intl';
 
 import './pill.css';
 import { photoKeyMessages } from '../commands/photo-command-targets.js';
@@ -14,6 +14,12 @@ import { AlbumPicker } from './AlbumPicker';
 import { collapseLevels, DANGER_ACTIONS, overflowFor, type PillActionId } from './selection-pill-actions';
 import type { AlbumSummary } from '../../../shared/library/types.js';
 import { destructiveActions } from '../../../shared/destructive-actions.js';
+
+const pillMessages = defineMessages({
+  offload: { id: 'selectionPill.offload', defaultMessage: 'Offload' },
+  transfer: { id: 'selectionPill.transfer', defaultMessage: 'Transfer & Sync' },
+  addToAlbum: { id: 'selectionPill.addToAlbum', defaultMessage: 'Add to album' },
+});
 
 export interface SelectionPillProps {
   readonly count: number;
@@ -261,9 +267,9 @@ function pillActions(props: SelectionPillProps, format: FormatMessage): Readonly
     ]);
   }
   const map = new Map<PillActionId, readonly PillAction[]>();
-  map.set('offload', [{ id: 'offload', label: 'Offload', icon: 'cloud-upload', run: props.onOffload }]);
+  map.set('offload', [{ id: 'offload', label: format(pillMessages.offload), icon: 'cloud-upload', run: props.onOffload }]);
   if (props.onTransfer !== undefined)
-    map.set('transfer', [{ id: 'transfer', label: 'Transfer & Sync', icon: 'refresh-cw', run: props.onTransfer }]);
+    map.set('transfer', [{ id: 'transfer', label: format(pillMessages.transfer), icon: 'refresh-cw', run: props.onTransfer }]);
   const retry = props.onRetryExport !== undefined;
   map.set('export', [
     {
@@ -275,7 +281,7 @@ function pillActions(props: SelectionPillProps, format: FormatMessage): Readonly
       description: retry ? props.exportDisabledReason : undefined,
     },
   ]);
-  map.set('add', [{ id: 'add', label: 'Add to album', icon: 'album', run: undefined }]);
+  map.set('add', [{ id: 'add', label: format(pillMessages.addToAlbum), icon: 'album', run: undefined }]);
   const original: PillAction[] = [];
   if (props.onMarkOriginal !== undefined)
     original.push({ id: 'mark', label: format(commandById('photo.original.mark').label), icon: 'shield-check', run: props.onMarkOriginal });

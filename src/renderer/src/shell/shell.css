@@ -729,6 +729,11 @@
   margin-top: var(--space-3);
 }
 
+.ovl-album-dialog__error {
+  user-select: text;
+  -webkit-app-region: no-drag;
+}
+
 /* Folder ceremonies (#505): destination pickers and the delete choices. */
 .ovl-album-dialog__select {
   width: 100%;

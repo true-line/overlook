@@ -16,7 +16,7 @@ import { assetOwnerOf } from '../../shared/library/asset-owner.js';
 // emitter details.
 export interface PhotoEditRuntimeContext {
   readonly parts: LibraryParts;
-  readonly runtime: ImportRuntime;
+  readonly runtime: Pick<ImportRuntime, 'thumbnails'>;
   readonly appVersion: string;
   readonly invalidateThumb: (photoId: string) => void;
   /** Derivative-only refresh: the tiles reload, the page never refetches. */

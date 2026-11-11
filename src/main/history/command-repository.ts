@@ -85,6 +85,7 @@ export class CommandRepository {
     const existing = this.byId(draft.recordId);
     if (existing !== undefined) return existing;
     run(this.db, "UPDATE command_records SET stack = 'discarded' WHERE stack = 'redo'");
+    run(this.db, "DELETE FROM activity_retention_holds WHERE hold_id IN (SELECT record_id FROM command_records WHERE stack = 'discarded')");
     const byteCharge = draft.byteCharge ?? 0;
     const charged =
       queryGet<{ total: number }>(
@@ -114,6 +115,20 @@ export class CommandRepository {
         byteCharge: admitted ? byteCharge : 0,
       },
     );
+    if (admitted && draft.classification !== 'irreversible') {
+      const holdExpiresAt =
+        draft.sensitiveExpiresAt !== undefined && draft.sensitiveExpiresAt !== null && draft.sensitiveExpiresAt < draft.expiresAt
+          ? draft.sensitiveExpiresAt
+          : draft.expiresAt;
+      run(
+        this.db,
+        `INSERT INTO activity_retention_holds (event_id, hold_id, expires_at) VALUES (?, ?, ?)
+         ON CONFLICT (event_id, hold_id) DO UPDATE SET expires_at = excluded.expires_at`,
+        draft.activityEventId,
+        draft.recordId,
+        holdExpiresAt,
+      );
+    }
     this.prune(new Date(draft.createdAt));
     const inserted = this.byId(draft.recordId);
     if (inserted === undefined) throw new Error('command record insert was not readable');
@@ -195,6 +210,7 @@ export class CommandRepository {
       expected,
     );
     if (changed === undefined) throw new Error('command stack changed before compensation completed');
+    run(this.db, 'DELETE FROM activity_retention_holds WHERE hold_id = ?', recordId);
   }
 
   execution(requestId: string): HistoryExecutionResult | undefined {
@@ -217,8 +233,10 @@ export class CommandRepository {
     const sensitiveCutoff = new Date(now.getTime() - this.policy.maxSensitiveAgeMs).toISOString();
     const rows = queryAll<CommandRow>(this.db, 'SELECT * FROM command_records ORDER BY sequence DESC');
     const remove = rows.filter((row, index) => index >= this.policy.maxCommands || row.created_at < ageCutoff).map((row) => row.record_id);
-    for (const recordId of remove)
+    for (const recordId of remove) {
       run(this.db, "UPDATE command_records SET stack = 'discarded', byte_charge = 0 WHERE record_id = ?", recordId);
+      run(this.db, 'DELETE FROM activity_retention_holds WHERE hold_id = ?', recordId);
+    }
     for (const row of rows) {
       if (row.sensitive_expires_at !== null && (row.sensitive_expires_at <= nowIso || row.created_at < sensitiveCutoff)) {
         const inverse = JSON.parse(row.inverse_json) as InverseParameters;

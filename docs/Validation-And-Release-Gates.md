@@ -33,14 +33,14 @@ contract; their step or job timeout remains the failure boundary. Keep the
 workflow definitions, runtime-policy pin, and tooling assertions in
 `tests/tooling/` synchronized when changing these limits.
 
-All third-party `uses:` in `.github/workflows/*.yml` are pinned to a full commit SHA with a `# vX.Y.Z` version comment, verified by `pinact run --verify` (config: `.pinact.yml`). The SHA-pinned `qwts/qwts-agent-docs-gov/.github/workflows/docs-governance.yml@67db7dc…` (whose `tooling-ref` input names the same commit) is the same policy — do not regress it to a floating tag. The `qwts/qwts-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a` pin is the repository's authorization boundary (#1038, #1024): it is immutable, Dependabot ignores it, and `pinact` ignores it via `.pinact.yml`. Re-verify pins with `pinact run --verify`; do not bulk-refresh governed pins. The `zizmor` `unpinned-uses` gate (`.github/zizmor.yml`, job `zizmor` in `ci.yml`) is the continuously enforced backstop that blocks any new unpinned reference; only `unpinned-uses` is merge-blocking until `qwts/agent-sop#6` ships the shared `security-scan.yml` reusable (see [#716](https://github.com/qwts/overlook/issues/716)).
+All third-party `uses:` in `.github/workflows/*.yml` are pinned to a full commit SHA with a `# vX.Y.Z` version comment, verified by `pinact run --verify` (config: `.pinact.yml`). The SHA-pinned `true-line/trueline-agent-docs-gov/.github/workflows/docs-governance.yml@67db7dc…` (whose `tooling-ref` input names the same commit) is the same policy — do not regress it to a floating tag. The `true-line/trueline-agent-ci/.github/actions/ci-policy@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad` pin is the repository's authorization boundary (#1038, #1024): it is immutable, Dependabot ignores it, and `pinact` ignores it via `.pinact.yml`. Re-verify pins with `pinact run --verify`; do not bulk-refresh governed pins. The `zizmor` `unpinned-uses` gate (`.github/zizmor.yml`, job `zizmor` in `ci.yml`) is the continuously enforced backstop that blocks any new unpinned reference; only `unpinned-uses` is merge-blocking until `qwts/agent-sop#6` ships the shared `security-scan.yml` reusable (see [#716](https://github.com/qwts/overlook/issues/716)).
 
 Two gates need an external checkout, both env-gated in the same shape:
 
-| Variable                   | Points at                                                                                                        |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `DOCS_GOV_TOOLING_ROOT`    | a `qwts/qwts-agent-docs-gov` checkout with `tools/docs-gov` at commit `67db7dc9c20bc29222fb605b7ff9432fd58a2a3f` |
-| `INTEROP_IMAGE_TRAIL_ROOT` | a `qwts/image-trail` checkout pinned to the commit the manifest names                                            |
+| Variable                   | Points at                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `DOCS_GOV_TOOLING_ROOT`    | a `true-line/trueline-agent-docs-gov` checkout with `tools/docs-gov` at commit `67db7dc9c20bc29222fb605b7ff9432fd58a2a3f` |
+| `INTEROP_IMAGE_TRAIL_ROOT` | a `qwts/image-trail` checkout pinned to the commit the manifest names                                                     |
 
 ## Advisory semantic checks
 
@@ -268,19 +268,22 @@ not stand in for hardware qualification. This proves
 native integration with a deterministic fixture, not production CLIP quality
 or accelerator performance; packaged payload checks remain separate gates.
 
-The `Native ARM64 DirectML qualification` job runs automatically after the
-reviewed policy authorizes a full suite: ready PRs, merge groups, and manual CI
-runs. It uses labels `[self-hosted, Windows, ARM64]` (currently `SURFACE-13`),
-uses command-scoped Git configuration for LF checkout, asserts native ARM64
-Node and Electron, records adapter/driver names, and runs
-the strict native-worker fixture with CPU fallback disabled and its negative
-CPU control. The stable required `CI` aggregate requires hardware success in
-each full-suite lifecycle, including PRs that reuse exact-SHA preflight evidence.
-Failed, cancelled, or skipped qualification cannot pass that gate; an offline
-runner leaves it waiting. Failed policy checks and draft PRs never select the
-laptop. Post-merge smoke retains its existing hosted Windows architecture lanes.
-For diagnostics, dispatch CI on an inspected commit with `purpose=diagnostics`;
-no separate hardware opt-in is needed. A successful job qualifies only that
+The `Native ARM64 DirectML qualification` job runs automatically when repository
+variable `OVERLOOK_DML_ARM64_RUNNER` is `'true'` and the reviewed policy
+authorizes a full suite: ready PRs, merge groups, and manual CI runs. It uses
+labels `[self-hosted, Windows, ARM64]` (currently `SURFACE-13`), uses
+command-scoped Git configuration for LF checkout, asserts native ARM64 Node and
+Electron, records adapter/driver names, and runs the strict native-worker
+fixture with CPU fallback disabled and its negative CPU control. When
+`OVERLOOK_DML_ARM64_RUNNER` is `'true'`, the stable required `CI` aggregate
+requires hardware `success` in each full-suite lifecycle, including PRs that
+reuse exact-SHA preflight evidence; when unset or `'false'` (for example while
+no self-hosted Windows ARM64 runner is registered), the job is skipped and the
+gate requires `skipped`, still rejecting `failure` or `cancelled`. Failed policy
+checks and draft PRs never select the laptop. Post-merge smoke retains its
+existing hosted Windows architecture lanes. For diagnostics, dispatch CI on an
+inspected commit with `purpose=diagnostics`; no separate hardware opt-in is
+needed when the runner variable is enabled. A successful job qualifies only that
 commit, runtime, architecture, and adapter; it does not establish x64 adapter
 availability or replace the remaining hosted CI results. No secret configuration
 is required.

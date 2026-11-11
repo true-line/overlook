@@ -8,6 +8,7 @@ import { blobPhotos } from './backup-manifest-coverage.js';
 import { openRecoveryBootstrap, recoveryBootstrapResolver, type RecoveryBootstrap } from './recovery-bootstrap.js';
 import { ProviderError, type RemoteEntry, type StorageProvider } from './provider.js';
 import { RestoreError, toRestoreError } from './restore-types.js';
+import { manifestDerivativeKey } from './restore-variants.js';
 
 const MAX_BOOTSTRAP_BYTES = 1024 * 1024;
 const MAX_MANIFEST_BYTES = 64 * 1024 * 1024;
@@ -88,10 +89,12 @@ function validateManifest(manifest: RestorableBackupManifest, bootstrap: Recover
   for (const keyId of manifest.keyIds) {
     if (resolveKey(keyId) === undefined) throw new RestoreError('wrong-key', `manifest key ${String(keyId)} is unavailable`);
   }
-  const blobPaths = new Set<string>();
+  const blobRefs = new Set<string>();
+  const supportsVariants = 'variantFamilies' in manifest;
   for (const photo of blobPhotos(manifest.photos)) {
-    if (blobPaths.has(photo.blobPath)) throw new RestoreError('corrupt', `duplicate blob reference ${photo.blobPath}`);
-    blobPaths.add(photo.blobPath);
+    const refKey = supportsVariants ? `${photo.blobPath}:${manifestDerivativeKey(photo)}` : photo.blobPath;
+    if (blobRefs.has(refKey)) throw new RestoreError('corrupt', `duplicate blob reference ${photo.blobPath}`);
+    blobRefs.add(refKey);
   }
 }
 

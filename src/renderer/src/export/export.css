@@ -109,6 +109,8 @@
   font-family: var(--font-ui);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
+  user-select: text;
+  -webkit-app-region: no-drag;
 }
 
 .ovl-export__photosNotice {
@@ -142,6 +144,8 @@
   gap: var(--space-2);
   color: var(--accent-amber);
   font-size: var(--text-md);
+  user-select: text;
+  -webkit-app-region: no-drag;
 }
 
 /* Edits loss report (#497, ADR-0031 §6) */
@@ -163,11 +167,31 @@
   line-height: var(--leading-normal);
 }
 
-.ovl-export__acknowledge {
+/* The loss report (#1307): an amber mark on body text, then the confirm. */
+.ovl-export__lossHead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
+  gap: calc(var(--space-1) * 1.5);
   color: var(--text-body);
-  font-size: var(--text-md);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.ovl-export__lossHead > svg {
+  flex: none;
+  color: var(--accent-amber);
+}
+
+/* Why Export is unavailable, on its own line under the footer's buttons. */
+.ovl-dialog__footer:has(.ovl-export__footerReason) {
+  flex-wrap: wrap;
+}
+
+.ovl-export__footerReason {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: end;
 }

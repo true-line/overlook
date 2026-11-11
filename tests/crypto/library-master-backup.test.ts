@@ -210,7 +210,8 @@ describe('library master backup (#1321, ADR-0035)', () => {
 
   test('registry removal does not delete the item', () => {
     const source = readFileSync(join(process.cwd(), 'src/main/library/library-registry-runtime.ts'), 'utf8');
-    const start = source.indexOf('removeEntry(id: string, openId: string | null)');
+    const start = source.indexOf('removeEntry(id: string, openId: string | null');
+    assert.notEqual(start, -1);
     const end = source.lastIndexOf('}');
     const body = source.slice(start, end);
     assert.match(body, /getRegistry\(\)\.remove\(id\)/u);

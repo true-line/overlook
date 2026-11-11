@@ -1,34 +1,34 @@
 {
   "schemaVersion": 1,
   "contractVersion": 1,
-  "canonicalRepository": "qwts/photos",
-  "parentIssues": ["qwts/image-trail#560", "qwts/photos#283"],
+  "canonicalRepository": "true-line/overlook",
+  "parentIssues": ["true-line/image-trail#560", "true-line/overlook#283"],
   "scenarios": [
     {
       "id": "move-overlook-to-image-trail",
-      "parentScenarios": ["qwts/image-trail#560:3", "qwts/photos#283:1"],
+      "parentScenarios": ["true-line/image-trail#560:3", "true-line/overlook#283:1"],
       "requirements": [
         "Target metadata and any claimed original are durable before source finalization.",
         "A rejected or forged acknowledgement leaves the source intact."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-move-protocol.test.ts",
           "contains": "available source stays intact until a retry proves target original custody"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-move-protocol.test.ts",
           "contains": "forged accepted acknowledgement cannot bypass the original custody guard"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/move-protocol.test.ts",
           "contains": "keeps an available source intact until a retry proves target byte custody"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/move-protocol.test.ts",
           "contains": "rejects a forged accepted acknowledgement that does not prove original custody"
         }
@@ -36,29 +36,29 @@
     },
     {
       "id": "move-image-trail-to-overlook",
-      "parentScenarios": ["qwts/image-trail#560:1", "qwts/photos#283:2"],
+      "parentScenarios": ["true-line/image-trail#560:1", "true-line/overlook#283:2"],
       "requirements": [
         "One or many reviewed records use durable exact counts and replay-safe acknowledgements.",
         "Metadata-only records never claim or delete an original."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-move-protocol.test.ts",
           "contains": "metadata-only Move resumes across every durable boundary"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-move-protocol.test.ts",
           "contains": "review counts remain exact across replay and restart"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/move-protocol.test.ts",
           "contains": "resumes metadata-only Move across every durable boundary"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/move-protocol.test.ts",
           "contains": "derives exact review counts from durable items"
         }
@@ -66,29 +66,29 @@
     },
     {
       "id": "metadata-duplicates-conflicts-and-round-trip",
-      "parentScenarios": ["qwts/image-trail#560:2", "qwts/image-trail#560:3", "qwts/photos#283:3"],
+      "parentScenarios": ["true-line/image-trail#560:2", "true-line/image-trail#560:3", "true-line/overlook#283:3"],
       "requirements": [
         "Metadata-only, duplicate, conflict, unsupported, and skipped categories remain explicit.",
         "Unknown product metadata and albums survive a round trip without fabricated provenance."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-record-translation.test.ts",
           "contains": "deterministically distinguish duplicate, conflict, unsupported, and skipped records"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-record-translation.test.ts",
           "contains": "native album membership follows canonical positions"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/translation-service.test.ts",
           "contains": "persists and exports canonical albums with exact round-trip metadata"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/translation-service.test.ts",
           "contains": "leaves divergent identities for the same remote origin unpersisted as conflicts"
         }
@@ -96,29 +96,29 @@
     },
     {
       "id": "deterministic-reviewed-sync",
-      "parentScenarios": ["qwts/image-trail#560:4", "qwts/photos#283:4"],
+      "parentScenarios": ["true-line/image-trail#560:4", "true-line/overlook#283:4"],
       "requirements": [
         "Reviewed scope, direction, checkpoints, replay, pause, resume, and disconnect are durable.",
         "Conflicts converge independently of delivery order and deletes never apply silently."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-sync-protocol.test.ts",
           "contains": "delete review, pause, cancel, and disconnect never silently mutate a library"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-sync-resolution.test.ts",
           "contains": "Sync convergence uses product roles, not delivery order"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/sync-protocol.test.ts",
           "contains": "requires tombstone review and disconnects without deleting either library"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/sync-resolution.test.ts",
           "contains": "converges to the same field winners independent of delivery order"
         }
@@ -126,29 +126,29 @@
     },
     {
       "id": "interruption-and-idempotent-recovery",
-      "parentScenarios": ["qwts/image-trail#560:5", "qwts/photos#283:5"],
+      "parentScenarios": ["true-line/image-trail#560:5", "true-line/overlook#283:5"],
       "requirements": [
         "Every durable Move boundary resumes after restart without loss or duplicate finalization.",
         "Transport retries reuse only verified chunks and reject changed replay content."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-move-protocol.test.ts",
           "contains": "metadata-only Move resumes across every durable boundary"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-transport.test.ts",
           "contains": "resumes verified chunks, paginates, and reproduces exact ciphertext"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/move-protocol.test.ts",
           "contains": "resumes metadata-only Move across every durable boundary"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/transport.test.ts",
           "contains": "resumes verified chunks and fails closed on corruption"
         }
@@ -156,29 +156,29 @@
     },
     {
       "id": "provider-success-and-failure-vocabulary",
-      "parentScenarios": ["qwts/image-trail#560:6", "qwts/photos#283:6"],
+      "parentScenarios": ["true-line/image-trail#560:6", "true-line/overlook#283:6"],
       "requirements": [
         "pCloud, Google Drive, and iCloud expose success, offline, auth, quota, unavailable, partial, and corrupt states honestly.",
         "Recovery actions route by error type and do not invent provider success."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-provider-adapters.test.ts",
           "contains": "continues a partial resumable upload from the provider-acknowledged byte"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/dom/interop-workflow-view.test.ts",
           "contains": "resumable errors use the resume handler"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/backup/provider-contract.test.ts",
           "contains": "fault injection produces each engine error path"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/visible-workflow.test.ts",
           "contains": "uses the shared acknowledgement and recovery vocabulary"
         }
@@ -186,29 +186,29 @@
     },
     {
       "id": "provider-and-product-namespace-isolation",
-      "parentScenarios": ["qwts/image-trail#560:7", "qwts/photos#283:7"],
+      "parentScenarios": ["true-line/image-trail#560:7", "true-line/overlook#283:7"],
       "requirements": [
         "Interop roots cannot enumerate or overwrite either product backup namespace.",
         "Pairing and transfer identities scope every provider object."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-provider-adapters.test.ts",
           "contains": "writes and verifies only below the interop root with separate custody"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-provider-adapters.test.ts",
           "contains": "isolated listings"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/transport.test.ts",
           "contains": "pCloud writes below Overlook Interop and never the backup root"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/transport.test.ts",
           "contains": "Drive creates a separate app-owned root"
         }
@@ -216,29 +216,29 @@
     },
     {
       "id": "encrypted-envelope-and-pairing-fail-closed",
-      "parentScenarios": ["qwts/image-trail#560:8", "qwts/photos#283:8"],
+      "parentScenarios": ["true-line/image-trail#560:8", "true-line/overlook#283:8"],
       "requirements": [
         "Wrong password or key, corruption, replay, unsafe paths, and future versions fail closed.",
         "Provider storage and logs receive no plaintext records, originals, credentials, or keys."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-contract.test.ts",
           "contains": "pairing import fails closed for wrong passwords, corruption, future versions, and unknown fields"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-transport.test.ts",
           "contains": "fails closed on traversal and corrupted provider bytes"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/pairing.test.ts",
           "contains": "fails closed for a wrong password and authenticated-header or ciphertext tampering"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/contract.test.ts",
           "contains": "rejects a duplicated message identity within one pairing"
         }
@@ -246,29 +246,29 @@
     },
     {
       "id": "album-provenance-and-ui-stability",
-      "parentScenarios": ["qwts/image-trail#560:1", "qwts/photos#283:9"],
+      "parentScenarios": ["true-line/image-trail#560:1", "true-line/overlook#283:9"],
       "requirements": [
         "Albums, provenance, selection, active view, exact counts, and queue order survive transfer review.",
         "Unavailable originals remain visibly metadata-only."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/e2e/interop-ui.spec.ts",
           "contains": "without reordering the Queue"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/interop-record-translation.test.ts",
           "contains": "never fabricate favorites provenance"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/e2e/interop-ui.spec.ts",
           "contains": "album-scoped transfer review and preserve the active source"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/e2e/interop-ui.spec.ts",
           "contains": "without changing selection or view"
         }
@@ -276,29 +276,29 @@
     },
     {
       "id": "privacy-security-and-release-packaging",
-      "parentScenarios": ["qwts/image-trail#560:exit", "qwts/photos#283:exit"],
+      "parentScenarios": ["true-line/image-trail#560:exit", "true-line/overlook#283:exit"],
       "requirements": [
         "Interop custody preserves the documented privacy and plaintext-at-rest boundaries.",
         "Hardened release packages and their production identity checks remain executable."
       ],
       "evidence": [
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/release-artifacts.test.ts",
           "contains": "central release build policy minifies and removes development-only debugging"
         },
         {
-          "repository": "qwts/image-trail",
+          "repository": "true-line/image-trail",
           "path": "tests/invariants.test.ts",
           "contains": "invariant: interoperability custody never reaches host-page, provider, log, or extension storage APIs"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/tooling/macos-signing.test.ts",
           "contains": "the package workflow validates that the packaged app can start"
         },
         {
-          "repository": "qwts/photos",
+          "repository": "true-line/overlook",
           "path": "tests/interop/transport.test.ts",
           "contains": "allows only the released extension and file references in bounded frames"
         }
@@ -309,25 +309,25 @@
     {
       "id": "released-products-bidirectional",
       "status": "pending",
-      "runbook": "https://github.com/qwts/photos/blob/main/docs/Interop-Closeout-Evidence.md",
+      "runbook": "https://github.com/true-line/overlook/blob/main/docs/Interop-Closeout-Evidence.md",
       "evidence": null
     },
     {
       "id": "live-pcloud",
       "status": "pending",
-      "runbook": "https://github.com/qwts/photos/blob/main/docs/Interop-Closeout-Evidence.md",
+      "runbook": "https://github.com/true-line/overlook/blob/main/docs/Interop-Closeout-Evidence.md",
       "evidence": null
     },
     {
       "id": "live-google-drive",
       "status": "pending",
-      "runbook": "https://github.com/qwts/photos/blob/main/docs/Interop-Closeout-Evidence.md",
+      "runbook": "https://github.com/true-line/overlook/blob/main/docs/Interop-Closeout-Evidence.md",
       "evidence": null
     },
     {
       "id": "signed-icloud-native-host",
       "status": "pending",
-      "runbook": "https://github.com/qwts/photos/blob/main/docs/Interop-Closeout-Evidence.md",
+      "runbook": "https://github.com/true-line/overlook/blob/main/docs/Interop-Closeout-Evidence.md",
       "evidence": null
     }
   ]

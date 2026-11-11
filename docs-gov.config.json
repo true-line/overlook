@@ -1,9 +1,10 @@
 {
-  "include": ["docs/**/*.md", "README.md", "AGENTS.md", "CONTRIBUTING.md"],
+  "include": ["docs/**/*.md", "README.md", "AGENTS.md", "CONTRIBUTING.md", "SIGNING.md"],
   "indexes": [
     "README.md",
     "AGENTS.md",
     "CONTRIBUTING.md",
+    "SIGNING.md",
     "docs/README.md",
     "docs/Repo-Documentation-Pointer-Map.md",
     "docs/adr/Architecture-Decision-Records.md",

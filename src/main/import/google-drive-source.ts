@@ -6,6 +6,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { buildGoogleDriveAuthorizeUrl, createPkce, exchangeGoogleDriveCode } from '../backup/google-drive/oauth.js';
 import { startGoogleDriveLoopbackCapture } from '../backup/google-drive/loopback.js';
 import { classifyMediaFile } from '../../shared/library/media-files.js';
+import { sanitizeImportedFileName } from '../export/export-path-safety.js';
 import { collectMediaCandidates, type ImportCandidate } from './source-scanner.js';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files';
@@ -211,13 +212,7 @@ export class GoogleDriveImportSource {
       const capabilities = metadata.capabilities as { readonly canDownload?: unknown };
       if (capabilities.canDownload === false) return null;
     }
-    // Drive permits long names; keep the renderer/DB boundary bounded while
-    // preserving the extension that drives the media allowlist.
-    if (metadata.name.length <= 1024) return metadata.name;
-    const dot = metadata.name.lastIndexOf('.');
-    const candidateExtension = dot > 0 ? metadata.name.slice(dot) : '';
-    const extension = candidateExtension.length <= 32 ? candidateExtension : '';
-    return `${metadata.name.slice(0, Math.max(1, 1024 - extension.length))}${extension}`;
+    return sanitizeImportedFileName(metadata.name);
   }
 
   private authorizedFetch(url: string, accessToken: string, signal: AbortSignal): Promise<Response> {

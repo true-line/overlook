@@ -1,4 +1,5 @@
 import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
+import { z } from 'zod';
 
 import { markDirty } from '../backup/sync-ledger.js';
 import {
@@ -24,9 +25,11 @@ interface MetadataRow {
   readonly metadataVersion: number;
 }
 
+const storedTagListSchema = z.array(z.string().nullable().catch(null)).catch([]);
+
 function parseTags(json: string): string[] {
-  const parsed: unknown = JSON.parse(json);
-  return normalizePhotoTags(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []);
+  const parsed = storedTagListSchema.parse(JSON.parse(json));
+  return normalizePhotoTags(parsed.filter((value): value is string => value !== null));
 }
 
 function keys(tags: readonly string[]): Set<string> {
@@ -236,17 +239,25 @@ export class PhotoMetadataRepository {
   }
 
   private rows(photoIds: readonly string[]): MetadataRow[] {
-    if (photoIds.length === 0) return [];
-    const params = Object.fromEntries(photoIds.map((id, index) => [`id${String(index)}`, id]));
-    return queryAll<MetadataRow>(
-      this.db,
-      `SELECT id, user_title AS title, user_description AS description,
-              imported_keywords AS importedKeywords, user_tags AS userTags,
-              suppressed_keywords AS suppressedKeywords, metadata_version AS metadataVersion
-         FROM ordinary_visible_photos
-        WHERE id IN (${photoIds.map((_id, index) => `@id${String(index)}`).join(', ')})`,
-      params,
-    );
+    const uniqueIds = [...new Set(photoIds)];
+    if (uniqueIds.length === 0) return [];
+    const found: MetadataRow[] = [];
+    for (let start = 0; start < uniqueIds.length; start += 500) {
+      const chunk = uniqueIds.slice(start, start + 500);
+      const params = Object.fromEntries(chunk.map((id, index) => [`id${String(index)}`, id]));
+      found.push(
+        ...queryAll<MetadataRow>(
+          this.db,
+          `SELECT id, user_title AS title, user_description AS description,
+                  imported_keywords AS importedKeywords, user_tags AS userTags,
+                  suppressed_keywords AS suppressedKeywords, metadata_version AS metadataVersion
+             FROM ordinary_visible_photos
+            WHERE id IN (${chunk.map((_id, index) => `@id${String(index)}`).join(', ')})`,
+          params,
+        ),
+      );
+    }
+    return found;
   }
 
   private allRows(): MetadataRow[] {
