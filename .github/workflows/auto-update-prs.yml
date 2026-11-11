@@ -45,8 +45,7 @@ jobs:
     # The App credentials are bound to this main-only environment.
     environment: version-cut
     permissions:
-      contents: write
-      pull-requests: read
+      contents: read
     # Dependabot-triggered runs receive no regular Actions secrets and its branches
     # are intentionally maintained through `@dependabot rebase` instead.
     if: github.actor != 'dependabot[bot]'
@@ -62,6 +61,8 @@ jobs:
         with:
           client-id: ${{ secrets.CHORES_DUMB_CLIENT_ID }}
           private-key: ${{ secrets.CHORES_DUMB_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
       - name: Update each behind branch by merging main into it
         env:

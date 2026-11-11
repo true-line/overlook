@@ -1,44 +1,46 @@
-# Version-cut automation (#171): consumes accumulated changesets into releases.
+# Version-cut automation (#171, #1267): consumes accumulated changesets into releases.
 #
-# Two halves, both driven by pushes to main:
-#  1. version-pr — while changesets are pending, keep a "Version packages" PR
-#     open and current (`changeset version`, then a force-push of
-#     changeset-release/main, on every main push). Merging that PR is the human
-#     "cut a release" act.
-#  2. tag — after the version PR merges (no changesets pending, version in
-#     package.json untagged), tag v<version> and hand off to the release
-#     workflow.
+# Two halves, driven by pushes to main and default-branch recovery dispatches:
+#  1. prepare-version-pr / publish-version-pr — while semantic changesets are
+#     pending, prepare and validate a narrow version patch on an unprivileged
+#     runner (`npm run changeset:version` + `validate-version-cut.mjs`), then
+#     apply and publish that signed commit to `changeset-release/main` on a
+#     clean `version-cut` runner without installing or executing dependencies.
+#     Merging the resulting rolling PR is the human "cut a release" act.
+#  2. tag — after the version PR merges (no semantic changesets pending,
+#     synchronized package + lockfile version untagged), wait for exact-SHA CI,
+#     tag v<version>, and hand off to the release workflow.
 #
-# Both halves authenticate as chores-dumb[bot], a GitHub App whose installation
-# token is minted per run from the repository's App client ID and private key.
-# There is no PAT or GITHUB_TOKEN write fallback. Two reasons for the App:
+# Privileged writes authenticate as chores-dumb[bot], a GitHub App whose
+# installation token is minted per run from the `version-cut` environment's App
+# client ID and private key. There is no PAT or GITHUB_TOKEN write fallback:
 #  - GITHUB_TOKEN events cannot trigger other workflows. A bot-refreshed version
 #    PR got no pull_request CI runs even though main requires the "CI" and
 #    "E2E gate" checks, and a GITHUB_TOKEN tag push fired no on:push:tags run.
-#    Both downstream runs had to be dispatched explicitly.
 #  - Governed automation authorizes initiators explicitly, and
-#    github-actions[bot] is not one of them. A later workflow that needs write
-#    authority must be initiated as chores-dumb[bot], not by a repository token.
+#    github-actions[bot] is not one of them.
 # Under the App the actor is an authorized non-human account and both events
 # fire on their own: the version PR gets real pull_request runs, and the tag push
-# starts release.yml directly. It also un-deadlocks review — a PAT opens the
-# version PR as qwts, who cannot approve their own PR (ENG-0045 decision 4), so
-# every cut needed a bypass. chores-dumb[bot] opens it, and a human approves.
-# No dispatch steps, no `actions: write` on the version job. Repository tokens
-# reach only actions/* steps and first-party command steps that need them;
-# third-party tooling runs without credentials.
-# Missing or unreadable App credentials fail closed before any repository write.
+# starts release.yml directly. chores-dumb[bot] also opens the rolling PR so a
+# maintainer can approve it without self-review bypasses (ENG-0045 decision 4).
+# Repository tokens reach only actions/* steps and first-party command steps
+# that need them; third-party tooling runs without credentials on a separate
+# unprivileged runner. Missing or unreadable App credentials fail closed before
+# any repository write.
 name: Version cut
 
 on:
   push:
     branches:
       - main
-  # Manual refresh / recovery (e.g. re-tag after a partial failure).
-  workflow_dispatch:
+  # Default-branch-only refresh / recovery. Unlike workflow_dispatch, a
+  # repository_dispatch cannot select an untrusted branch's workflow file.
+  repository_dispatch:
+    types:
+      - version-cut-recovery
 
 # Serialize whole-workflow runs: back-to-back merges otherwise race the
-# version-branch force-push and the tag/rev-parse check.
+# version-branch update and the tag/rev-parse check.
 concurrency:
   group: version-cut
   cancel-in-progress: false
@@ -56,17 +58,16 @@ jobs:
         with:
           authorization-only: 'true'
 
-  version-pr:
+  prepare-version-pr:
     needs: policy
-    name: Version packages PR
+    if: needs.policy.result == 'success'
+    name: Prepare version packages PR
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # The App credentials are bound to this main-only environment.
-    environment: version-cut
     outputs:
       has-releases: ${{ steps.version.outputs.has-releases }}
-    env:
-      HAS_CHORES_DUMB: ${{ secrets.CHORES_DUMB_CLIENT_ID != '' && secrets.CHORES_DUMB_PRIVATE_KEY != '' }}
+      ready: ${{ steps.version.outputs.ready }}
+      should-check-tag: ${{ steps.version.outputs.should-check-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -94,13 +95,13 @@ jobs:
           attempts: '2'
           retry-delay-seconds: '5'
 
-      # Done in-repo rather than by changesets/action. `changeset version` runs
-      # without repository credentials; only the first-party push/PR step below
-      # receives a token.
-      - name: Create the Version packages commit
+      # Dependency code runs only in this unprivileged read-only job. The
+      # publish job starts on a clean runner and accepts only the narrow
+      # version patch validated here.
+      - name: Prepare the version patch
         id: version
         env:
-          BRANCH: changeset-release/main
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           git show-ref --verify --quiet refs/heads/main || git branch main origin/main
@@ -109,21 +110,106 @@ jobs:
           releases=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).releases.length' "$status_file")
           if [ "$releases" -eq 0 ]; then
             echo 'has-releases=false' >> "$GITHUB_OUTPUT"
+            if [ "$EVENT_NAME" = "push" ]; then
+              prev=$(git show 'HEAD~1:package.json' 2>/dev/null | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version' 2>/dev/null || echo '')
+              cur=$(node -p 'require("./package.json").version')
+              if [ "$prev" = "$cur" ]; then
+                echo 'should-check-tag=false' >> "$GITHUB_OUTPUT"
+                echo "No package releases pending and version unchanged ($cur) — nothing to version or tag."
+                exit 0
+              fi
+            fi
+            echo 'should-check-tag=true' >> "$GITHUB_OUTPUT"
             echo "No package releases pending — nothing to version."
             exit 0
           fi
           echo 'has-releases=true' >> "$GITHUB_OUTPUT"
-          cp scripts/publish-signed-version-commit.mjs "$RUNNER_TEMP/trusted-publish-version-commit.mjs"
-          npx changeset version
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git checkout -B "$BRANCH"
+          echo 'should-check-tag=false' >> "$GITHUB_OUTPUT"
+          npm run changeset:version
           git add -A
           if git diff --cached --quiet; then
-            echo '::warning::Changesets are pending but "changeset version" changed nothing.'
+            echo '::warning::Changesets are pending but "changeset:version" changed nothing.'
             exit 0
           fi
-          git commit -m 'Version packages'
+          node scripts/validate-version-cut.mjs
+          git diff --cached --check
+          git diff --cached --binary --full-index --no-renames HEAD > "$RUNNER_TEMP/version.patch"
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
+      - name: Upload the version patch
+        if: steps.version.outputs.ready == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: version-cut-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/version.patch
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-version-pr:
+    needs: [policy, prepare-version-pr]
+    if: needs.policy.result == 'success' && needs.prepare-version-pr.outputs.ready == 'true'
+    name: Publish version packages PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The App credentials are bound to this main-only environment.
+    environment: version-cut
+    permissions:
+      contents: read # Required only by checkout; writes use the App token.
+    env:
+      HAS_CHORES_DUMB: ${{ secrets.CHORES_DUMB_CLIENT_ID != '' && secrets.CHORES_DUMB_PRIVATE_KEY != '' }}
+    steps:
+      - name: Checkout the trusted base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download the version patch
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: version-cut-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/version-cut
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      # No package install or dependency code runs on this runner. Preserve
+      # both first-party scripts from the trusted base before applying the
+      # patch, validate the staged changes, and disable hooks explicitly so the
+      # authenticated steps cannot inherit executable Git state.
+      - name: Apply and validate the version patch
+        id: version
+        env:
+          BRANCH: changeset-release/main
+        run: |
+          set -euo pipefail
+          trusted_validator="$RUNNER_TEMP/trusted-validate-version-cut.mjs"
+          cp scripts/validate-version-cut.mjs "$trusted_validator"
+          cp scripts/publish-signed-version-commit.mjs "$RUNNER_TEMP/trusted-publish-version-commit.mjs"
+          git checkout -B "$BRANCH"
+          git apply --index "$RUNNER_TEMP/version-cut/version.patch"
+          node "$trusted_validator"
+          git diff --cached --check
+          version="$(node -p "require('./package.json').version")"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit -m 'Version packages'
+          {
+            echo "Merging this PR cuts \`v$version\`: the tag and the release build follow automatically."
+            echo
+            echo "Do not hand-edit — every push to main rebuilds this branch from the pending changesets."
+            echo
+            echo '## Changelog'
+            echo
+            awk -v ver="$version" '
+              $0 ~ "^## " ver "$" { grab = 1; next }
+              grab && /^## / { exit }
+              grab { print }
+            ' CHANGELOG.md
+          } > "$RUNNER_TEMP/pr-body.md"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           echo 'ready=true' >> "$GITHUB_OUTPUT"
 
       - name: Require chores-dumb credentials
@@ -139,55 +225,90 @@ jobs:
         with:
           client-id: ${{ secrets.CHORES_DUMB_CLIENT_ID }}
           private-key: ${{ secrets.CHORES_DUMB_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
-      - name: Push and refresh the Version packages PR
+      - name: Verify the ready version PR
+        if: steps.version.outputs.ready == 'true'
+        id: version_pr
+        env:
+          GH_TOKEN: ${{ steps.chores.outputs.token }}
+          BRANCH: changeset-release/main
+        run: |
+          set -euo pipefail
+          pr_numbers=$(
+            gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
+              -f state=open \
+              -f head="$GITHUB_REPOSITORY_OWNER:$BRANCH" \
+              -f base=main \
+              --paginate \
+              --jq '.[].number'
+          )
+          open_prs=()
+          if [ -n "$pr_numbers" ]; then
+            mapfile -t open_prs <<< "$pr_numbers"
+          fi
+          if [ "${#open_prs[@]}" -gt 1 ]; then
+            echo "::error::Refusing to refresh ${#open_prs[@]} open PRs for $BRANCH."
+            exit 1
+          fi
+          open="${open_prs[0]:-}"
+          if [ -z "$open" ]; then
+            echo 'missing=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo 'missing=false' >> "$GITHUB_OUTPUT"
+          echo "number=$open" >> "$GITHUB_OUTPUT"
+
+      - name: Push the version branch
         if: steps.version.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ steps.chores.outputs.token }}
           BRANCH: changeset-release/main
         run: |
           set -euo pipefail
-          version="$(node -p "require('./package.json').version")"
           # The branch is a disposable projection of main + the pending
           # changesets, rebuilt from the current tip on every main push.
           # Published through the Git Data API so GitHub signs the commit: main
           # requires signed commits and a commit pushed with git is unverified.
           # The branch updater excludes changeset-release branches.
           node "$RUNNER_TEMP/trusted-publish-version-commit.mjs"
-          {
-            echo "Merging this PR cuts \`v$version\`: the tag and the release build follow automatically."
-            echo
-            echo "Do not hand-edit — every push to main rebuilds this branch from the pending changesets."
-            echo
-            echo '## Changelog'
-            echo
-            awk -v ver="$version" '
-              $0 ~ "^## " ver "$" { grab = 1; next }
-              grab && /^## / { exit }
-              grab { print }
-            ' CHANGELOG.md
-          } > "$RUNNER_TEMP/pr-body.md"
-          open=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')
-          if [ -n "$open" ]; then
-            # The rolling PR outlives the changesets it was opened for. Its body
-            # is regenerated on every refresh, not just at creation — otherwise it
-            # keeps advertising the version and changelog from whenever it was
-            # first opened while the branch underneath moves on
-            # (qwts/image-trail#704 review).
-            gh pr edit "$open" --body-file "$RUNNER_TEMP/pr-body.md"
-            echo "Version PR #$open refreshed for v$version."
+
+      - name: Create or refresh the ready version PR
+        if: steps.version.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ steps.chores.outputs.token }}
+          BRANCH: changeset-release/main
+          MISSING_PR: ${{ steps.version_pr.outputs.missing }}
+          PR_NUMBER: ${{ steps.version_pr.outputs.number }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$MISSING_PR" = 'true' ]; then
+            gh pr create --base main --head "$BRANCH" --title 'Version packages' \
+              --body-file "$RUNNER_TEMP/pr-body.md"
+            echo "Version PR created for v$VERSION."
             exit 0
           fi
-          gh pr create --base main --head "$BRANCH" --title 'Version packages' \
-            --body-file "$RUNNER_TEMP/pr-body.md"
+          # The rolling PR outlives the changesets it was opened for. Its body
+          # is regenerated on every refresh, not just at creation — otherwise it
+          # keeps advertising the version and changelog from whenever it was
+          # first opened while the branch underneath moves on
+          # (qwts/image-trail#704 review).
+          gh pr edit "$PR_NUMBER" --body-file "$RUNNER_TEMP/pr-body.md"
+          echo "Version PR #$PR_NUMBER refreshed for v$VERSION."
 
   tag:
-    needs: [policy, version-pr]
+    needs: [policy, prepare-version-pr]
+    if: needs.policy.result == 'success' && needs.prepare-version-pr.outputs.should-check-tag == 'true'
     name: Tag version merges
     runs-on: ubuntu-latest
     timeout-minutes: 90
     # The App credentials are bound to this main-only environment.
     environment: version-cut
+    permissions:
+      contents: read
+      actions: read
     env:
       HAS_CHORES_DUMB: ${{ secrets.CHORES_DUMB_CLIENT_ID != '' && secrets.CHORES_DUMB_PRIVATE_KEY != '' }}
     steps:
@@ -203,14 +324,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
-          HAS_RELEASES: ${{ needs.version-pr.outputs.has-releases }}
+          HAS_RELEASES: ${{ needs.prepare-version-pr.outputs.has-releases }}
         run: |
           set -euo pipefail
           # Push events only tag when this push actually changed the version —
           # otherwise the first changeset-free push after this workflow lands
-          # would tag the never-cut 0.1.0 at an arbitrary commit. Manual
+          # would tag the never-cut 0.1.0 at an arbitrary commit. Repository
           # dispatch skips the comparison (recovery for a cut whose tagging
-          # failed) but still requires no-pending-changesets + untagged below.
+          # failed) but still requires no-pending-releases + synchronized
+          # semver + untagged below.
           if [ "$EVENT_NAME" = "push" ]; then
             prev=$(git show 'HEAD~1:package.json' 2>/dev/null | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version' 2>/dev/null || echo '')
             cur=$(node -p 'require("./package.json").version')
@@ -225,7 +347,21 @@ jobs:
             echo 'kind=none' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          version="v$(node -p "require('./package.json').version")"
+          # JavaScript template literals expand in Node, not Bash.
+          # shellcheck disable=SC2016
+          version=$(node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
+            const version = String(pkg.version);
+            if (!/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(version)) {
+              throw new Error(`package version is not stable three-component semver: ${version}`);
+            }
+            if (lock.version !== version || lock.packages?.[""]?.version !== version) {
+              throw new Error("package and lockfile versions are not synchronized");
+            }
+            process.stdout.write(`v${version}`);
+          ')
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
             echo "$version already tagged."
@@ -295,6 +431,8 @@ jobs:
         with:
           client-id: ${{ secrets.CHORES_DUMB_CLIENT_ID }}
           private-key: ${{ secrets.CHORES_DUMB_PRIVATE_KEY }}
+          permission-contents: write
+          permission-actions: write
 
       - name: Publish tag or recover release
         if: steps.release-plan.outputs.kind != 'none'

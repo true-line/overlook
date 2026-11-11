@@ -154,9 +154,9 @@ jobs:
     needs: [verify, build]
     runs-on: ubuntu-latest
     timeout-minutes: 22
-    # Release credentials live in this protected environment: it accepts only
-    # main and v* tags and waits for a maintainer's approval, so a dispatch
-    # from another branch cannot reach them.
+    # Release credentials live in this protected environment: its deployment
+    # policy accepts only main and v*.*.* tags, so a dispatch from another
+    # branch cannot reach them.
     environment: release
     permissions:
       contents: read
@@ -245,6 +245,7 @@ jobs:
           else
             gh release create "$TAG" "${asset_specs[@]}" \
               --prerelease \
+              --verify-tag \
               --title "$title" \
               --notes-file notes.md \
               --repo "$GITHUB_REPOSITORY"
