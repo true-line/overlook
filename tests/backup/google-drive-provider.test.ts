@@ -169,6 +169,19 @@ class DriveWorld {
     const session = this.sessions.get(url.pathname.split('/').at(-1) ?? '');
     assert.ok(session !== undefined);
     const contentRange = new Headers(init?.headers).get('content-range') ?? '';
+    if (contentRange === 'bytes */0' && (new Headers(init?.headers).get('content-length') ?? '0') === '0' && session.completed === null) {
+      const prior = session.existingId === null ? null : this.files.get(session.existingId);
+      const file = this.store(
+        {
+          ...session.metadata,
+          parents: session.metadata.parents ?? prior?.parents ?? [],
+        },
+        session.bytes,
+        session.existingId,
+      );
+      session.completed = file;
+      return Response.json(this.metadata(file));
+    }
     if (contentRange.startsWith('bytes */')) {
       if (session.completed !== null) return Response.json(this.metadata(session.completed));
       return new Response(null, {
@@ -176,16 +189,16 @@ class DriveWorld {
         headers: session.bytes.length === 0 ? {} : { range: `bytes=0-${String(session.bytes.length - 1)}` },
       });
     }
-    const match = /^bytes (\d+)-(\d+)\/(\d+)$/u.exec(contentRange);
+    const match = /^bytes (\d+)-(\d+)\/(\d+|\*)$/u.exec(contentRange);
     assert.ok(match !== null);
     const start = Number(match[1]);
     const end = Number(match[2]);
-    const total = Number(match[3]);
+    const total = match[3] === '*' ? null : Number(match[3]);
     assert.equal(start, session.bytes.length);
     const incoming = Buffer.from(await new Response(init?.body).arrayBuffer());
     assert.equal(incoming.length, end - start + 1);
     session.bytes = Buffer.concat([session.bytes, incoming]);
-    if (session.bytes.length < total) {
+    if (total === null || session.bytes.length < total) {
       return new Response(null, { status: 308, headers: { range: `bytes=0-${String(session.bytes.length - 1)}` } });
     }
     const prior = session.existingId === null ? null : this.files.get(session.existingId);
@@ -489,5 +502,51 @@ describe('Google Drive provider adapter (#277)', () => {
       missing.provider.put('blobs/xx/missing-size', Readable.from([PAYLOAD])),
       (error: unknown) => error instanceof ProviderError && error.kind === 'transient' && !error.mutationNotStarted,
     );
+  });
+
+  test('#1438: multi-chunk upload streams lazily with bounded read-ahead instead of buffering the whole stream', async () => {
+    const world = new DriveWorld();
+    const tokenStore = new GoogleDriveTokenStore({ safeStorage, dataDir: mkdtempSync(join(tmpdir(), 'overlook-google-stream-auth-')) });
+    tokenStore.save({ clientId: CLIENT_ID, refreshToken: 'refresh-1', connectedAt: 'now' });
+    const auth = new GoogleDriveAuthClient({ clientId: () => CLIENT_ID, tokenStore, fetchImpl: world.fetch });
+    auth.seed('access-1', 3600);
+    const paths = new GoogleDrivePathStore(mkdtempSync(join(tmpdir(), 'overlook-google-stream-paths-')));
+    const chunkBytes = 256 * 1024;
+    const rangesSeen: string[] = [];
+    let producedSlices = 0;
+    const sliceBytes = 64 * 1024;
+    const totalSlices = 10; // 640 KiB = 2 * 256 KiB + 128 KiB
+    const expectedHash = createHash('sha256');
+    const source = new Readable({
+      read() {
+        if (producedSlices >= totalSlices) {
+          this.push(null);
+          return;
+        }
+        const piece = Buffer.alloc(sliceBytes, producedSlices + 1);
+        producedSlices += 1;
+        expectedHash.update(piece);
+        this.push(piece);
+      },
+    });
+    const fetchSpy: typeof fetch = async (input, init) => {
+      const url = inputUrl(input);
+      if (url.pathname.startsWith('/upload/session/')) {
+        const range = new Headers(init?.headers).get('content-range') ?? '';
+        rangesSeen.push(range);
+        if (rangesSeen.length === 1) {
+          assert.ok(producedSlices < totalSlices, 'first 256 KiB chunk uploads before the remainder of the stream is pulled');
+        }
+      }
+      return world.fetch(input, init);
+    };
+    const provider = new GoogleDriveProvider({ auth, paths, libraryId: LIBRARY_ID, fetchImpl: fetchSpy, chunkBytes });
+    const result = await provider.put('blobs/st/streamed.ovlk', source);
+    assert.deepEqual(result, { bytes: totalSlices * sliceBytes });
+    assert.deepEqual(rangesSeen, ['bytes 0-262143/*', 'bytes 262144-524287/*', 'bytes 524288-655359/655360']);
+    assert.deepEqual(await provider.verify('blobs/st/streamed.ovlk'), {
+      sha256: expectedHash.digest('hex'),
+      bytes: totalSlices * sliceBytes,
+    });
   });
 });

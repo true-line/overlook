@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { BrowserWindow } from 'electron';
+import electron from 'electron';
 
 import { installWindowNavigationPolicy } from '../window-navigation-policy.js';
 import type { CapturedPosterFrame } from './poster-capture-service.js';
@@ -50,7 +50,7 @@ function captureUrl(photo: PhotoRecord): { dev: string | null; query: Record<str
  */
 export async function captureVideoPosterFrame(photo: PhotoRecord, signal: AbortSignal): Promise<CapturedPosterFrame | null> {
   if (signal.aborted) return null;
-  const win = new BrowserWindow({
+  const win = new electron.BrowserWindow({
     show: false,
     width: 1280,
     height: 720,
