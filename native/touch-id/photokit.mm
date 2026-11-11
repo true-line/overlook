@@ -169,8 +169,15 @@ class MaterializeWorker final : public Napi::AsyncWorker {
     @autoreleasepool {
       NSFileManager* files = NSFileManager.defaultManager;
       NSString* directory = String(destination_);
+      auto cleanupStaged = [&]() {
+        for (const AssetRecord& staged : output_) {
+          [files removeItemAtPath:String(staged.path) error:nil];
+        }
+        output_.clear();
+      };
       for (const std::string& identifier : assetIds_) {
         if (cancellationEpoch.load() != epoch_) {
+          cleanupStaged();
           SetError("Photos import cancelled");
           return;
         }
@@ -179,6 +186,7 @@ class MaterializeWorker final : public Napi::AsyncWorker {
         PHAssetResource* resource = asset == nil ? nil : OriginalResource(asset);
         NSString* originalName = resource.originalFilename.lastPathComponent;
         if (asset == nil || resource == nil || originalName.length == 0 || ![originalName isEqualToString:resource.originalFilename]) {
+          cleanupStaged();
           SetError("Photos asset is unavailable");
           return;
         }
@@ -192,12 +200,14 @@ class MaterializeWorker final : public Napi::AsyncWorker {
         }
         NSString* destinationPath = [directory stringByAppendingPathComponent:name];
         if (![files createFileAtPath:destinationPath contents:nil attributes:@{NSFilePosixPermissions : @0600}]) {
+          cleanupStaged();
           SetError("Photos staging file could not be created");
           return;
         }
         NSFileHandle* handle = [NSFileHandle fileHandleForWritingAtPath:destinationPath];
         if (handle == nil) {
           [files removeItemAtPath:destinationPath error:nil];
+          cleanupStaged();
           SetError("Photos staging file could not be opened");
           return;
         }
@@ -224,6 +234,7 @@ class MaterializeWorker final : public Napi::AsyncWorker {
         [handle closeFile];
         if (transferError != nil || cancellationEpoch.load() != epoch_) {
           [files removeItemAtPath:destinationPath error:nil];
+          cleanupStaged();
           SetError(cancellationEpoch.load() != epoch_ ? "Photos import cancelled" : Utf8(transferError.localizedDescription));
           return;
         }

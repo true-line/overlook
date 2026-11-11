@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { MenuItemConstructorOptions } from 'electron';
 
 import { buildApplicationMenuTemplate, commandEnabled } from '../../src/main/application-menu-model.js';
+import { HELP_URL } from '../../src/shared/commands/help-menu.js';
 import { EMPTY_COMMAND_MENU_CONTEXT, type CommandMenuContext } from '../../src/shared/commands/menu-contract.js';
 import type { CommandId } from '../../src/shared/commands/registry.js';
 
@@ -276,4 +277,29 @@ test('native pixel commands require an authoritative key target; metadata remain
     assert.equal(commandEnabled('album.membership.add', locked), true);
     assert.equal(commandEnabled('photo.export', { ...locked, hasPhotoKeyTarget: true }), true);
   }
+});
+
+test('bare-key menu accelerators scope to non-editable matching surfaces and Help points to true-line/overlook (#1434)', () => {
+  assert.equal(HELP_URL, 'https://github.com/true-line/overlook#readme');
+
+  const gridSelected = buildApplicationMenuTemplate('darwin', 'Overlook', { ...grid, selectionCount: 2 }, () => {});
+  assert.equal(find(gridSelected, 'photo.favorite.toggle')?.enabled, true);
+  assert.equal(find(gridSelected, 'photo.trash')?.enabled, true);
+  assert.equal(find(gridSelected, 'photo.favorite.toggle')?.accelerator, undefined);
+  assert.equal(find(gridSelected, 'photo.trash')?.accelerator, undefined);
+  assert.equal(find(gridSelected, 'view.inspector.toggle')?.accelerator, 'I');
+
+  const gridEditable = buildApplicationMenuTemplate('darwin', 'Overlook', { ...grid, selectionCount: 2, editable: true }, () => {});
+  assert.equal(find(gridEditable, 'view.inspector.toggle')?.accelerator, undefined);
+  assert.equal(find(gridEditable, 'selection.clear')?.accelerator, undefined);
+  assert.equal(find(gridEditable, 'help.shortcuts')?.accelerator, undefined);
+
+  const lightbox = buildApplicationMenuTemplate(
+    'darwin',
+    'Overlook',
+    { ...grid, surface: 'lightbox', hasTarget: true, targetTrashable: true },
+    () => {},
+  );
+  assert.equal(find(lightbox, 'photo.favorite.toggle')?.accelerator, 'F');
+  assert.equal(find(lightbox, 'photo.trash')?.accelerator, 'Delete');
 });

@@ -416,4 +416,101 @@ describe('ProtectedPhotoMigrationService', () => {
     assert.equal(await moved.protected.verify('protected-b', target.blobRef, 'original', moved.albumKeyB, moved.contentHash), true);
     moved.db.close();
   });
+
+  test('batch unprotect preserves root ownership and chained variant lineage when root ID sorts after duplicates (#1430)', async () => {
+    const w = await world();
+    try {
+      const rootId = 'photo-z';
+      const childId = 'duplicate-b';
+      const grandchildId = 'duplicate-a';
+      const rootBytes = Buffer.from('root-z original bytes');
+      const rootHash = createHash('sha256').update(rootBytes).digest('hex');
+      await w.ordinary.putOriginal(Readable.from(rootBytes), { id: 1, key: w.libraryKey }, rootId);
+      await w.ordinary.putThumb(Readable.from('root-z thumb'), { id: 1, key: w.libraryKey }, rootId, rootHash, 'thumb');
+      await w.ordinary.putThumb(Readable.from('root-z mid'), { id: 1, key: w.libraryKey }, rootId, rootHash, 'mid');
+      w.photos.insert({
+        id: rootId,
+        fileName: 'root-z.jpg',
+        fileKind: 'jpeg',
+        width: 20,
+        height: 20,
+        bytes: rootBytes.length,
+        contentHash: rootHash,
+        camera: null,
+        lens: null,
+        iso: null,
+        aperture: null,
+        shutter: null,
+        focalLength: null,
+        takenAt: '2026-07-16T12:00:00.000Z',
+        gpsLat: null,
+        gpsLon: null,
+        place: null,
+        importedAt: '2026-07-16T12:00:00.000Z',
+        importSource: 'test',
+        keyId: 1,
+      });
+      const variants = new VariantRepository(w.db);
+      variants.duplicate(w.photos.get(rootId)!, childId, '2026-09-20T12:00:00.000Z');
+      const childBefore = w.photos.get(childId)!;
+      for (const kind of ['thumb', 'mid'] as const) {
+        await w.ordinary.putThumb(Readable.from(`child ${kind}`), { id: 1, key: w.libraryKey }, childId, childBefore.derivativeKey, kind);
+      }
+      variants.duplicate(childBefore, grandchildId, '2026-09-20T12:01:00.000Z');
+      const grandchildBefore = w.photos.get(grandchildId)!;
+      for (const kind of ['thumb', 'mid'] as const) {
+        await w.ordinary.putThumb(
+          Readable.from(`grandchild ${kind}`),
+          { id: 1, key: w.libraryKey },
+          grandchildId,
+          grandchildBefore.derivativeKey,
+          kind,
+        );
+      }
+
+      const protectId = w.service.prepareProtect({
+        albumId: 'protected-a',
+        albumKey: w.albumKeyA,
+        photoIds: [grandchildId, childId, rootId],
+      });
+      await w.service.runToCompletion(protectId, w.protectAuthority);
+
+      const unprotectId = w.service.prepareUnprotect({
+        albumId: 'protected-a',
+        albumKey: w.albumKeyA,
+        photoIds: [grandchildId, childId, rootId],
+      });
+      await w.service.runToCompletion(unprotectId, {
+        sourceAlbumKey: w.albumKeyA,
+        targetLibraryKey: { id: 1, key: w.libraryKey },
+        libraryResolver: w.protectAuthority.libraryResolver!,
+      });
+
+      const rootAfter = w.photos.get(rootId)!;
+      const childAfter = w.photos.get(childId)!;
+      const grandchildAfter = w.photos.get(grandchildId)!;
+      assert.equal(rootAfter.variantSourceId, null);
+      assert.equal(rootAfter.assetOwnerId, null);
+      assert.equal(rootAfter.derivativeKey, rootHash);
+      assert.equal(childAfter.variantSourceId, rootId);
+      assert.equal(childAfter.assetOwnerId, rootId);
+      assert.equal(childAfter.derivativeKey, childBefore.derivativeKey);
+      assert.equal(grandchildAfter.variantSourceId, childId);
+      assert.equal(grandchildAfter.assetOwnerId, rootId);
+      assert.equal(grandchildAfter.derivativeKey, grandchildBefore.derivativeKey);
+      const resolver = w.protectAuthority.libraryResolver!;
+      assert.equal((await bytes(w.ordinary.getStream(rootHash, resolver, rootId))).toString(), 'root-z original bytes');
+      assert.equal((await bytes(w.ordinary.getThumbStream(rootAfter.derivativeKey, 'thumb', resolver, rootId))).toString(), 'root-z thumb');
+      assert.equal(
+        (await bytes(w.ordinary.getThumbStream(childAfter.derivativeKey, 'thumb', resolver, childId))).toString(),
+        'child thumb',
+      );
+      assert.equal(
+        (await bytes(w.ordinary.getThumbStream(grandchildAfter.derivativeKey, 'mid', resolver, grandchildId))).toString(),
+        'grandchild mid',
+      );
+    } finally {
+      w.db.close();
+    }
+  });
 });

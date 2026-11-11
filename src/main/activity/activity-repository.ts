@@ -76,15 +76,31 @@ function comparable(event: ActivityAppend): string {
   });
 }
 
-function assertPrivacySafePayload(payload: ActivityAppend['payload']): void {
-  for (const [key, value] of Object.entries(payload ?? {})) {
-    if (/(?:path|file|name|title|destination|source)/iu.test(key)) {
-      throw new Error(`activity payload contains sensitive field: ${key}`);
-    }
-    if (typeof value === 'string' && (/^(?:\/|[A-Za-z]:\\|\\\\)/u.test(value) || value.includes('/Users/'))) {
+function assertPrivacySafeValue(value: unknown): void {
+  if (typeof value === 'string') {
+    if (/^(?:\/|[A-Za-z]:\\|\\\\)/u.test(value) || value.includes('/Users/')) {
       throw new Error('activity payload contains an external path');
     }
+    return;
   }
+  if (Array.isArray(value)) {
+    for (const item of value as readonly unknown[]) {
+      assertPrivacySafeValue(item);
+    }
+    return;
+  }
+  if (value !== null && typeof value === 'object') {
+    for (const [key, nested] of Object.entries(value as Readonly<Record<string, unknown>>)) {
+      if (/(?:path|file|name|title|destination|source)/iu.test(key)) {
+        throw new Error(`activity payload contains sensitive field: ${key}`);
+      }
+      assertPrivacySafeValue(nested);
+    }
+  }
+}
+
+function assertPrivacySafePayload(payload: ActivityAppend['payload']): void {
+  assertPrivacySafeValue(payload ?? {});
 }
 
 export class ActivityRepository {

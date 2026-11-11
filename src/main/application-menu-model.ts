@@ -18,8 +18,17 @@ export type MenuTranslate = (message: MessageDescriptor) => string;
 
 const sourceText: MenuTranslate = ({ defaultMessage }) => (typeof defaultMessage === 'string' ? defaultMessage : '');
 
-function accelerator(command: CommandDescriptor): string | undefined {
+function accelerator(command: CommandDescriptor, context: CommandMenuContext): string | undefined {
   if (command.key === undefined) return undefined;
+  if (command.primaryModifier !== true) {
+    if (context.editable) return undefined;
+    if (
+      command.surfaces.length > 0 &&
+      (context.surface === 'locked' || context.surface === 'onboarding' || !command.surfaces.includes(context.surface))
+    ) {
+      return undefined;
+    }
+  }
   const parts: string[] = [];
   if (command.primaryModifier === true) parts.push('CommandOrControl');
   if (command.alt === true) parts.push('Alt');
@@ -37,7 +46,7 @@ function commandItem(
   options: Pick<MenuItemConstructorOptions, 'type' | 'checked'> = {},
 ): MenuItemConstructorOptions {
   const command = commandById(id);
-  const shortcut = accelerator(command);
+  const shortcut = accelerator(command, context);
   return {
     id,
     label: translate(command.label),
