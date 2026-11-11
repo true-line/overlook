@@ -70,8 +70,13 @@ export class ProtectedAlbumAuthorityRegistry {
   }
 
   relockAll(): void {
+    const albumIds = [...this.keys.keys()];
     for (const key of this.keys.values()) key.fill(0);
     this.keys.clear();
+    for (const albumId of albumIds) {
+      this.generations.set(albumId, (this.generations.get(albumId) ?? 0) + 1);
+      this.emitRevoked(albumId);
+    }
   }
 
   close(): void {

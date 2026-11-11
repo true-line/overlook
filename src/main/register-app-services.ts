@@ -322,7 +322,13 @@ export function registerAppServices(options: AppServicesOptions): void {
     options.getActivity,
   );
   registerOriginalPolicyHandlers(options.getLibrary, () => originalDeletion);
-  registerLibraryRegistryHandlers(() => options.libraries);
+  registerLibraryRegistryHandlers(
+    () => options.libraries,
+    () => {
+      const state = options.lockState();
+      return state === 'unconfigured-unlocked' || state === 'unlocked' ? null : options.activeLibraryId();
+    },
+  );
   registerSettingsHandlers(() => getSettingsStore());
   registerLlmHandlers(getLlmFacade);
   registerDiagnosticsHandlers(getDiagnosticsService, () => pickDiagnosticsExport(options));

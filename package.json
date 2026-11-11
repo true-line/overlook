@@ -171,13 +171,16 @@
     ]
   },
   "allowScripts": {
-    "@overlook/touch-id@0.1.0": true,
-    "@overlook/windows-interop@0.1.0": true,
+    "file:native/touch-id": true,
+    "file:native/windows-interop": true,
+    "@swc/core@1.15.43": true,
     "better-sqlite3-multiple-ciphers": false,
-    "esbuild@0.25.12": true,
-    "esbuild@0.28.1": true,
-    "electron@42.6.1": true,
-    "onnxruntime-node@1.30.0": true
+    "electron@44.8.0": true,
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true,
+    "onnxruntime-node@1.30.0": true,
+    "unrs-resolver@1.12.2": true
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.128.0",

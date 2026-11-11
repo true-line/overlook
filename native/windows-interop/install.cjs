@@ -1,7 +1,6 @@
 'use strict';
 
 const { execFileSync } = require('node:child_process');
-const { join } = require('node:path');
 
 const targetArch = process.argv[2] || process.env.npm_config_arch || process.arch;
 if (process.platform !== 'win32' || !['arm64', 'x64'].includes(targetArch)) {
@@ -10,7 +9,7 @@ if (process.platform !== 'win32' || !['arm64', 'x64'].includes(targetArch)) {
 }
 
 const environment = { ...process.env, npm_config_arch: targetArch };
-const nodeGyp = join(__dirname, 'node_modules', 'node-gyp', 'bin', 'node-gyp.js');
+const nodeGyp = require.resolve('node-gyp/bin/node-gyp.js');
 execFileSync(process.execPath, [nodeGyp, 'rebuild', `--arch=${targetArch}`], {
   cwd: __dirname,
   env: environment,

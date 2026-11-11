@@ -9,6 +9,7 @@ only so existing issue, PR, and comment links continue to resolve.
 | ---------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `README.md`                        | Canonical in the repository (quickstart + script table)                                            |
 | `CONTRIBUTING.md`                  | Pointer stub → [Contributing](./Contributing.md)                                                   |
+| `SIGNING.md`                       | Pointer stub → [Windows Code Signing](./Signing.md)                                                |
 | `AGENTS.md`                        | Shared agent-context file (repo-canonical); long-form workflow → [Contributing](./Contributing.md) |
 | ADRs                               | [Architecture Decision Records](./adr/Architecture-Decision-Records.md) — index + template         |
 | User-story / milestone planning    | [User Stories](./stories/User-Stories.md)                                                          |
