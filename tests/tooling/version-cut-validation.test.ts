@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
@@ -73,12 +74,12 @@ const { validateChangedEntries, validateVersionDocuments, validateStagedVersionC
   pathToFileURL(join(process.cwd(), 'scripts/validate-version-cut.mjs')).href
 )) as ValidateModule;
 
-function withTempDir(fn: (dir: string) => void): void {
+async function withTempDir(fn: (dir: string) => void): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), 'overlook-version-cut-'));
   try {
     fn(dir);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }
 
@@ -104,8 +105,8 @@ function makeLock(version: string, rootVersion = version, name = 'overlook'): Lo
 }
 
 describe('syncPackageLockVersion (#1267)', () => {
-  test('updates only root lockfile versions and preserves dependencies and formatting', () => {
-    withTempDir((dir) => {
+  test('updates only root lockfile versions and preserves dependencies and formatting', async () => {
+    await withTempDir((dir) => {
       writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ name: 'overlook', version: '0.77.0' }, null, 2)}\n`, 'utf8');
       writeFileSync(join(dir, 'package-lock.json'), `${JSON.stringify(makeLock('0.76.42', '0.76.41'), null, 2)}\n`, 'utf8');
 
@@ -125,8 +126,8 @@ describe('syncPackageLockVersion (#1267)', () => {
     });
   });
 
-  test('rejects non-stable semver or mismatched lockfile root package names', () => {
-    withTempDir((dir) => {
+  test('rejects non-stable semver or mismatched lockfile root package names', async () => {
+    await withTempDir((dir) => {
       writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ name: 'overlook', version: '0.77.0-rc.1' }, null, 2)}\n`, 'utf8');
       writeFileSync(join(dir, 'package-lock.json'), `${JSON.stringify(makeLock('0.76.42'), null, 2)}\n`, 'utf8');
       assert.throws(() => syncPackageLockVersion({ rootDir: dir }), /non-stable semver/u);
@@ -145,14 +146,14 @@ describe('syncPackageLockVersion (#1267)', () => {
   });
 });
 
-describe('validate-version-cut', () => {
-  const basePackage: PackageDoc = { name: 'overlook', version: '0.76.42', private: true };
-  const nextPackage: PackageDoc = { name: 'overlook', version: '0.77.0', private: true };
-  const baseLock = makeLock('0.76.42');
-  const nextLock = makeLock('0.77.0');
-  const baseChangelog = '# photos\n\n## 0.76.42\n\n### Patch Changes\n\n- Prior fix.\n';
-  const nextChangelog = '# photos\n\n## 0.77.0\n\n### Minor Changes\n\n- New feature.\n\n## 0.76.42\n\n### Patch Changes\n\n- Prior fix.\n';
+const basePackage: PackageDoc = { name: 'overlook', version: '0.76.42', private: true };
+const nextPackage: PackageDoc = { name: 'overlook', version: '0.77.0', private: true };
+const baseLock = makeLock('0.76.42');
+const nextLock = makeLock('0.77.0');
+const baseChangelog = '# photos\n\n## 0.76.42\n\n### Patch Changes\n\n- Prior fix.\n';
+const nextChangelog = '# photos\n\n## 0.77.0\n\n### Minor Changes\n\n- New feature.\n\n## 0.76.42\n\n### Patch Changes\n\n- Prior fix.\n';
 
+describe('validate-version-cut', () => {
   test('accepts a clean version-cut file set and document transition', () => {
     assert.deepEqual(
       validateChangedEntries(
@@ -213,14 +214,17 @@ describe('validate-version-cut', () => {
     assert.ok(docErrors.some((err) => err.includes('package-lock.json changes fields other than synchronized root versions')));
     assert.ok(docErrors.some((err) => err.includes('CHANGELOG.md must prepend')));
   });
+});
 
-  test('validates a real staged Git index and rejects tampered staged paths', () => {
-    withTempDir((dir) => {
+describe('validate-version-cut staged Git index', () => {
+  test('validates a real staged Git index and rejects tampered staged paths', async () => {
+    await withTempDir((dir) => {
       const git = (...args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' });
       git('init');
       git('config', 'user.name', 'Test Runner');
       git('config', 'user.email', 'test@example.com');
       git('config', 'commit.gpgsign', 'false');
+      git('config', 'core.fsmonitor', 'false');
 
       mkdirSync(join(dir, '.changeset'), { recursive: true });
       writeFileSync(join(dir, '.changeset', 'README.md'), '# Changesets\n', 'utf8');
