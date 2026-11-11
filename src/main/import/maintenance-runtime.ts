@@ -28,7 +28,7 @@ import type { OriginalRecoveryService } from '../library/original-recovery-servi
 // injected as callbacks so this module stays free of window/emitter details.
 export interface MaintenanceContext {
   readonly parts: LibraryParts;
-  readonly runtime: ImportRuntime;
+  readonly runtime: Pick<ImportRuntime, 'thumbnails'>;
   readonly appVersion: string;
   readonly invalidateThumb: (id: string) => void;
   readonly invalidateFull: (id: string) => void;

@@ -5,14 +5,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import type { BlobStore } from '../../src/main/blobs/blob-store.js';
-import type { KeyStore } from '../../src/main/crypto/keystore.js';
+import { BlobStore } from '../../src/main/blobs/blob-store.js';
+import { KeyStore } from '../../src/main/crypto/keystore.js';
 import { openLibraryDatabase } from '../../src/main/db/database.js';
-import type { ImportRuntime } from '../../src/main/import/import-runtime.js';
+import { FingerprintRepository } from '../../src/main/db/fingerprint-repository.js';
 import { buildMaintenanceServices } from '../../src/main/import/maintenance-runtime.js';
-import type { DuplicateIndexService } from '../../src/main/library/duplicate-index-service.js';
-import type { HistogramService } from '../../src/main/library/histogram-service.js';
-import type { ProtectedRuntime } from '../../src/main/library/protected-runtime.js';
+import { ThumbnailPool } from '../../src/main/import/thumbnail-pool.js';
+import { ThumbnailService } from '../../src/main/import/thumbnail-service.js';
+import { DuplicateIndexService } from '../../src/main/library/duplicate-index-service.js';
+import { HistogramService } from '../../src/main/library/histogram-service.js';
+import { ProtectedRuntime } from '../../src/main/library/protected-runtime.js';
 
 function deferred(): { readonly promise: Promise<void>; resolve(): void } {
   let resolve!: () => void;
@@ -25,13 +27,36 @@ function deferred(): { readonly promise: Promise<void>; resolve(): void } {
 test('#1438: buildMaintenanceServices.close awaits histogram and duplicate worker shutdown before resolving', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'overlook-maintenance-close-'));
   const db = openLibraryDatabase({ path: join(dir, 'library.db'), dbKey: randomBytes(32) });
-  const key = { id: 1, key: randomBytes(32) };
-  const keyStore = {
-    currentKey: () => key,
-    resolver: () => () => key.key,
-  } as unknown as KeyStore;
-  const blobStore = {} as unknown as BlobStore;
-  const blobStoreReady = Promise.resolve();
+  const keyStore = KeyStore.open({
+    dataDir: dir,
+    safeStorage: {
+      isEncryptionAvailable: () => true,
+      encryptString: (plain) => Buffer.from(plain, 'utf8'),
+      decryptString: (cipher) => cipher.toString('utf8'),
+    },
+  });
+  const blobStore = new BlobStore({ dataDir: dir });
+  const blobStoreReady = blobStore.init();
+  const protectedRuntime = new ProtectedRuntime({
+    dataDir: dir,
+    db,
+    libraryId: '01J00000000000000000000000',
+    ordinaryBlobs: blobStore,
+    masterKey: () => keyStore.masterKeyBytes(),
+    resolveLibraryKey: () => keyStore.resolver(),
+    currentLibraryKey: () => keyStore.currentKey(),
+    oweManifest: () => undefined,
+    revokeOrdinary: () => undefined,
+    progress: () => undefined,
+    pickDestination: () => Promise.resolve(null),
+    failure: () => undefined,
+    repairFailure: () => undefined,
+    workflowProgress: () => undefined,
+    workflowChanged: () => undefined,
+    ordinaryChanged: () => undefined,
+  });
+  const pool = new ThumbnailPool({ workerUrl: new URL(import.meta.url) });
+  const thumbnails = new ThumbnailService(pool, blobStore);
 
   const histGate = deferred();
   const dupGate = deferred();
@@ -39,15 +64,28 @@ test('#1438: buildMaintenanceServices.close awaits histogram and duplicate worke
   let dupClosed = false;
   let unfollowed = false;
 
+  const histogramService = new HistogramService({
+    repo: { get: () => undefined },
+    headRevisionId: () => null,
+    loadMid: () => Promise.resolve(null),
+    compute: () => Promise.reject(new Error('unused')),
+  });
+  const duplicateService = new DuplicateIndexService({
+    repository: new FingerprintRepository(db),
+    load: () => Promise.resolve(null),
+    fingerprint: () => Promise.resolve([]),
+    records: () => [],
+  });
+
   const services = buildMaintenanceServices({
     parts: {
       db,
       blobStore,
       blobStoreReady,
       keyStore,
-      protected: {} as ProtectedRuntime,
+      protected: protectedRuntime,
     },
-    runtime: { thumbnails: {} } as unknown as ImportRuntime,
+    runtime: { thumbnails },
     appVersion: '0.1.0-test',
     invalidateThumb: () => undefined,
     invalidateFull: () => undefined,
@@ -62,18 +100,14 @@ test('#1438: buildMaintenanceServices.close awaits histogram and duplicate worke
       unfollowed = true;
     },
     createHistogram: () => ({
-      service: { invalidate: () => undefined } as unknown as HistogramService,
+      service: histogramService,
       close: async () => {
         await histGate.promise;
         histClosed = true;
       },
     }),
     createDuplicates: () => ({
-      service: {
-        schedule: () => undefined,
-        notifyLibraryChanged: () => undefined,
-        notifyEligibilityChanged: () => undefined,
-      } as unknown as DuplicateIndexService,
+      service: duplicateService,
       close: async () => {
         await dupGate.promise;
         dupClosed = true;
@@ -100,6 +134,8 @@ test('#1438: buildMaintenanceServices.close awaits histogram and duplicate worke
     assert.equal(dupClosed, true);
     assert.equal(settled, true);
   } finally {
+    await pool.close();
+    keyStore.close();
     db.close();
   }
 });
