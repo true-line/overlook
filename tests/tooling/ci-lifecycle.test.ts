@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { describe, test } from 'node:test';
 
 const root = process.cwd();
-const aca = readFileSync(join(root, '.github/workflows/aca.yml'), 'utf8');
 const autoUpdate = readFileSync(join(root, '.github/workflows/auto-update-prs.yml'), 'utf8');
 const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
 const codeql = readFileSync(join(root, '.github/workflows/codeql.yml'), 'utf8');
@@ -44,7 +43,8 @@ describe('governed CI lifecycle (ENG-0004)', () => {
   });
 
   test('authorizes every direct non-CI entrypoint before repository work', () => {
-    const workflows = [aca, autoUpdate, packageWorkflow, perf, release, versionCut, closeLinkedIssues];
+    assert.equal(existsSync(join(root, '.github/workflows/aca.yml')), false);
+    const workflows = [autoUpdate, packageWorkflow, perf, release, versionCut, closeLinkedIssues];
     for (const workflow of workflows) {
       assert.match(workflow, /^ {2}policy:$/mu);
       assert.match(workflow, /authorization-only: 'true'/u);
@@ -62,8 +62,6 @@ describe('governed CI lifecycle (ENG-0004)', () => {
     }
     assert.match(versionCut, /^ {2}publish-version-pr:\n {4}needs: \[policy, prepare-version-pr\]$/mu);
     assert.match(versionCut, /^ {2}tag:\n {4}needs: \[policy, prepare-version-pr\]$/mu);
-    assert.equal((aca.match(/github\.actor != 'dependabot\[bot\]'/gu) ?? []).length, 3);
-    assert.equal((aca.match(/github\.event\.pull_request\.user\.login != 'dependabot\[bot\]'/gu) ?? []).length, 3);
   });
 
   test('reuses only exact-SHA complete-suite evidence', () => {
@@ -116,7 +114,7 @@ describe('governed CI lifecycle (ENG-0004)', () => {
   });
 
   test('enforces finite workflow runtime with the reviewed immutable contract', () => {
-    const sources = [aca, autoUpdate, ci, closeLinkedIssues, codeql, packageWorkflow, perf, release, versionCut].join('\n');
+    const sources = [autoUpdate, ci, closeLinkedIssues, codeql, packageWorkflow, perf, release, versionCut].join('\n');
     assert.doesNotMatch(sources, /^\s*run: (?:npm (?:ci|install)|npm --prefix .* clean-install|npx playwright install)/gmu);
     assert.match(
       sources,
