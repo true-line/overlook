@@ -106,9 +106,9 @@ describe('SQLite chunking, album_photos index, smart-album batch counts, and sta
     dbClose(w.db);
   });
 
-  test('migration 48 creates idx_album_photos_photo and serves WHERE photo_id = ? via index', () => {
+  test('migration 49 creates idx_album_photos_photo and serves WHERE photo_id = ? via index', () => {
     const w = createWorld();
-    assert.equal(MIGRATIONS.find((migration) => migration.version === 48)?.name, 'album-photos-photo-index');
+    assert.equal(MIGRATIONS.find((migration) => migration.version === 49)?.name, 'album-photos-photo-index');
     const indexes = queryAll<{ name: string }>(w.db, `SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'album_photos'`);
     assert.ok(indexes.some((row) => row.name === 'idx_album_photos_photo'));
 
