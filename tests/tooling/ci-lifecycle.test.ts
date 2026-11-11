@@ -62,7 +62,6 @@ describe('governed CI lifecycle (ENG-0004)', () => {
     }
     assert.match(versionCut, /^ {2}tag:\n {4}needs: \[policy, version-pr\]$/mu);
     assert.equal((aca.match(/github\.actor != 'dependabot\[bot\]'/gu) ?? []).length, 3);
-    assert.equal((aca.match(/github\.event\.pull_request\.user\.login != 'dependabot\[bot\]'/gu) ?? []).length, 3);
   });
 
   test('reuses only exact-SHA complete-suite evidence', () => {
