@@ -183,7 +183,11 @@ export function OriginalDeleteDialog({ photoIds, onClose, onDeleted }: OriginalD
           )}
         </p>
       ) : null}
-      {error === null ? null : <p role="alert">{error}</p>}
+      {error === null ? null : (
+        <p className="prose-note" role="alert">
+          {error}
+        </p>
+      )}
     </Dialog>
   );
 }

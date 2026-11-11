@@ -106,7 +106,9 @@ export function MoveResumeBanner(): ReactElement | null {
                 <span className="mono-data ovl-movebanner__paths">
                   <FormattedMessage {...messages.paths} values={{ from: entry.sourcePath, to: entry.destPath }} />
                 </span>
-                {failure?.libraryId === entry.libraryId ? <span className="ovl-libmove__error-detail">{failure.detail}</span> : null}
+                {failure?.libraryId === entry.libraryId ? (
+                  <span className="prose-note ovl-libmove__error-detail">{failure.detail}</span>
+                ) : null}
               </span>
               <Button size="sm" disabled={busyId !== null} onClick={() => finishCleanup(entry)} data-testid="move-banner-cleanup">
                 <FormattedMessage {...messages.finishCleanup} />
@@ -119,7 +121,9 @@ export function MoveResumeBanner(): ReactElement | null {
                 <span className="mono-data ovl-movebanner__paths">
                   <FormattedMessage {...messages.paths} values={{ from: entry.sourcePath, to: entry.destPath }} />
                 </span>
-                {failure?.libraryId === entry.libraryId ? <span className="ovl-libmove__error-detail">{failure.detail}</span> : null}
+                {failure?.libraryId === entry.libraryId ? (
+                  <span className="prose-note ovl-libmove__error-detail">{failure.detail}</span>
+                ) : null}
               </span>
               <span className="ovl-movebanner__actions">
                 <Button

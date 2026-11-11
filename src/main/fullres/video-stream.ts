@@ -45,7 +45,6 @@ export function sliceStream(source: Readable, skip: number, take: number): Reada
 
 const NO_STORE_RANGE = {
   'Cache-Control': 'no-store',
-  'Access-Control-Allow-Origin': '*',
   'Accept-Ranges': 'bytes',
 };
 

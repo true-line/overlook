@@ -359,6 +359,7 @@ export class LibraryRegistryRuntime {
    * openLibraryId reports what the process has open — null before bootstrap. */
   facade(deps: {
     openLibraryId: () => string | null;
+    lockedLibraryId?: () => string | null;
     safeStorage: () => SafeStorageLike;
     /** Native directory picker (#386) — resolves null on cancel. */
     pickDirectory: () => Promise<string | null>;
@@ -384,7 +385,7 @@ export class LibraryRegistryRuntime {
       open: (id) => this.select(id, deps.openLibraryId()),
       setDisplayName: (id, name) => this.setDisplayName(id, name, deps.openLibraryId()),
       resetDisplayName: (id) => this.resetDisplayName(id, deps.openLibraryId()),
-      remove: (id) => this.removeEntry(id, deps.openLibraryId()),
+      remove: (id) => this.removeEntry(id, deps.openLibraryId(), deps.lockedLibraryId?.() ?? null),
       current: () => this.current(deps.openLibraryId()),
       add: async (dir) => {
         const chosen = dir ?? (await deps.pickDirectory());
@@ -398,9 +399,12 @@ export class LibraryRegistryRuntime {
 
   /** Registry-entry removal only — the directory, keys, and DB stay intact
    * (§1; destructive deletion is a separate, explicit action). */
-  removeEntry(id: string, openId: string | null): boolean {
+  removeEntry(id: string, openId: string | null, lockedId: string | null = null): boolean {
     if (id === openId) {
       throw new LibraryRegistryError('cannot remove the library that is currently open');
+    }
+    if (id === lockedId) {
+      throw new LibraryRegistryError('cannot remove the active library while it is locked');
     }
     const removed = this.getRegistry().remove(id);
     if (removed && this.active?.id === id) {

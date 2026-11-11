@@ -63,6 +63,10 @@ export function useLibraryPhotos(): { readonly loadMore: () => void; readonly ex
   const cursorRef = useRef<PageCursor | null>(null);
   const requestRef = useRef(0);
   const inFlightRef = useRef(false);
+  const photosRef = useRef(photos);
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
   // Exhaustion is keyed to the visible set: switching sets changes the key,
   // which resets `exhausted` derivationally (no setState-in-effect).
   const facetsActive = activePredicate({ facets, smartAlbum }) !== undefined;
@@ -130,7 +134,8 @@ export function useLibraryPhotos(): { readonly loadMore: () => void; readonly ex
   // leave stale cells or permanent loading placeholders. Replace semantics
   // reset the cursor; the selection intersects safely in the reducer.
   useEffect(() => {
-    return window.overlook.library.onChanged(({ photoIds, derivativeOnly, membership, albumIds }) => {
+    let active = true;
+    const unsubscribe = window.overlook.library.onChanged(({ photoIds, derivativeOnly, membership, albumIds }) => {
       // A derivative can change in place (video poster captured post-import, a
       // repaired RAW preview) without altering the record or its stable thumb
       // URL — so bump those ids' cache-bust epoch to force the tiles to reload.
@@ -142,10 +147,12 @@ export function useLibraryPhotos(): { readonly loadMore: () => void; readonly ex
       // A facet view's membership can change with metadata (a favorite, a
       // tag, a repaired size), so it re-evaluates like a search does (#514).
       if (membership === 'none' && query === '' && !facetsActive) {
-        const loadedIds = new Set(photos.map(({ id }) => id));
+        const loadedIds = new Set(photosRef.current.map(({ id }) => id));
         const loadedPhotoIds = photoIds.filter((id) => loadedIds.has(id));
         if (loadedPhotoIds.length === 0) return;
+        const generation = requestRef.current;
         void Promise.all(loadedPhotoIds.map((id) => window.overlook.library.get({ id }))).then((results) => {
+          if (!active || requestRef.current !== generation) return;
           dispatch({
             type: 'photos/records-patched',
             photos: results.flatMap(({ photo }) => (photo === null ? [] : [photo])),
@@ -158,7 +165,11 @@ export function useLibraryPhotos(): { readonly loadMore: () => void; readonly ex
       // path above patches only the named records and preserves scroll.
       fetchFirstPage(facetsActive || membershipChanged(membership, source, chips, album, albumIds));
     });
-  }, [album, chips, dispatch, facetsActive, fetchFirstPage, photos, query, source]);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [album, chips, dispatch, facetsActive, fetchFirstPage, query, source]);
 
   // Backup changes only syncState, so patch loaded records instead of
   // replacing the first page (which used to flicker, trim deep selection,

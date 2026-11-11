@@ -19,8 +19,8 @@ interface PolicyRow {
 
 interface OverrideRow {
   readonly scope_id: string;
-  readonly field: string;
-  readonly class: string;
+  readonly field: DisclosureField;
+  readonly class: DisclosureClass;
   readonly widened: number;
 }
 
@@ -61,22 +61,26 @@ export class DisclosureRepository {
   /** Overrides for many scope ids in one query, keyed by id. */
   overridesFor(scope: DisclosureOverrideScope, scopeIds: readonly string[]): ReadonlyMap<string, readonly DisclosureOverride[]> {
     const result = new Map<string, DisclosureOverride[]>();
-    if (scopeIds.length === 0) return result;
-    const params: Record<string, unknown> = { scope };
-    scopeIds.forEach((scopeId, index) => {
-      params[`id${String(index)}`] = scopeId;
-    });
-    const rows = queryAll<OverrideRow>(
-      this.db,
-      `SELECT scope_id, field, class, widened FROM disclosure_overrides
-        WHERE scope = @scope AND scope_id IN (${scopeIds.map((_, index) => `@id${String(index)}`).join(', ')})
-        ORDER BY scope_id, field`,
-      params,
-    );
-    for (const row of rows) {
-      const list = result.get(row.scope_id) ?? [];
-      list.push({ field: row.field as DisclosureField, class: row.class as DisclosureClass, widened: row.widened === 1 });
-      result.set(row.scope_id, list);
+    const uniqueIds = [...new Set(scopeIds)];
+    if (uniqueIds.length === 0) return result;
+    for (let start = 0; start < uniqueIds.length; start += 500) {
+      const chunk = uniqueIds.slice(start, start + 500);
+      const params: Record<string, string> = { scope };
+      chunk.forEach((scopeId, index) => {
+        params[`id${String(index)}`] = scopeId;
+      });
+      const rows = queryAll<OverrideRow>(
+        this.db,
+        `SELECT scope_id, field, class, widened FROM disclosure_overrides
+          WHERE scope = @scope AND scope_id IN (${chunk.map((_, index) => `@id${String(index)}`).join(', ')})
+          ORDER BY scope_id, field`,
+        params,
+      );
+      for (const row of rows) {
+        const list = result.get(row.scope_id) ?? [];
+        list.push({ field: row.field, class: row.class, widened: row.widened === 1 });
+        result.set(row.scope_id, list);
+      }
     }
     return result;
   }

@@ -201,6 +201,30 @@ describe('ActivityRepository (#614, ADR-0025)', () => {
         }),
       /sensitive field/,
     );
+    assert.throws(
+      () =>
+        source.repo.append({
+          eventId: 'event-nested-key',
+          operationId: 'operation-nested-key',
+          eventType: 'import.completed',
+          occurredAt: '2026-07-20T00:00:00.000Z',
+          outcome: 'succeeded',
+          payload: { details: { fileName: 'secret.jpg' } } as unknown as Record<string, string>,
+        }),
+      /sensitive field: fileName/,
+    );
+    assert.throws(
+      () =>
+        source.repo.append({
+          eventId: 'event-nested-array',
+          operationId: 'operation-nested-array',
+          eventType: 'import.completed',
+          occurredAt: '2026-07-20T00:00:00.000Z',
+          outcome: 'succeeded',
+          payload: { items: ['C:\\Users\\alice\\secret.jpg'] } as unknown as Record<string, string>,
+        }),
+      /external path/,
+    );
     const target = world();
     target.repo.restoreSnapshot(source.repo.backupSnapshot());
     assert.deepEqual(
