@@ -116,7 +116,7 @@
     "axe-playwright": "2.2.2",
     "c8": "12.0.0",
     "concurrently": "10.0.6",
-    "electron": "44.8.0",
+    "electron": "44.9.1",
     "electron-builder": "26.17.0",
     "electron-vite": "6.0.0",
     "eslint": "10.12.0",
