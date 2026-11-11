@@ -42,6 +42,8 @@ jobs:
     name: Merge main into open PRs
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The App credentials are bound to this main-only environment.
+    environment: version-cut
     permissions:
       contents: write
       pull-requests: read

@@ -63,4 +63,27 @@ describe('release workflow publication', () => {
     assert.match(workflow, /\*\.exe\)/u);
     assert.match(workflow, /asset_specs\+=\("\$asset#\$name \(\$status\)"\)/u);
   });
+
+  test('reads release credentials from the protected release environment and mints the write token only for publish', () => {
+    const workflow = readFileSync(join(process.cwd(), '.github/workflows/release.yml'), 'utf8');
+    const publishJob = workflow.split('\n  publish:\n')[1] ?? '';
+    const extractNotes = publishJob.indexOf('- name: Extract release notes from CHANGELOG');
+    const requireCreds = publishJob.indexOf('- name: Require chores-dumb credentials');
+    const mint = publishJob.indexOf('- name: Mint the chores-dumb token');
+    const createRelease = publishJob.indexOf('- name: Create release');
+
+    assert.match(publishJob, /^ {4}environment: release$/mu);
+    assert.match(publishJob, /^ {4}permissions:\n {6}contents: read$/mu);
+    assert.doesNotMatch(workflow, /^\s+contents: write$/mu);
+    assert.match(publishJob, /persist-credentials: false/u);
+    assert.match(
+      publishJob,
+      /HAS_CHORES_DUMB: \$\{\{ secrets\.CHORES_DUMB_CLIENT_ID != '' && secrets\.CHORES_DUMB_PRIVATE_KEY != '' \}\}/u,
+    );
+    assert.ok(extractNotes >= 0 && extractNotes < requireCreds && requireCreds < mint && mint < createRelease);
+    assert.match(publishJob, /uses: actions\/create-github-app-token@[0-9a-f]{40}/u);
+    assert.match(publishJob, /permission-contents: write/u);
+    assert.match(publishJob, /GH_TOKEN: \$\{\{ steps\.chores\.outputs\.token \}\}/u);
+    assert.doesNotMatch(publishJob, /GH_TOKEN: \$\{\{ github\.token \}\}/u);
+  });
 });
