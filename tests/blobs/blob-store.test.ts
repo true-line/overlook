@@ -298,7 +298,7 @@ describe('BlobStore', () => {
     assert.ok(statSync(expected).isFile());
   });
 
-  test('restoreSidecar replaces a corrupt existing sidecar atomically and deleteSidecar spares valid siblings (#1431)', async () => {
+  test('deleteSidecar removes a corrupt staged companion before retry while sparing valid siblings (#1431)', async () => {
     const { store, dataDir } = await freshStore();
     const firstPlain = Buffer.from('companion-xmp-one');
     const secondPlain = Buffer.from('companion-aae-two');
@@ -311,14 +311,17 @@ describe('BlobStore', () => {
     writeFileSync(firstPath, randomBytes(validCiphertext.length));
     assert.equal(await store.verifySidecar('photo-sidecar', first.contentHash, RESOLVE), false);
 
-    // Retrying restoreSidecar with valid provider ciphertext replaces the corrupt file cleanly.
+    // Direct restoreSidecar refuses to clobber an existing path without explicit staging cleanup.
+    await assert.rejects(
+      store.restoreSidecar('photo-sidecar', first.contentHash, Readable.from([validCiphertext]), RESOLVE),
+      BlobStoreError,
+    );
+
+    // Clearing the targeted invalid companion spares the sibling and lets retry publish cleanly.
+    await store.deleteSidecar('photo-sidecar', first.contentHash);
+    assert.equal(await store.verifySidecar('photo-sidecar', second.contentHash, RESOLVE), true);
     await store.restoreSidecar('photo-sidecar', first.contentHash, Readable.from([validCiphertext]), RESOLVE);
     assert.equal(await store.verifySidecar('photo-sidecar', first.contentHash, RESOLVE), true);
     assert.deepEqual(await buffer(store.getSidecarStream('photo-sidecar', first.contentHash, RESOLVE)), firstPlain);
-
-    // deleteSidecar removes only the targeted companion, leaving the sibling companion intact.
-    await store.deleteSidecar('photo-sidecar', first.contentHash);
-    assert.equal(await store.verifySidecar('photo-sidecar', first.contentHash, RESOLVE), false);
-    assert.equal(await store.verifySidecar('photo-sidecar', second.contentHash, RESOLVE), true);
   });
 });

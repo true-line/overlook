@@ -504,8 +504,11 @@ export class RestoreEngine {
     const ids = new Set(entries.map((entry) => entry.id));
     const completed = new Set((checkpoint.completedSidecarIds ?? []).filter((id) => ids.has(id)));
     for (const entry of entries) {
-      if (!completed.has(entry.id)) continue;
       const ownerId = sidecarOwnerOf(entry.sidecar);
+      if (!store.hasSidecar(ownerId, entry.sidecar.hash)) {
+        completed.delete(entry.id);
+        continue;
+      }
       if (!(await store.verifySidecar(ownerId, entry.sidecar.hash, discovery.resolveKey))) {
         completed.delete(entry.id);
         await store.deleteSidecar(ownerId, entry.sidecar.hash);

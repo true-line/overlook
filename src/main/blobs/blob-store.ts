@@ -225,14 +225,9 @@ export class BlobStore {
         if (!isErrno(error, 'EEXIST')) throw error;
         existed = true;
       }
-      if (existed) {
-        if (await this.verifySidecar(photoId, contentHash, resolveKey)) {
-          await rm(stagePath, { force: true });
-        } else {
-          await rename(stagePath, finalPath);
-        }
-      } else {
-        await rm(stagePath, { force: true });
+      await rm(stagePath, { force: true });
+      if (existed && !(await this.verifySidecar(photoId, contentHash, resolveKey))) {
+        throw new BlobStoreError(`restored sidecar ${contentHash} of ${photoId} failed verification`);
       }
       await syncDirectoryEntry(dirname(finalPath));
     } catch (error) {
