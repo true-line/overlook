@@ -53,8 +53,70 @@ export function nestedCodeSignArguments(configuration, bundlePath, entitlements)
   return args;
 }
 
-export function signNestedBundle(configuration, bundlePath, entitlements, run = execFileSync) {
-  run('codesign', nestedCodeSignArguments(configuration, bundlePath, entitlements), { stdio: 'inherit' });
+const TRANSIENT_TIMESTAMP_ERROR =
+  /timestamp was expected but was not found|timestamp service is not available|unable to communicate with the timestamp service/iu;
+
+function errorText(error) {
+  if (error === null || error === undefined) return '';
+  if (typeof error === 'string') return error;
+  if (typeof error !== 'object') return '';
+  const parts = [];
+  if (typeof error.message === 'string') parts.push(error.message);
+  if (typeof error.stderr === 'string') parts.push(error.stderr);
+  else if (Buffer.isBuffer(error.stderr)) parts.push(error.stderr.toString('utf8'));
+  if (typeof error.stdout === 'string') parts.push(error.stdout);
+  else if (Buffer.isBuffer(error.stdout)) parts.push(error.stdout.toString('utf8'));
+  return parts.join('\n');
+}
+
+export function isTransientTimestampError(error) {
+  return TRANSIENT_TIMESTAMP_ERROR.test(errorText(error));
+}
+
+function defaultSleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function defaultSleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+export async function withTimestampRetry(operation, { attempts = 4, baseDelayMs = 2000, sleep = defaultSleep } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt >= attempts || !isTransientTimestampError(error)) throw error;
+      const delayMs = baseDelayMs * 2 ** (attempt - 1);
+      process.stderr.write(`codesign timestamp transient failure (attempt ${attempt}/${attempts}); retrying in ${delayMs}ms...\n`);
+      await sleep(delayMs);
+    }
+  }
+}
+
+export function signNestedBundle(
+  configuration,
+  bundlePath,
+  entitlements,
+  run = execFileSync,
+  { attempts = 4, baseDelayMs = 2000, sleepSync = defaultSleepSync } = {},
+) {
+  const args = nestedCodeSignArguments(configuration, bundlePath, entitlements);
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      run('codesign', args, { stdio: 'inherit' });
+      return;
+    } catch (error) {
+      if (attempt >= attempts || !isTransientTimestampError(error)) throw error;
+      const delayMs = baseDelayMs * 2 ** (attempt - 1);
+      process.stderr.write(
+        `codesign timestamp transient failure on ${path.basename(bundlePath)} (attempt ${attempt}/${attempts}); retrying in ${delayMs}ms...\n`,
+      );
+      sleepSync(delayMs);
+    }
+  }
 }
 
 export function abstractStringEntitlement(source, key) {
@@ -86,15 +148,18 @@ export default async function signMacApp(configuration) {
     signNestedBundle(configuration, bundlePath, entitlements);
     if (bundlePath === extension) verifyFileProviderIdentity(extension);
   }
-  await sign({
-    ...configuration,
-    // Profiles are embedded and validated by our provisioned packaging path.
-    // osx-sign has only one profile input and would otherwise apply the main
-    // app profile while auto-processing the separately identified extension.
-    ...(nestedExtensions.length > 0
-      ? { provisioningProfile: undefined, preEmbedProvisioningProfile: false, preAutoEntitlements: false }
-      : {}),
-  });
+  await withTimestampRetry(() =>
+    sign({
+      ...configuration,
+      batchCodesignCalls: configuration.batchCodesignCalls ?? true,
+      // Profiles are embedded and validated by our provisioned packaging path.
+      // osx-sign has only one profile input and would otherwise apply the main
+      // app profile while auto-processing the separately identified extension.
+      ...(nestedExtensions.length > 0
+        ? { provisioningProfile: undefined, preEmbedProvisioningProfile: false, preAutoEntitlements: false }
+        : {}),
+    }),
+  );
   if (nestedExtensions.length > 0) {
     // electron-builder's signer owns every other nested code item. Re-apply
     // these separately identified bundles after that pass, then re-seal only
