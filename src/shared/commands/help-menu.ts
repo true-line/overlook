@@ -16,6 +16,8 @@ export interface HelpMenuEntry {
   readonly separatorBefore?: boolean;
 }
 
+export const HELP_URL = 'https://github.com/true-line/overlook#readme';
+
 export const HELP_MENU_ITEMS: readonly HelpMenuEntry[] = [
   { command: 'help.shortcuts' },
   { command: 'help.activity' },

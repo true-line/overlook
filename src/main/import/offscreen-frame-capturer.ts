@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { BrowserWindow } from 'electron';
 
+import { installWindowNavigationPolicy } from '../window-navigation-policy.js';
 import type { CapturedPosterFrame } from './poster-capture-service.js';
 import type { PhotoRecord } from '../../shared/library/types.js';
 
@@ -55,6 +56,7 @@ export async function captureVideoPosterFrame(photo: PhotoRecord, signal: AbortS
     height: 720,
     webPreferences: { offscreen: true, sandbox: true, contextIsolation: true, backgroundThrottling: false },
   });
+  installWindowNavigationPolicy(win.webContents);
 
   return await new Promise<CapturedPosterFrame | null>((resolve) => {
     let settled = false;

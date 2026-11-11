@@ -105,7 +105,6 @@ export function Shell({
   const [librariesCreating, setLibrariesCreating] = useState(false);
   const [editableFocus, setEditableFocus] = useState(false);
   const selectAll = useSelectAll();
-  useCommandDispatcher(platform, setShortcutSurface, shortcutSurface !== null, selectAll);
 
   useEffect(() => {
     const update = (): void => {
@@ -179,9 +178,7 @@ export function Shell({
   }, [openDroppedPaths, rejectExternalDrop]);
 
   useEffect(() => {
-    const unsubscribe = window.overlook.import.onExternalPaths(({ paths }) => {
-      openDroppedPaths(paths);
-    });
+    const unsubscribe = window.overlook.import.onExternalPaths(({ paths }) => openDroppedPaths(paths));
     void window.overlook.import.externalReady();
     return unsubscribe;
   }, [openDroppedPaths]);
@@ -243,7 +240,9 @@ export function Shell({
     resetDropped: () => setDropped(null),
     closeOffload: offload.close,
     pcloudEnabled,
+    lockConfigured,
   });
+  useCommandDispatcher(platform, setShortcutSurface, shortcutSurface !== null, selectAll, runNativeCommand);
 
   const hasKey = usePhotoKeyTarget(state);
   const inspectorSelectionPosition = useDetachedInspector(state, dispatch);

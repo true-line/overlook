@@ -60,6 +60,7 @@ export interface NativeCommandRouterDeps {
   readonly resetDropped: () => void;
   readonly closeOffload: () => void;
   readonly pcloudEnabled: boolean;
+  readonly lockConfigured?: boolean | undefined;
 }
 
 export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command: CommandId) => void {
@@ -78,6 +79,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
     resetDropped,
     closeOffload,
     pcloudEnabled,
+    lockConfigured,
   } = deps;
   const { openPhotos: onExport, setPhotoIds: setExportPhotoIds, setAllPhotos: setExportAllPhotos } = exportDialog;
   const intl = useIntl();
@@ -87,7 +89,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
     (commandId: CommandId): void => {
       // A deterministic photo target: the focused lightbox photo, else the selection.
       const targetIds = state.lightboxId !== null ? [state.lightboxId] : [...state.selection];
-      const closeOverlays = (): void => {
+      const closeOverlays = (options?: { readonly preserveLightbox?: boolean }): void => {
         setShortcutSurface(null);
         resetInteropEntry();
         resetUnlockAlbum();
@@ -95,7 +97,9 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
         resetDropped();
         setExportPhotoIds(null);
         setExportAllPhotos(false);
-        dispatch({ type: 'lightbox/closed' });
+        if (!options?.preserveLightbox) {
+          dispatch({ type: 'lightbox/closed' });
+        }
         dispatch({ type: 'dialog/set', dialog: 'import', open: false });
         dispatch({ type: 'dialog/set', dialog: 'export', open: false });
         dispatch({ type: 'dialog/set', dialog: 'settings', open: false });
@@ -278,13 +282,19 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
           return;
         case 'library.duplicates':
           if (state.protectedAlbum !== null) return;
-          closeOverlays();
+          closeOverlays({ preserveLightbox: true });
           dispatch({ type: 'dialog/set', dialog: 'duplicates', open: true });
           return;
         case 'help.open':
           // macOS opens this from main (the menu never forwards it to the
           // renderer); the Windows/Linux titlebar Help menu reaches it here.
           void window.overlook.help.open();
+          return;
+        case 'app.lock.now':
+          // macOS dispatches Lock Now in main; the Windows/Linux titlebar ⋯
+          // Overlook menu reaches it through runCommand here (#1433).
+          if (lockConfigured === false) return;
+          void window.overlook.appLock.lockNow();
           return;
         case 'album.rename':
         case 'album.delete':
@@ -312,7 +322,6 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
         case 'photo.original.unmark':
         case 'photo.purge':
         case 'trash.empty':
-        case 'app.lock.now':
         case 'app.search.focus':
         case 'view.lightbox.previous':
         case 'view.lightbox.next':
@@ -352,6 +361,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
       resetDropped,
       closeOffload,
       pcloudEnabled,
+      lockConfigured,
     ],
   );
 

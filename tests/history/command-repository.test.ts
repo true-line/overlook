@@ -7,7 +7,7 @@ import { describe, test } from 'node:test';
 
 import { ActivityRepository } from '../../src/main/activity/activity-repository.js';
 import { openLibraryDatabase } from '../../src/main/db/database.js';
-import { run } from '../../src/main/db/sql.js';
+import { queryGet, run } from '../../src/main/db/sql.js';
 import { CommandRepository } from '../../src/main/history/command-repository.js';
 
 function world() {
@@ -92,6 +92,13 @@ describe('CommandRepository (#615, ADR-0025)', () => {
       sensitiveExpiresAt: '2026-07-08T00:00:00.000Z',
       byteCharge: 10,
     });
+    const hold = queryGet<{ expires_at: string }>(
+      state.db,
+      'SELECT expires_at FROM activity_retention_holds WHERE event_id = ? AND hold_id = ?',
+      'event-move',
+      'record-move',
+    );
+    assert.equal(hold?.expires_at, '2026-07-08T00:00:00.000Z');
     state.commands.prune(new Date('2026-07-21T00:00:00.000Z'));
     const inverse = state.commands.byId('record-move')?.inverse;
     assert.equal(inverse?.kind, 'move-compensation');
