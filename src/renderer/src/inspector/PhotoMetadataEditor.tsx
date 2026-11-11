@@ -69,26 +69,43 @@ export function PhotoMetadataEditor({ photo, photoIds }: PhotoMetadataEditorProp
   const [manageSource, setManageSource] = useState('');
   const [manageTarget, setManageTarget] = useState('');
   const summaryRequestRef = useRef(0);
+  const suggestionsRequestRef = useRef(0);
+  const titleTouchedRef = useRef(false);
+  const descriptionTouchedRef = useRef(false);
 
-  const loadSummary = useCallback((): void => {
-    const requestId = (summaryRequestRef.current += 1);
-    if (scope.length > 10_000) return;
-    void window.overlook.library
-      .metadataSummary({ photoIds: scope })
-      .then((next) => {
-        if (summaryRequestRef.current !== requestId) return;
-        setSummary(next);
-        setTitle(next.title.value ?? '');
-        setDescription(next.description.value ?? '');
-        setTitleTouched(false);
-        setDescriptionTouched(false);
-        setAddTags([]);
-        setRemoveTags([]);
-      })
-      .catch(() => {
-        if (summaryRequestRef.current === requestId) setStatus(intl.formatMessage(messages.failed));
-      });
-  }, [intl, scope]);
+  useEffect(() => {
+    titleTouchedRef.current = titleTouched;
+    descriptionTouchedRef.current = descriptionTouched;
+  }, [descriptionTouched, titleTouched]);
+
+  const loadSummary = useCallback(
+    (preserveTouched = false): void => {
+      const requestId = (summaryRequestRef.current += 1);
+      if (scope.length > 10_000) return;
+      void window.overlook.library
+        .metadataSummary({ photoIds: scope })
+        .then((next) => {
+          if (summaryRequestRef.current !== requestId) return;
+          setSummary(next);
+          if (!preserveTouched || !titleTouchedRef.current) {
+            setTitle(next.title.value ?? '');
+            setTitleTouched(false);
+          }
+          if (!preserveTouched || !descriptionTouchedRef.current) {
+            setDescription(next.description.value ?? '');
+            setDescriptionTouched(false);
+          }
+          if (!preserveTouched) {
+            setAddTags([]);
+            setRemoveTags([]);
+          }
+        })
+        .catch(() => {
+          if (summaryRequestRef.current === requestId) setStatus(intl.formatMessage(messages.failed));
+        });
+    },
+    [intl, scope],
+  );
 
   useEffect(() => {
     loadSummary();
@@ -97,11 +114,29 @@ export function PhotoMetadataEditor({ photo, photoIds }: PhotoMetadataEditorProp
     };
   }, [loadSummary]);
   useEffect(() => {
+    if (typeof window.overlook.library.onChanged !== 'function') return;
+    const scopeSet = new Set(scope);
+    return window.overlook.library.onChanged(({ photoIds: changedIds, derivativeOnly }) => {
+      if (derivativeOnly === true) return;
+      if (changedIds.length === 0 || changedIds.some((id) => scopeSet.has(id))) {
+        loadSummary(true);
+      }
+    });
+  }, [loadSummary, scope]);
+  useEffect(() => {
+    const requestId = (suggestionsRequestRef.current += 1);
     const query = manageSource.trim() === '' ? tagDraft : manageSource;
     void window.overlook.library
       .tagSuggestions({ query, limit: 20 })
-      .then(({ tags }) => setSuggestions(tags))
-      .catch(() => setSuggestions([]));
+      .then(({ tags }) => {
+        if (suggestionsRequestRef.current === requestId) setSuggestions(tags);
+      })
+      .catch(() => {
+        if (suggestionsRequestRef.current === requestId) setSuggestions([]);
+      });
+    return () => {
+      suggestionsRequestRef.current += 1;
+    };
   }, [manageSource, status, tagDraft]);
 
   const queueTag = (): void => {

@@ -10,9 +10,7 @@ export interface InspectorWindowControllerDependencies<TWindow> {
   onDidFinishLoad(win: TWindow, listener: () => void): void;
   send(win: TWindow, name: string, payload: unknown): void;
   close(win: TWindow): void;
-  show(win: TWindow): void;
-  focus(win: TWindow): void;
-  shouldShow(): boolean;
+  requestAttention(win: TWindow): void;
 }
 
 export interface InspectorWindowController<TWindow> {
@@ -55,9 +53,8 @@ export function createInspectorWindowController<TWindow>(
       } else {
         sendState();
       }
-      if (inspectorWindow !== undefined && dependencies.shouldShow()) {
-        dependencies.show(inspectorWindow);
-        dependencies.focus(inspectorWindow);
+      if (inspectorWindow !== undefined) {
+        dependencies.requestAttention(inspectorWindow);
       }
     },
     update(state) {

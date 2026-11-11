@@ -143,7 +143,11 @@ export function FileProviderSettings(): ReactElement {
             {unavailable ? <p>{intl.formatMessage(messages.unavailable)}</p> : null}
           </>
         )}
-        {error === null ? null : <p role="alert">{error}</p>}
+        {error === null ? null : (
+          <p className="prose-note" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </Field>
   );

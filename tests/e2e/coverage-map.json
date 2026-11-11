@@ -1804,7 +1804,7 @@
         },
         {
           "type": "unit-dom",
-          "paths": ["tests/ipc/registry.test.ts", "tests/main/purge-authorization.test.ts"]
+          "paths": ["tests/ipc/registry.test.ts", "tests/main/purge-authorization.test.ts", "tests/dom/purge-shortcut.test.ts"]
         },
         {
           "type": "storybook",
@@ -2657,7 +2657,11 @@
         },
         {
           "type": "unit-dom",
-          "paths": ["tests/commands/app-menu.test.ts", "tests/main/application-menu-model.test.ts"]
+          "paths": [
+            "tests/commands/app-menu.test.ts",
+            "tests/main/application-menu-model.test.ts",
+            "tests/dom/titlebar-app-menu-commands.test.tsx"
+          ]
         },
         {
           "type": "manual",
@@ -3264,6 +3268,24 @@
         {
           "type": "manual",
           "reason": "Announcements and the menu button role are heard, not observable from automation. Follow the library switcher step in section 8 of docs/acceptance/Manual-Test-A11y-VoiceOver.md."
+        }
+      ]
+    },
+    {
+      "id": "1441-renderer-races-a11y-i18n",
+      "wiki": "Accessibility-Audit-2026-07",
+      "coverage": [
+        {
+          "type": "unit-dom",
+          "paths": ["tests/dom/renderer-races-a11y-i18n.test.tsx"]
+        },
+        {
+          "type": "storybook",
+          "paths": ["src/renderer/src/settings/SettingsDialog.stories.tsx", "src/renderer/src/shell/LibrarySwitcher.stories.tsx"]
+        },
+        {
+          "type": "playwright-e2e",
+          "path": "tests/e2e/library-switcher-ui.spec.ts"
         }
       ]
     }

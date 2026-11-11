@@ -12,8 +12,8 @@ import type { FullService } from './full-service.js';
 // main/protocol-privileges.ts (one registerSchemesAsPrivileged call).
 
 // Unlike the thumbs' <img> path, fetch() enforces CORS: the renderer's
-// app origin is cross-origin to this scheme, so responses must opt in.
-// The protocol only exists inside our session — '*' exposes nothing new.
+// app origin is cross-origin to this scheme, so responses allow only the
+// trusted renderer origin via resolveFullCorsOrigin (never wildcard '*').
 /** Call once after app ready; the service is created lazily like the library. */
 export function registerFullProtocol(
   getService: () => FullService,

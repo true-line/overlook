@@ -196,23 +196,40 @@ static NSError* ReadOnly(void) {
 }
 - (NSProgress*)fetchContentsForItemWithIdentifier:(NSFileProviderItemIdentifier)identifier version:(NSFileProviderItemVersion*)version request:(NSFileProviderRequest*)request completionHandler:(void (^)(NSURL*, NSFileProviderItem, NSError*))completionHandler {
   NSProgress* progress = [NSProgress progressWithTotalUnitCount:1];
+  __block NSProgress* itemProgress = nil;
   NSURLSessionTask* task = [_transport downloadItem:identifier completion:^(NSURL* location, NSError* error) {
     if (location == nil) {
       completionHandler(nil, nil, error ?: Unavailable());
+      return;
+    }
+    if (progress.cancelled) {
+      [NSFileManager.defaultManager removeItemAtURL:location error:nil];
+      completionHandler(nil, nil, [NSError errorWithDomain:NSCocoaErrorDomain code:NSUserCancelledError userInfo:nil]);
       return;
     }
     NSError* directoryError = nil;
     NSURL* directory = [[NSFileProviderManager managerForDomain:_domain] temporaryDirectoryURLWithError:&directoryError];
     NSURL* destination = [directory URLByAppendingPathComponent:NSUUID.UUID.UUIDString];
     if (directory == nil || ![NSFileManager.defaultManager moveItemAtURL:location toURL:destination error:&directoryError]) {
+      [NSFileManager.defaultManager removeItemAtURL:location error:nil];
       completionHandler(nil, nil, directoryError ?: Unavailable());
       return;
     }
-    [self itemForIdentifier:identifier request:request completionHandler:^(NSFileProviderItem item, NSError* itemError) {
-      completionHandler(itemError == nil ? destination : nil, item, itemError);
+    itemProgress = [self itemForIdentifier:identifier request:request completionHandler:^(NSFileProviderItem item, NSError* itemError) {
+      if (itemError != nil || progress.cancelled) {
+        [NSFileManager.defaultManager removeItemAtURL:destination error:nil];
+        NSError* finalError = itemError ?: [NSError errorWithDomain:NSCocoaErrorDomain code:NSUserCancelledError userInfo:nil];
+        completionHandler(nil, nil, finalError);
+        return;
+      }
+      completionHandler(destination, item, nil);
     }];
+    if (progress.cancelled) [itemProgress cancel];
   }];
-  progress.cancellationHandler = ^{ [task cancel]; };
+  progress.cancellationHandler = ^{
+    [task cancel];
+    [itemProgress cancel];
+  };
   return progress;
 }
 - (NSProgress*)createItemBasedOnTemplate:(NSFileProviderItem)itemTemplate fields:(NSFileProviderItemFields)fields contents:(NSURL*)url options:(NSFileProviderCreateItemOptions)options request:(NSFileProviderRequest*)request completionHandler:(void (^)(NSFileProviderItem, NSFileProviderItemFields, BOOL, NSError*))completionHandler {

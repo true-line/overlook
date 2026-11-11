@@ -72,11 +72,13 @@ jobs:
     if: >-
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (github.event.action != 'labeled' || github.event.label.name == 'aca')
+      && github.actor != 'dependabot[bot]'
+      && github.event.pull_request.user.login != 'dependabot[bot]'
       && github.event.pull_request.changed_files <= 25
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: true-line/trueline-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
+      - uses: true-line/trueline-agent-ci/.github/actions/ci-policy@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           authorization-only: 'true'
   over-budget:
@@ -84,6 +86,8 @@ jobs:
     if: >-
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (github.event.action != 'labeled' || github.event.label.name == 'aca')
+      && github.actor != 'dependabot[bot]'
+      && github.event.pull_request.user.login != 'dependabot[bot]'
       && github.event.pull_request.changed_files > 25
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -108,6 +112,8 @@ jobs:
     if: >-
       (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
       && (github.event.action != 'labeled' || github.event.label.name == 'aca')
+      && github.actor != 'dependabot[bot]'
+      && github.event.pull_request.user.login != 'dependabot[bot]'
       && github.event.pull_request.changed_files <= 25
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -133,10 +139,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: true-line/agentic-code-analysis
-          # The default GITHUB_TOKEN is scoped to this repository, so a
-          # checkout of a sibling private repository 404s. An empty secret
-          # falls back to github.token, so this stays backwards compatible.
-          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
           ref: 60be121a7b27c94c56f85ac61c20ea61ab1d5d0f # main 2026-08-18 (first pin with the qwen adapter); bump deliberately
           path: .aca
           persist-credentials: false
@@ -144,7 +146,7 @@ jobs:
         with:
           node-version: 24
       - name: Install advisory checker dependencies
-        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@87c6b301057992f79a723f63c64624bf40c9d06a
+        uses: true-line/trueline-agent-ci/.github/actions/bounded-command@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           task: Install advisory checker dependencies
           executable: npm

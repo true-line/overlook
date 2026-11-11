@@ -1171,8 +1171,8 @@ export const GeneralSection: Story = {
       ['photo.favorite.toggle', 'album.membership.add', 'photo.export'],
       ['photo.favorite.toggle', 'album.membership.add', 'photo.export', 'photo.restore'],
     ]);
-    await userEvent.click(body.getByRole('button', { name: 'Move Restore photo up' }));
-    await expect(body.getByRole('button', { name: 'Move Restore photo down' })).toBeEnabled();
+    await userEvent.click(body.getByRole('button', { name: 'Up — Move Restore photo up' }));
+    await expect(body.getByRole('button', { name: 'Down — Move Restore photo down' })).toBeEnabled();
 
     // Thumbnails: locked on with the rationale.
     await expect(body.getByRole('switch', { name: 'Generate thumbnails on import' })).toBeChecked();

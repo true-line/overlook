@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: true-line/trueline-agent-ci/.github/actions/ci-policy@87c6b301057992f79a723f63c64624bf40c9d06a
+      - uses: true-line/trueline-agent-ci/.github/actions/ci-policy@8ec38da39c9b43af2181d1f5e5b7e09226c0bfad
         with:
           authorization-only: 'true'
 

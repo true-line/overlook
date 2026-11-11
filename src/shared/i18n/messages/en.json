@@ -491,6 +491,36 @@
   "commands.selection.selectAll": {
     "defaultMessage": "Select all photos"
   },
+  "commands.toast.cannotRedo": {
+    "defaultMessage": "Cannot redo — {reason}"
+  },
+  "commands.toast.cannotUndo": {
+    "defaultMessage": "Cannot undo — {reason}"
+  },
+  "commands.toast.preservedOne": {
+    "defaultMessage": "Preserved 1 protected Original"
+  },
+  "commands.toast.redid": {
+    "defaultMessage": "Redid last action"
+  },
+  "commands.toast.removedFromAlbum": {
+    "defaultMessage": "Removed {count, plural, one {# photo} other {# photos}} from the album"
+  },
+  "commands.toast.restoredCount": {
+    "defaultMessage": "Restored {count, plural, one {# photo} other {# photos}}"
+  },
+  "commands.toast.trashedCount": {
+    "defaultMessage": "Moved {count, plural, one {# photo} other {# photos}} to Trash"
+  },
+  "commands.toast.trashedOne": {
+    "defaultMessage": "Moved 1 photo to Trash"
+  },
+  "commands.toast.trashedWithProtected": {
+    "defaultMessage": "Moved {deleted, number} to Trash · preserved {protectedCount, plural, one {# protected Original} other {# protected Originals}}"
+  },
+  "commands.toast.undid": {
+    "defaultMessage": "Undid last action"
+  },
   "commands.trash.empty": {
     "defaultMessage": "Empty Trash…"
   },
@@ -2147,6 +2177,57 @@
   "libswitch.reason.open": {
     "defaultMessage": "This library is open. Switch to another library first."
   },
+  "libswitch.refusal.alreadyRegistered.detail": {
+    "defaultMessage": "That library is registered here already."
+  },
+  "libswitch.refusal.alreadyRegistered.title": {
+    "defaultMessage": "Already in the list"
+  },
+  "libswitch.refusal.error.detail": {
+    "defaultMessage": "The operation could not be completed safely. Try again."
+  },
+  "libswitch.refusal.error.title": {
+    "defaultMessage": "Something went wrong"
+  },
+  "libswitch.refusal.locked.detail": {
+    "defaultMessage": "Unlock the current library before switching."
+  },
+  "libswitch.refusal.locked.title": {
+    "defaultMessage": "Overlook is locked"
+  },
+  "libswitch.refusal.lockedElsewhere.detail": {
+    "defaultMessage": "Close it there first, then switch."
+  },
+  "libswitch.refusal.lockedElsewhere.title": {
+    "defaultMessage": "This library is open elsewhere"
+  },
+  "libswitch.refusal.lockedOnHost": {
+    "defaultMessage": "Locked on {host}"
+  },
+  "libswitch.refusal.missing.detail": {
+    "defaultMessage": "Reconnect the volume it lives on, then try again."
+  },
+  "libswitch.refusal.missing.title": {
+    "defaultMessage": "This library's folder is missing"
+  },
+  "libswitch.refusal.notALibrary.detail": {
+    "defaultMessage": "Choose a folder that contains an Overlook library.db."
+  },
+  "libswitch.refusal.notALibrary.title": {
+    "defaultMessage": "That folder isn't an Overlook library"
+  },
+  "libswitch.refusal.providerBusy.detail": {
+    "defaultMessage": "Finish or wait for the current backup or restore before switching libraries."
+  },
+  "libswitch.refusal.providerBusy.title": {
+    "defaultMessage": "Can't switch while a backup is running"
+  },
+  "libswitch.refusal.switchInProgress.detail": {
+    "defaultMessage": "Hold on — the current switch has to finish first."
+  },
+  "libswitch.refusal.switchInProgress.title": {
+    "defaultMessage": "A switch is already in progress"
+  },
   "libswitch.remove.done": {
     "defaultMessage": "{name} removed from this list. Its files were not changed."
   },
@@ -2714,6 +2795,15 @@
   "restore.verify.trashPlaceholder": {
     "defaultMessage": "Permanently Delete Backup"
   },
+  "selectionPill.addToAlbum": {
+    "defaultMessage": "Add to album"
+  },
+  "selectionPill.offload": {
+    "defaultMessage": "Offload"
+  },
+  "selectionPill.transfer": {
+    "defaultMessage": "Transfer & Sync"
+  },
   "settings.diagnostics.alreadyGone": {
     "defaultMessage": "That report was already gone."
   },
@@ -2913,10 +3003,10 @@
     "defaultMessage": "Disable an action before enabling another."
   },
   "settings.general.quickActions.moveDown": {
-    "defaultMessage": "Move {action} down"
+    "defaultMessage": "— Move {action} down"
   },
   "settings.general.quickActions.moveUp": {
-    "defaultMessage": "Move {action} up"
+    "defaultMessage": "— Move {action} up"
   },
   "settings.general.quickActions.up": {
     "defaultMessage": "Up"
@@ -3347,6 +3437,9 @@
   "shell.skipToPhotos": {
     "defaultMessage": "Skip to photos"
   },
+  "shell.switchLibrarySuffix": {
+    "defaultMessage": "— Switch library"
+  },
   "shell.view.album": {
     "defaultMessage": "Album"
   },
@@ -3530,6 +3623,24 @@
   "smartAlbum.unsupported.title": {
     "defaultMessage": "{name} cannot be shown"
   },
+  "statusGlyph.error": {
+    "defaultMessage": "Sync failed"
+  },
+  "statusGlyph.excluded": {
+    "defaultMessage": "On this device only"
+  },
+  "statusGlyph.local": {
+    "defaultMessage": "Local only"
+  },
+  "statusGlyph.offloaded": {
+    "defaultMessage": "Offloaded to cloud"
+  },
+  "statusGlyph.synced": {
+    "defaultMessage": "Backed up (encrypted)"
+  },
+  "statusGlyph.syncing": {
+    "defaultMessage": "Uploading…"
+  },
   "statusbar.coverage.removalPending": {
     "defaultMessage": "{count, plural, one {# cloud copy} other {# cloud copies}} awaiting removal"
   },
@@ -3667,6 +3778,12 @@
   },
   "toolbar.search.status.withIndex": {
     "defaultMessage": "{status} · {index}"
+  },
+  "toolbar.toast.backupDisconnected": {
+    "defaultMessage": "Backup off — not connected"
+  },
+  "toolbar.toast.backupStarted": {
+    "defaultMessage": "Backup started"
   },
   "toolbar.view": {
     "defaultMessage": "View"

@@ -3,6 +3,7 @@ import { createReadStream } from 'node:fs';
 import { lstat, open, readdir, stat } from 'node:fs/promises';
 import { basename, dirname, join, posix, resolve } from 'node:path';
 
+import { LIBRARY_DOCUMENT_EXTENSION } from '../../shared/library/library-document.js';
 import { classifyMediaFile } from '../../shared/library/media-files.js';
 import { sniffImageKind, sniffVideoKind } from '../../shared/library/media-signatures.js';
 import { classifySidecarFile, sidecarStem, type SidecarRole } from '../../shared/library/sidecar-files.js';
@@ -77,7 +78,15 @@ export interface SourceScannerDeps {
 
 /** Progress cadence: big cards report every N files, and always at the end. */
 const PROGRESS_EVERY = 25;
-const PACKAGE_DIRECTORY_SUFFIXES = ['.app', '.bundle', '.framework', '.photoslibrary', '.photolibrary', '.pkg'] as const;
+const PACKAGE_DIRECTORY_SUFFIXES = [
+  '.app',
+  '.bundle',
+  '.framework',
+  LIBRARY_DOCUMENT_EXTENSION,
+  '.photoslibrary',
+  '.photolibrary',
+  '.pkg',
+] as const;
 
 function isPackageDirectory(name: string): boolean {
   const lower = name.toLocaleLowerCase('en-US');

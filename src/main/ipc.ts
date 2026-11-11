@@ -475,39 +475,48 @@ export interface LibraryRegistryFacade {
   pickCreateLocation(): Promise<{ path: string | null }>;
 }
 
-// Multi-library registry (#384): registry mutations never require content
-// access — the picker must work while the active library is app-locked, and
-// none of these expose library content. Uses validateHandler directly.
-export function registerLibraryRegistryHandlers(getFacade: () => LibraryRegistryFacade): void {
+// Multi-library registry (#384, #847, #1436): `list`, `current`, and `open`
+// remain available while the active library is app-locked so LockScreen
+// `switchOnly` can switch away; management mutations require content admission
+// and cannot unregister a locked active library.
+export function registerLibraryRegistryHandlers(
+  getFacade: () => LibraryRegistryFacade,
+  lockedLibraryId: () => string | null = () => null,
+): void {
   ipcMain.handle(channels.libraryRegistryList.name, (_event, request: unknown) =>
     validateHandler(channels.libraryRegistryList, () => ({ libraries: getFacade().list() }))(request),
   );
   ipcMain.handle(channels.libraryRegistryCreate.name, (_event, request: unknown) =>
-    validateHandler(channels.libraryRegistryCreate, ({ name, path }) => ({ library: getFacade().create(name, path) }))(request),
+    wrapHandler(channels.libraryRegistryCreate, ({ name, path }) => ({ library: getFacade().create(name, path) }))(request),
   );
   ipcMain.handle(channels.libraryRegistryOpen.name, (_event, request: unknown) =>
     validateHandler(channels.libraryRegistryOpen, ({ id }) => getFacade().open(id))(request),
   );
   ipcMain.handle(channels.libraryRegistryRemove.name, (_event, request: unknown) =>
-    validateHandler(channels.libraryRegistryRemove, ({ id }) => ({ removed: getFacade().remove(id) }))(request),
+    wrapHandler(channels.libraryRegistryRemove, ({ id }) => {
+      if (id === lockedLibraryId()) {
+        throw new Error('cannot remove the active library while it is locked');
+      }
+      return { removed: getFacade().remove(id) };
+    })(request),
   );
   ipcMain.handle(channels.libraryRegistryCurrent.name, (_event, request: unknown) =>
     validateHandler(channels.libraryRegistryCurrent, () => ({ library: getFacade().current() }))(request),
   );
   ipcMain.handle(channels.libraryRegistrySetDisplayName.name, (_event, request: unknown) =>
-    validateHandler(channels.libraryRegistrySetDisplayName, ({ id, name }) => ({ library: getFacade().setDisplayName(id, name) }))(request),
+    wrapHandler(channels.libraryRegistrySetDisplayName, ({ id, name }) => ({ library: getFacade().setDisplayName(id, name) }))(request),
   );
   ipcMain.handle(channels.libraryRegistryResetDisplayName.name, (_event, request: unknown) =>
-    validateHandler(channels.libraryRegistryResetDisplayName, ({ id }) => ({ library: getFacade().resetDisplayName(id) }))(request),
+    wrapHandler(channels.libraryRegistryResetDisplayName, ({ id }) => ({ library: getFacade().resetDisplayName(id) }))(request),
   );
   ipcMain.handle(channels.libraryRegistryAdd.name, (_event, request: unknown) =>
-    validateHandler(channels.libraryRegistryAdd, ({ path }) => getFacade().add(path))(request),
+    wrapHandler(channels.libraryRegistryAdd, ({ path }) => getFacade().add(path))(request),
   );
   ipcMain.handle(channels.libraryRegistryPickLocation.name, (_event, request: unknown) =>
-    validateHandler(channels.libraryRegistryPickLocation, () => getFacade().pickLocation())(request),
+    wrapHandler(channels.libraryRegistryPickLocation, () => getFacade().pickLocation())(request),
   );
   ipcMain.handle(channels.libraryRegistryPickCreateLocation.name, (_event, request: unknown) =>
-    validateHandler(channels.libraryRegistryPickCreateLocation, () => getFacade().pickCreateLocation())(request),
+    wrapHandler(channels.libraryRegistryPickCreateLocation, () => getFacade().pickCreateLocation())(request),
   );
 }
 
