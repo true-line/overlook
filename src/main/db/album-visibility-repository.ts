@@ -21,7 +21,7 @@ export const IN_ALL_PHOTOS_EXPR = `(
 
 /** Re-derives the flag for the given photos. Call inside the transaction
  * that changed their memberships or a containing album's policy. */
-export function refreshInAllPhotos(db: BetterSqlite3.Database, photoIds: Iterable<string>): void {
+export function refreshInAllPhotos(db: BetterSqlite3.Database, photoIds: readonly string[] | ReadonlySet<string>): void {
   for (const photoId of photoIds) {
     runNamed(db, `UPDATE photos AS p SET in_all_photos = ${IN_ALL_PHOTOS_EXPR} WHERE p.id = @photoId`, { photoId });
   }

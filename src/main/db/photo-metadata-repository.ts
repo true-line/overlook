@@ -1,4 +1,5 @@
 import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
+import { z } from 'zod';
 
 import { markDirty } from '../backup/sync-ledger.js';
 import {
@@ -24,9 +25,11 @@ interface MetadataRow {
   readonly metadataVersion: number;
 }
 
+const storedTagListSchema = z.array(z.string().nullable().catch(null)).catch([]);
+
 function parseTags(json: string): string[] {
-  const parsed: unknown = JSON.parse(json);
-  return normalizePhotoTags(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []);
+  const parsed = storedTagListSchema.parse(JSON.parse(json));
+  return normalizePhotoTags(parsed.filter((value): value is string => value !== null));
 }
 
 function keys(tags: readonly string[]): Set<string> {

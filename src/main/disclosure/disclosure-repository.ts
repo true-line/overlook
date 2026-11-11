@@ -19,8 +19,8 @@ interface PolicyRow {
 
 interface OverrideRow {
   readonly scope_id: string;
-  readonly field: string;
-  readonly class: string;
+  readonly field: DisclosureField;
+  readonly class: DisclosureClass;
   readonly widened: number;
 }
 
@@ -65,7 +65,7 @@ export class DisclosureRepository {
     if (uniqueIds.length === 0) return result;
     for (let start = 0; start < uniqueIds.length; start += 500) {
       const chunk = uniqueIds.slice(start, start + 500);
-      const params: Record<string, unknown> = { scope };
+      const params: Record<string, string> = { scope };
       chunk.forEach((scopeId, index) => {
         params[`id${String(index)}`] = scopeId;
       });
@@ -78,7 +78,7 @@ export class DisclosureRepository {
       );
       for (const row of rows) {
         const list = result.get(row.scope_id) ?? [];
-        list.push({ field: row.field as DisclosureField, class: row.class as DisclosureClass, widened: row.widened === 1 });
+        list.push({ field: row.field, class: row.class, widened: row.widened === 1 });
         result.set(row.scope_id, list);
       }
     }

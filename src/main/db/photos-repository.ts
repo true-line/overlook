@@ -571,7 +571,8 @@ export class PhotosRepository {
     );
     if (album === undefined) return undefined;
     const tree = readAlbumTree(this.db);
-    const node = tree.find((row) => row.id === albumId)!;
+    const node = tree.find((row) => row.id === albumId);
+    if (node === undefined) return undefined;
     return {
       ...album,
       showInAllPhotos: album.showInAllPhotos === 1,
