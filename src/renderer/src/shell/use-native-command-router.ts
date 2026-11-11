@@ -223,7 +223,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
         case 'photo.trash': {
           if (state.lightboxId !== null) {
             const target = state.photos.find(({ id }) => id === state.lightboxId);
-            if (target?.deletedAt === null) deletePhoto(target.id, dispatch);
+            if (target?.deletedAt === null) deletePhoto(target.id, dispatch, intl);
             return;
           }
           if (targetIds.length === 0) return;

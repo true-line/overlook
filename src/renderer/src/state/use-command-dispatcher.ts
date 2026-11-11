@@ -1,5 +1,5 @@
 import { useLayoutEffect } from 'react';
-import { useIntl } from 'react-intl';
+import { defineMessages, useIntl } from 'react-intl';
 
 import { resolveCommand, type CommandId, type CommandPlatform, type CommandSurface } from '../../../shared/commands/registry.js';
 import { directionOf } from '../../../shared/i18n/locales.js';
@@ -8,6 +8,13 @@ import { useAppDispatch, useAppState } from './app-state-context';
 import { lightboxStepForKey } from './lightbox-direction';
 import { getApplicationThemeLayer } from '../theme/user-theme-layer';
 import { deletePhoto } from '../shell/delete-photo';
+
+const dispatcherMessages = defineMessages({
+  undid: { id: 'commands.toast.undid', defaultMessage: 'Undid last action' },
+  redid: { id: 'commands.toast.redid', defaultMessage: 'Redid last action' },
+  cannotUndo: { id: 'commands.toast.cannotUndo', defaultMessage: 'Cannot undo — {reason}' },
+  cannotRedo: { id: 'commands.toast.cannotRedo', defaultMessage: 'Cannot redo — {reason}' },
+});
 
 function commandPlatform(platform: string): CommandPlatform {
   if (platform === 'darwin') return 'darwin';
@@ -28,7 +35,8 @@ export function useCommandDispatcher(
 ): void {
   const state = useAppState();
   const dispatch = useAppDispatch();
-  const direction = directionOf(useIntl().locale);
+  const intl = useIntl();
+  const direction = directionOf(intl.locale);
 
   // A layout effect, not a passive one (#1279): the listener must match the
   // committed state before the browser can deliver another key. A passive
@@ -112,10 +120,10 @@ export function useCommandDispatcher(
               type: 'toast/shown',
               toast: {
                 title: result.applied
-                  ? id === 'history.undo'
-                    ? 'Undid last action'
-                    : 'Redid last action'
-                  : `Cannot ${id === 'history.undo' ? 'undo' : 'redo'} — ${result.capability.reason}`,
+                  ? intl.formatMessage(id === 'history.undo' ? dispatcherMessages.undid : dispatcherMessages.redid)
+                  : intl.formatMessage(id === 'history.undo' ? dispatcherMessages.cannotUndo : dispatcherMessages.cannotRedo, {
+                      reason: result.capability.reason,
+                    }),
                 tone: result.applied ? 'neutral' : 'red',
               },
             });
@@ -158,7 +166,7 @@ export function useCommandDispatcher(
         case 'photo.trash': {
           const photo = state.photos.find(({ id: photoId }) => photoId === state.lightboxId);
           if (photo === undefined || photo.deletedAt !== null) return false;
-          deletePhoto(photo.id, dispatch);
+          deletePhoto(photo.id, dispatch, intl);
           return true;
         }
         case 'view.lightbox.zoomIn':
@@ -202,7 +210,7 @@ export function useCommandDispatcher(
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [direction, dispatch, helpOpen, onCommand, onHelp, onSelectAll, platform, state]);
+  }, [direction, dispatch, helpOpen, intl, onCommand, onHelp, onSelectAll, platform, state]);
 }
 
 export { commandPlatform };

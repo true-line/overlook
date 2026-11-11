@@ -759,7 +759,7 @@ export function Shell({
             onDelete={() => {
               // Soft delete (#120): the change push drops the row from the
               // visible set, which closes the lightbox in the reducer.
-              deletePhoto(current.id, dispatch);
+              deletePhoto(current.id, dispatch, intl);
             }}
           />
         );
