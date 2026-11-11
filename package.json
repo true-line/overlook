@@ -10,7 +10,7 @@
   "scripts": {
     "prepare": "husky",
     "changeset": "changeset",
-    "changeset:version": "changeset version",
+    "changeset:version": "changeset version && node scripts/sync-package-lock-version.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,json,md,css,yml,yaml,html}\" \".prettierrc.json\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md,css,yml,yaml,html}\" \".prettierrc.json\"",
     "lint": "npm run lint:agent-context && npm run lint:package && npm run lint:new-files && npm run lint:colors && npm run lint:tokens && npm run lint:contrast && eslint . && npm run lint:cycles && npm run lint:dead && npm run lint:types && npm run lint:i18n && npm run lint:licenses",
@@ -56,7 +56,7 @@
     "test": "npm run test:inner",
     "test:cov:inner": "npm run typecheck && npm run test:compile && npm run test:dom:compile && c8 npm run test:run",
     "test:cov": "npm run test:cov:inner",
-    "test:workflows": "node --test tests/tooling/ci-lifecycle.test.ts tests/tooling/release-workflow.test.ts tests/tooling/version-cut-workflow.test.ts tests/tooling/acceptance-coverage-retry.test.ts",
+    "test:workflows": "node --test tests/tooling/ci-lifecycle.test.ts tests/tooling/release-workflow.test.ts tests/tooling/version-cut-workflow.test.ts tests/tooling/version-cut-validation.test.ts tests/tooling/acceptance-coverage-retry.test.ts",
     "interop:generate-contract": "npm run test:compile && node scripts/generate-interop-contract.mjs",
     "check:interop-acceptance": "node scripts/check-interop-acceptance.mjs",
     "check:interop-closeout": "node scripts/check-interop-acceptance.mjs --require-manual",

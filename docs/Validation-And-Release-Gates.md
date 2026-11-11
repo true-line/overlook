@@ -44,22 +44,11 @@ Two gates need an external checkout, both env-gated in the same shape:
 
 ## Advisory semantic checks
 
-The ACA workflow runs eight informational checks. `doc-drift` and
-`agent-rule-conflict` are temporarily disabled after repeated stalled judge
-steps; their absence is missing advisory coverage, not a passing verdict.
-[Issue #1176](https://github.com/qwts/overlook/issues/1176) owns diagnosis and
-restoration. Before re-enabling either check, enforce a 120-second deadline
-for its entire execution, including requests and retries, abort expired work,
-report timeouts distinctly from clean results, and demonstrate useful results
-within that limit on representative Overlook changes. Dependency setup may
-have a separate bound. The other eight ACA checks remain enabled.
-
-Each enabled check runs through `scripts/run-aca.ts` with a 120-second total
-execution budget. Expiry terminates its process group and exits 124 without
-publishing a partial report. Missing or malformed reports and unavailable
-judges fail the job with exit 78; a bare successful exit is insufficient.
-Complete reports retain advisory pass/warn/fail findings. Dependency setup
-is outside this execution budget.
+The ACA advisory semantic workflow is retired: on the private
+`true-line/overlook` repository each pull request fanned out nine Ubuntu runners
+while exiting `78` without usable reports. Diagnosis and bounded-execution
+qualification before any future restoration remain tracked in
+[Issue #1176](https://github.com/true-line/overlook/issues/1176).
 
 ## Documentation governance (`docs:gov`)
 

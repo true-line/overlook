@@ -16,22 +16,33 @@ is minted per run from `CHORES_DUMB_CLIENT_ID` / `CHORES_DUMB_PRIVATE_KEY` by
 The App credentials are stored in protected GitHub Actions environments rather
 than repository-level secrets so runs from untrusted branches cannot read them:
 
-- `version-cut` (`version-cut.yml` `version-pr` and `tag` jobs, plus
-  `auto-update-prs.yml` `update`): accepts only `main`.
-- `release` (`release.yml` `publish` job): accepts only `main` and `v*` tags
-  and waits for maintainer approval before minting the `contents: write` token
-  immediately ahead of `Create release`.
+- `version-cut` (`version-cut.yml` `publish-version-pr` and `tag` jobs, plus
+  `auto-update-prs.yml` `update`): accepts only `main` and scopes each minted
+  App token to the job's minimum write permissions (`contents` +
+  `pull-requests` for branch/PR updates, `contents` + `actions` for tagging and
+  stranded-tag recovery).
+- `release` (`release.yml` `publish` job): accepts only `main` and `v*.*.*`
+  tags and mints the `contents: write` token immediately ahead of `Create
+release` (human approval gates merging the `Version packages` PR on `main`;
+  environment required-reviewers rules require GitHub Enterprise on private
+  repositories).
 
-Version-cut jobs perform their read-only no-op checks before requiring App
-credentials. This lets a Dependabot-initiated main run exit cleanly when no
-version or tag write is needed. When a version PR update is needed,
-`scripts/publish-signed-version-commit.mjs` publishes the local `HEAD` commit to
-`changeset-release/main` through the Git Data API, verifying the published tree
-SHA against the local tree and asserting that GitHub signed the commit so the
-rolling PR satisfies `main`'s signed-commit requirement. When a tag is needed,
-the job waits for exact-SHA
-CI with the read-only repository token, then mints a fresh App token immediately
-before the write; installation tokens expire after one hour. Empty governance
+`version-cut.yml` runs `prepare-version-pr` on an unprivileged read-only runner
+first (`npm ci --ignore-scripts`, `npx changeset status`,
+`npm run changeset:version` including `scripts/sync-package-lock-version.mjs`,
+and `scripts/validate-version-cut.mjs`) and skips `publish-version-pr` and
+`tag` when no version or tag write is needed. When a version PR update is
+ready, `publish-version-pr` starts on a clean runner in `version-cut` without
+installing dependencies, copies `scripts/validate-version-cut.mjs` and
+`scripts/publish-signed-version-commit.mjs` from the trusted `main` commit
+before applying the patch with hooks disabled, verifies the single same-owner
+rolling PR, and publishes the commit to `changeset-release/main` through the
+Git Data API so GitHub signs it. Manual recovery uses default-branch-only
+`repository_dispatch` (`version-cut-recovery`) rather than branch-selectable
+`workflow_dispatch`. When a tag is needed, `tag` verifies synchronized
+`package.json` and `package-lock.json` versions, waits for exact-SHA CI with
+the read-only repository token, then mints a fresh App token immediately before
+the write; installation tokens expire after one hour. Empty governance
 changesets satisfy the PR gate but do not create a Version packages PR or block
 stranded-tag recovery; version, tag, and release-verification lanes share
 Changesets' semantic release count.

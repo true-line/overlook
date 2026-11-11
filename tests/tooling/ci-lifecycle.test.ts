@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { describe, test } from 'node:test';
 
 const root = process.cwd();
-const aca = readFileSync(join(root, '.github/workflows/aca.yml'), 'utf8');
 const autoUpdate = readFileSync(join(root, '.github/workflows/auto-update-prs.yml'), 'utf8');
 const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
 const codeql = readFileSync(join(root, '.github/workflows/codeql.yml'), 'utf8');
@@ -44,7 +43,8 @@ describe('governed CI lifecycle (ENG-0004)', () => {
   });
 
   test('authorizes every direct non-CI entrypoint before repository work', () => {
-    const workflows = [aca, autoUpdate, packageWorkflow, perf, release, versionCut, closeLinkedIssues];
+    assert.equal(existsSync(join(root, '.github/workflows/aca.yml')), false);
+    const workflows = [autoUpdate, packageWorkflow, perf, release, versionCut, closeLinkedIssues];
     for (const workflow of workflows) {
       assert.match(workflow, /^ {2}policy:$/mu);
       assert.match(workflow, /authorization-only: 'true'/u);
@@ -55,14 +55,13 @@ describe('governed CI lifecycle (ENG-0004)', () => {
       [packageWorkflow, ['package']],
       [perf, ['perf']],
       [release, ['verify']],
-      [versionCut, ['version-pr']],
+      [versionCut, ['prepare-version-pr']],
       [closeLinkedIssues, ['close-linked-issues']],
     ] as const) {
       for (const job of jobs) assert.match(workflow, new RegExp(`^  ${job}:\\n {4}needs: policy`, 'mu'));
     }
-    assert.match(versionCut, /^ {2}tag:\n {4}needs: \[policy, version-pr\]$/mu);
-    assert.equal((aca.match(/github\.actor != 'dependabot\[bot\]'/gu) ?? []).length, 3);
-    assert.equal((aca.match(/github\.event\.pull_request\.user\.login != 'dependabot\[bot\]'/gu) ?? []).length, 3);
+    assert.match(versionCut, /^ {2}publish-version-pr:\n {4}needs: \[policy, prepare-version-pr\]$/mu);
+    assert.match(versionCut, /^ {2}tag:\n {4}needs: \[policy, prepare-version-pr\]$/mu);
   });
 
   test('reuses only exact-SHA complete-suite evidence', () => {
@@ -115,7 +114,7 @@ describe('governed CI lifecycle (ENG-0004)', () => {
   });
 
   test('enforces finite workflow runtime with the reviewed immutable contract', () => {
-    const sources = [aca, autoUpdate, ci, closeLinkedIssues, codeql, packageWorkflow, perf, release, versionCut].join('\n');
+    const sources = [autoUpdate, ci, closeLinkedIssues, codeql, packageWorkflow, perf, release, versionCut].join('\n');
     assert.doesNotMatch(sources, /^\s*run: (?:npm (?:ci|install)|npm --prefix .* clean-install|npx playwright install)/gmu);
     assert.match(
       sources,
@@ -170,11 +169,13 @@ describe('governed CI lifecycle (ENG-0004)', () => {
     assert.match(versionCut, /event=push&head_sha=\$GITHUB_SHA/u);
     assert.equal(existsSync(join(root, '.github/workflows/auto-update-prs.yml')), true);
     assert.match(autoUpdate, /^ {4}environment: version-cut$/mu);
+    assert.doesNotMatch(autoUpdate, /^\s+(?:contents|pull-requests): write$/mu);
     assert.match(autoUpdate, /name: Require chores-dumb credentials/u);
     assert.match(
       autoUpdate,
       /HAS_CHORES_DUMB: \$\{\{ secrets\.CHORES_DUMB_CLIENT_ID != '' && secrets\.CHORES_DUMB_PRIVATE_KEY != '' \}\}/u,
     );
+    assert.match(autoUpdate, /permission-contents: write\n\s+permission-pull-requests: write/u);
     assert.match(autoUpdate, /GH_TOKEN: \$\{\{ steps\.chores\.outputs\.token \}\}/u);
     assert.doesNotMatch(autoUpdate, /RELEASE_TOKEN|\|\| github\.token/u);
   });
