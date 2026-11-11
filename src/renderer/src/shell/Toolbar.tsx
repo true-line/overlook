@@ -60,6 +60,8 @@ const messages = defineMessages({
   region: { id: 'toolbar.region', defaultMessage: 'Photo tools' },
   backupNow: { id: 'toolbar.backup.now', defaultMessage: 'Back up now' },
   backup: { id: 'toolbar.backup', defaultMessage: 'Back up' },
+  backupStarted: { id: 'toolbar.toast.backupStarted', defaultMessage: 'Backup started' },
+  backupDisconnected: { id: 'toolbar.toast.backupDisconnected', defaultMessage: 'Backup off — not connected' },
   lockNow: { id: 'toolbar.lock', defaultMessage: 'Lock now' },
   filterFavorites: { id: 'toolbar.filter.favorites', defaultMessage: 'Favorites' },
   filterRaw: { id: 'toolbar.filter.raw', defaultMessage: 'RAW' },
@@ -272,10 +274,13 @@ export function Toolbar({ platform, onImport, onLock, albums = [] }: ToolbarProp
                 // Manual trigger (#108): amber start toast per the mock; the
                 // completion listener shows green/red endings. A disconnected
                 // provider blocks the run (#114) — say so instead.
-                dispatch({ type: 'toast/shown', toast: { title: 'Backup started', tone: 'amber' } });
+                dispatch({ type: 'toast/shown', toast: { title: intl.formatMessage(messages.backupStarted), tone: 'amber' } });
                 void window.overlook.backup.run({}).then(({ skipped }) => {
                   if (skipped === 'disconnected') {
-                    dispatch({ type: 'toast/shown', toast: { title: 'Backup off — not connected', tone: 'neutral' } });
+                    dispatch({
+                      type: 'toast/shown',
+                      toast: { title: intl.formatMessage(messages.backupDisconnected), tone: 'neutral' },
+                    });
                   }
                 });
               }}

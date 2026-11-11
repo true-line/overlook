@@ -170,6 +170,16 @@ export const en = {
   "commands.photo.trash": "Move photo to Trash",
   "commands.selection.clear": "Clear selection",
   "commands.selection.selectAll": "Select all photos",
+  "commands.toast.cannotRedo": "Cannot redo — {reason}",
+  "commands.toast.cannotUndo": "Cannot undo — {reason}",
+  "commands.toast.preservedOne": "Preserved 1 protected Original",
+  "commands.toast.redid": "Redid last action",
+  "commands.toast.removedFromAlbum": "Removed {count, plural, one {# photo} other {# photos}} from the album",
+  "commands.toast.restoredCount": "Restored {count, plural, one {# photo} other {# photos}}",
+  "commands.toast.trashedCount": "Moved {count, plural, one {# photo} other {# photos}} to Trash",
+  "commands.toast.trashedOne": "Moved 1 photo to Trash",
+  "commands.toast.trashedWithProtected": "Moved {deleted, number} to Trash · preserved {protectedCount, plural, one {# protected Original} other {# protected Originals}}",
+  "commands.toast.undid": "Undid last action",
   "commands.trash.empty": "Empty Trash…",
   "commands.view.appearance.reset": "Reset Appearance",
   "commands.view.inspector.detach": "Open Inspector in Separate Window",
@@ -719,6 +729,23 @@ export const en = {
   "libswitch.reason.elsewhere": "Close it on {host} first.",
   "libswitch.reason.missing": "Reconnect the volume first.",
   "libswitch.reason.open": "This library is open. Switch to another library first.",
+  "libswitch.refusal.alreadyRegistered.detail": "That library is registered here already.",
+  "libswitch.refusal.alreadyRegistered.title": "Already in the list",
+  "libswitch.refusal.error.detail": "The operation could not be completed safely. Try again.",
+  "libswitch.refusal.error.title": "Something went wrong",
+  "libswitch.refusal.locked.detail": "Unlock the current library before switching.",
+  "libswitch.refusal.locked.title": "Overlook is locked",
+  "libswitch.refusal.lockedElsewhere.detail": "Close it there first, then switch.",
+  "libswitch.refusal.lockedElsewhere.title": "This library is open elsewhere",
+  "libswitch.refusal.lockedOnHost": "Locked on {host}",
+  "libswitch.refusal.missing.detail": "Reconnect the volume it lives on, then try again.",
+  "libswitch.refusal.missing.title": "This library's folder is missing",
+  "libswitch.refusal.notALibrary.detail": "Choose a folder that contains an Overlook library.db.",
+  "libswitch.refusal.notALibrary.title": "That folder isn't an Overlook library",
+  "libswitch.refusal.providerBusy.detail": "Finish or wait for the current backup or restore before switching libraries.",
+  "libswitch.refusal.providerBusy.title": "Can't switch while a backup is running",
+  "libswitch.refusal.switchInProgress.detail": "Hold on — the current switch has to finish first.",
+  "libswitch.refusal.switchInProgress.title": "A switch is already in progress",
   "libswitch.remove.done": "{name} removed from this list. Its files were not changed.",
   "libswitch.row.missing": "Missing",
   "libswitch.row.open": "Open now",
@@ -907,6 +934,9 @@ export const en = {
   "restore.verify.trash": "Discard this backup…",
   "restore.verify.trashConfirm": "Type Permanently Delete Backup to confirm",
   "restore.verify.trashPlaceholder": "Permanently Delete Backup",
+  "selectionPill.addToAlbum": "Add to album",
+  "selectionPill.offload": "Offload",
+  "selectionPill.transfer": "Transfer & Sync",
   "settings.diagnostics.alreadyGone": "That report was already gone.",
   "settings.diagnostics.cancel": "Cancel",
   "settings.diagnostics.cannotUndo": "This cannot be undone.",
@@ -973,8 +1003,8 @@ export const en = {
   "settings.general.quickActions.down": "Down",
   "settings.general.quickActions.hint": "Choose and order up to five actions shown while you hold Command over a photo.",
   "settings.general.quickActions.maxReached": "Disable an action before enabling another.",
-  "settings.general.quickActions.moveDown": "Move {action} down",
-  "settings.general.quickActions.moveUp": "Move {action} up",
+  "settings.general.quickActions.moveDown": "— Move {action} down",
+  "settings.general.quickActions.moveUp": "— Move {action} up",
   "settings.general.quickActions.up": "Up",
   "settings.general.semantic": "On-device semantic index",
   "settings.general.semantic.download": "Downloads a 148 MB on-device model once. Photos and embeddings never leave this device.",
@@ -1118,6 +1148,7 @@ export const en = {
   "shell.selection.cleared": "Selection cleared",
   "shell.selection.count": "{count, plural, one {# photo selected} other {# photos selected}}",
   "shell.skipToPhotos": "Skip to photos",
+  "shell.switchLibrarySuffix": "— Switch library",
   "shell.view.album": "Album",
   "shell.view.all": "All Photos",
   "shell.view.deleted": "Trash",
@@ -1179,6 +1210,12 @@ export const en = {
   "smartAlbum.save.topLevel": "Top level (no folder)",
   "smartAlbum.unsupported.hint": "Its saved query is kept exactly as it was. Choose facets and save to replace it, or open it in a newer version.",
   "smartAlbum.unsupported.title": "{name} cannot be shown",
+  "statusGlyph.error": "Sync failed",
+  "statusGlyph.excluded": "On this device only",
+  "statusGlyph.local": "Local only",
+  "statusGlyph.offloaded": "Offloaded to cloud",
+  "statusGlyph.synced": "Backed up (encrypted)",
+  "statusGlyph.syncing": "Uploading…",
   "statusbar.coverage.removalPending": "{count, plural, one {# cloud copy} other {# cloud copies}} awaiting removal",
   "statusbar.inclusion.excluded": "{count, plural, one {# photo hidden} other {# photos hidden}} by All Photos rules",
   "statusbar.inclusion.hiddenByAlbums": "{count, plural, one {# photo hidden} other {# photos hidden}} by album settings",
@@ -1225,6 +1262,8 @@ export const en = {
   "toolbar.search.status.keyword": "Keyword results",
   "toolbar.search.status.semantic": "Semantic results",
   "toolbar.search.status.withIndex": "{status} · {index}",
+  "toolbar.toast.backupDisconnected": "Backup off — not connected",
+  "toolbar.toast.backupStarted": "Backup started",
   "toolbar.view": "View",
   "toolbar.view.changed": "View: {mode}.",
   "toolbar.view.trigger": "View: {mode}",
@@ -1263,6 +1302,12 @@ interface InterpolatedMessageArguments {
   "album.visibility.elsewhere": { "count": number };
   "album.visibility.open": { "album": MessageValue };
   "commands.photo.keys.skipped": { "locked": number; "missing": number };
+  "commands.toast.cannotRedo": { "reason": MessageValue };
+  "commands.toast.cannotUndo": { "reason": MessageValue };
+  "commands.toast.removedFromAlbum": { "count": number };
+  "commands.toast.restoredCount": { "count": number };
+  "commands.toast.trashedCount": { "count": number };
+  "commands.toast.trashedWithProtected": { "deleted": number | bigint; "protectedCount": number };
   "copyableValue.copied": { "label": MessageValue };
   "copyableValue.copy": { "label": MessageValue };
   "copyableValue.failed": { "label": MessageValue };
@@ -1383,6 +1428,7 @@ interface InterpolatedMessageArguments {
   "libswitch.move.count": { "count": MessageValue };
   "libswitch.move.selected": { "count": MessageValue };
   "libswitch.reason.elsewhere": { "host": MessageValue };
+  "libswitch.refusal.lockedOnHost": { "host": MessageValue };
   "libswitch.remove.done": { "name": MessageValue };
   "libswitch.row.openOn": { "host": MessageValue };
   "lightbox.locked": { "id": MessageValue };

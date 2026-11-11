@@ -3266,6 +3266,24 @@
           "reason": "Announcements and the menu button role are heard, not observable from automation. Follow the library switcher step in section 8 of docs/acceptance/Manual-Test-A11y-VoiceOver.md."
         }
       ]
+    },
+    {
+      "id": "1441-renderer-races-a11y-i18n",
+      "wiki": "Accessibility-Audit-2026-07",
+      "coverage": [
+        {
+          "type": "unit-dom",
+          "paths": ["tests/dom/renderer-races-a11y-i18n.test.tsx"]
+        },
+        {
+          "type": "storybook",
+          "paths": ["src/renderer/src/settings/SettingsDialog.stories.tsx", "src/renderer/src/shell/LibrarySwitcher.stories.tsx"]
+        },
+        {
+          "type": "playwright-e2e",
+          "path": "tests/e2e/library-switcher-ui.spec.ts"
+        }
+      ]
     }
   ]
 }
