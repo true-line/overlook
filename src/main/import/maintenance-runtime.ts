@@ -4,7 +4,7 @@ import { EditRevisionRepository } from '../db/edit-revision-repository.js';
 import { PhotosRepository } from '../db/photos-repository.js';
 import type { ImportRuntime } from './import-runtime.js';
 import type { LibraryParts } from '../library/library-parts.js';
-import type { captureVideoPosterFrame } from './offscreen-frame-capturer.js';
+import { captureVideoPosterFrame } from './offscreen-frame-capturer.js';
 import { createPosterCaptureRuntime } from './poster-capture-runtime.js';
 import type { PosterCaptureService } from './poster-capture-service.js';
 import { createRawRepairRuntime } from './raw-repair-runtime.js';
@@ -110,8 +110,7 @@ export function buildMaintenanceServices(ctx: MaintenanceContext): MaintenanceSe
   const posterCapture = createPosterCaptureRuntime({
     ...shared,
     db: parts.db,
-    captureFrame:
-      ctx.captureFrame ?? (async (photo, signal) => (await import('./offscreen-frame-capturer.js')).captureVideoPosterFrame(photo, signal)),
+    captureFrame: ctx.captureFrame ?? captureVideoPosterFrame,
     changed: (ids, membership) => {
       for (const id of ids) invalidateThumb(id);
       // Background capture refreshes tiles only (#744); an explicit repair may
