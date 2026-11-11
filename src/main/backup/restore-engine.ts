@@ -1,4 +1,4 @@
-import { verifyRestoredCustody } from './restore-key-custody.js';
+import { deleteUnownedRestoredOriginal, pruneUnverifiedCompletedBlobs, verifyRestoredCustody } from './restore-key-custody.js';
 import { sidecarOwnerOf } from '../../shared/library/sidecar-files.js';
 import { isDeepStrictEqual } from 'node:util';
 import { existsSync } from 'node:fs';
@@ -504,9 +504,14 @@ export class RestoreEngine {
     const ids = new Set(entries.map((entry) => entry.id));
     const completed = new Set((checkpoint.completedSidecarIds ?? []).filter((id) => ids.has(id)));
     for (const entry of entries) {
-      if (!completed.has(entry.id)) continue;
-      if (!(await store.verifySidecar(sidecarOwnerOf(entry.sidecar), entry.sidecar.hash, discovery.resolveKey))) {
+      const ownerId = sidecarOwnerOf(entry.sidecar);
+      if (!store.hasSidecar(ownerId, entry.sidecar.hash)) {
         completed.delete(entry.id);
+        continue;
+      }
+      if (!(await store.verifySidecar(ownerId, entry.sidecar.hash, discovery.resolveKey))) {
+        completed.delete(entry.id);
+        await store.deleteSidecar(ownerId, entry.sidecar.hash);
       }
     }
     checkpoint = { ...checkpoint, completedSidecarIds: [...completed] };
@@ -632,12 +637,7 @@ export class RestoreEngine {
     const carried = blobPhotos(candidate.manifest.photos);
     const manifestIds = new Set(carried.map((photo) => photo.id));
     const completed = new Set(checkpoint.completedBlobIds.filter((id) => manifestIds.has(id)));
-    for (const photo of carried) {
-      if (completed.has(photo.id) && !(await store.verifyOriginal(photo.contentHash, discovery.resolveKey, assetOwnerOf(photo)))) {
-        completed.delete(photo.id);
-        await store.deleteOriginal(photo.contentHash);
-      }
-    }
+    await pruneUnverifiedCompletedBlobs(store, discovery.resolveKey, carried, completed);
     checkpoint = { ...checkpoint, completedBlobIds: [...completed] };
     await saveCheckpoint(paths, checkpoint);
     const remote = new Map((await this.deps.provider.list('blobs', signal)).map((entry) => [entry.path, entry]));
@@ -684,7 +684,7 @@ export class RestoreEngine {
             photoId: photo.id,
             reason: error instanceof BlobStoreError ? 'failed-verification' : 'not-found',
           });
-          if (store.hasOriginal(photo.contentHash)) await store.deleteOriginal(photo.contentHash);
+          await deleteUnownedRestoredOriginal(store, discovery.resolveKey, carried, completed, photo.contentHash);
           continue;
         }
         if (error instanceof BlobStoreError) throw new RestoreError('corrupt', error.message);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type Dispatch } from 'react';
-import { useIntl } from 'react-intl';
+import { defineMessages, useIntl } from 'react-intl';
 import type { ExportDialogController } from '../export/use-export-dialog.js';
 import { duplicatePhotos } from '../grid/duplicate-photos.js';
 
@@ -9,6 +9,30 @@ import type { AppAction, AppState } from '../../../shared/library/app-state.js';
 import type { SettingsSection } from '../settings/SettingsDialog';
 import { getApplicationThemeLayer } from '../theme/user-theme-layer';
 import { deletePhoto } from './delete-photo';
+
+const routerMessages = defineMessages({
+  undid: { id: 'commands.toast.undid', defaultMessage: 'Undid last action' },
+  redid: { id: 'commands.toast.redid', defaultMessage: 'Redid last action' },
+  cannotUndo: { id: 'commands.toast.cannotUndo', defaultMessage: 'Cannot undo — {reason}' },
+  cannotRedo: { id: 'commands.toast.cannotRedo', defaultMessage: 'Cannot redo — {reason}' },
+  trashedCount: {
+    id: 'commands.toast.trashedCount',
+    defaultMessage: 'Moved {count, plural, one {# photo} other {# photos}} to Trash',
+  },
+  trashedWithProtected: {
+    id: 'commands.toast.trashedWithProtected',
+    defaultMessage:
+      'Moved {deleted, number} to Trash · preserved {protectedCount, plural, one {# protected Original} other {# protected Originals}}',
+  },
+  restoredCount: {
+    id: 'commands.toast.restoredCount',
+    defaultMessage: 'Restored {count, plural, one {# photo} other {# photos}}',
+  },
+  removedFromAlbum: {
+    id: 'commands.toast.removedFromAlbum',
+    defaultMessage: 'Removed {count, plural, one {# photo} other {# photos}} from the album',
+  },
+});
 
 /**
  * Routes a native-menu / shortcut command (delivered over IPC as an
@@ -36,6 +60,7 @@ export interface NativeCommandRouterDeps {
   readonly resetDropped: () => void;
   readonly closeOffload: () => void;
   readonly pcloudEnabled: boolean;
+  readonly lockConfigured?: boolean | undefined;
 }
 
 export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command: CommandId) => void {
@@ -54,6 +79,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
     resetDropped,
     closeOffload,
     pcloudEnabled,
+    lockConfigured,
   } = deps;
   const { openPhotos: onExport, setPhotoIds: setExportPhotoIds, setAllPhotos: setExportAllPhotos } = exportDialog;
   const intl = useIntl();
@@ -63,7 +89,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
     (commandId: CommandId): void => {
       // A deterministic photo target: the focused lightbox photo, else the selection.
       const targetIds = state.lightboxId !== null ? [state.lightboxId] : [...state.selection];
-      const closeOverlays = (): void => {
+      const closeOverlays = (options?: { readonly preserveLightbox?: boolean }): void => {
         setShortcutSurface(null);
         resetInteropEntry();
         resetUnlockAlbum();
@@ -71,7 +97,9 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
         resetDropped();
         setExportPhotoIds(null);
         setExportAllPhotos(false);
-        dispatch({ type: 'lightbox/closed' });
+        if (!options?.preserveLightbox) {
+          dispatch({ type: 'lightbox/closed' });
+        }
         dispatch({ type: 'dialog/set', dialog: 'import', open: false });
         dispatch({ type: 'dialog/set', dialog: 'export', open: false });
         dispatch({ type: 'dialog/set', dialog: 'settings', open: false });
@@ -154,10 +182,10 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
               type: 'toast/shown',
               toast: {
                 title: result.applied
-                  ? commandId === 'history.undo'
-                    ? 'Undid last action'
-                    : 'Redid last action'
-                  : `Cannot ${commandId === 'history.undo' ? 'undo' : 'redo'} — ${result.capability.reason}`,
+                  ? intl.formatMessage(commandId === 'history.undo' ? routerMessages.undid : routerMessages.redid)
+                  : intl.formatMessage(commandId === 'history.undo' ? routerMessages.cannotUndo : routerMessages.cannotRedo, {
+                      reason: result.capability.reason,
+                    }),
                 tone: result.applied ? 'neutral' : 'red',
               },
             });
@@ -195,7 +223,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
         case 'photo.trash': {
           if (state.lightboxId !== null) {
             const target = state.photos.find(({ id }) => id === state.lightboxId);
-            if (target?.deletedAt === null) deletePhoto(target.id, dispatch);
+            if (target?.deletedAt === null) deletePhoto(target.id, dispatch, intl);
             return;
           }
           if (targetIds.length === 0) return;
@@ -205,8 +233,8 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
               toast: {
                 title:
                   protectedCount === 0
-                    ? `Moved ${deleted} ${deleted === 1 ? 'photo' : 'photos'} to Trash`
-                    : `Moved ${deleted} to Trash · preserved ${protectedCount} protected ${protectedCount === 1 ? 'Original' : 'Originals'}`,
+                    ? intl.formatMessage(routerMessages.trashedCount, { count: deleted })
+                    : intl.formatMessage(routerMessages.trashedWithProtected, { deleted, protectedCount }),
                 tone: protectedCount === 0 ? 'neutral' : 'amber',
               },
             });
@@ -224,7 +252,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
           void window.overlook.library.restore({ photoIds: targetIds }).then(({ restored }) => {
             dispatch({
               type: 'toast/shown',
-              toast: { title: `Restored ${restored} ${restored === 1 ? 'photo' : 'photos'}`, tone: 'green' },
+              toast: { title: intl.formatMessage(routerMessages.restoredCount, { count: restored }), tone: 'green' },
             });
           });
           return;
@@ -237,7 +265,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
           void window.overlook.albums.removePhotos({ albumId, photoIds: targetIds }).then(({ removed }) => {
             dispatch({
               type: 'toast/shown',
-              toast: { title: `Removed ${removed} ${removed === 1 ? 'photo' : 'photos'} from the album`, tone: 'neutral' },
+              toast: { title: intl.formatMessage(routerMessages.removedFromAlbum, { count: removed }), tone: 'neutral' },
             });
           });
           return;
@@ -254,13 +282,19 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
           return;
         case 'library.duplicates':
           if (state.protectedAlbum !== null) return;
-          closeOverlays();
+          closeOverlays({ preserveLightbox: true });
           dispatch({ type: 'dialog/set', dialog: 'duplicates', open: true });
           return;
         case 'help.open':
           // macOS opens this from main (the menu never forwards it to the
           // renderer); the Windows/Linux titlebar Help menu reaches it here.
           void window.overlook.help.open();
+          return;
+        case 'app.lock.now':
+          // macOS dispatches Lock Now in main; the Windows/Linux titlebar ⋯
+          // Overlook menu reaches it through runCommand here (#1433).
+          if (lockConfigured === false) return;
+          void window.overlook.appLock.lockNow();
           return;
         case 'album.rename':
         case 'album.delete':
@@ -288,7 +322,6 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
         case 'photo.original.unmark':
         case 'photo.purge':
         case 'trash.empty':
-        case 'app.lock.now':
         case 'app.search.focus':
         case 'view.lightbox.previous':
         case 'view.lightbox.next':
@@ -328,6 +361,7 @@ export function useNativeCommandRouter(deps: NativeCommandRouterDeps): (command:
       resetDropped,
       closeOffload,
       pcloudEnabled,
+      lockConfigured,
     ],
   );
 

@@ -2,7 +2,7 @@
 
 Checked-in inventory of every wall-clock wait in the Playwright-Electron E2E
 suite and the Storybook interaction lane, with the synchronization contract
-each one depends on. Written for [#630](https://github.com/qwts/photos/issues/630)
+each one depends on. Written for [#630](https://github.com/true-line/overlook/issues/630)
 (deterministic E2E synchronization) and kept current when timing waits are
 added or changed — a new `test.setTimeout`, assertion timeout, sleep, or
 product-timer wait belongs in the matching table below in the same PR.
@@ -131,16 +131,19 @@ exceptions: Storybook `play` functions do not receive Playwright's page clock,
 while lightbox/app-lock/a11y exercise composed Electron behavior across renderer
 lifecycle or CSS-animation boundaries. They synchronize on semantic state.
 
-| location                  | product timer                               | current wait                                          |
-| ------------------------- | ------------------------------------------- | ----------------------------------------------------- |
-| import-flow:95            | toast 4 s auto-dismiss (#411)               | `page.clock.fastForward(4_200)` (deterministic)       |
-| lightbox:304              | lightbox chrome idle-autohide               | `toHaveAttribute('data-chrome','off',{timeout:5000})` |
-| lightbox:293–309          | chrome wake/sleep on input                  | attribute assertions around idle                      |
-| app-lock:99/153           | unlock re-enable throttle                   | `toBeVisible({timeout:3_000})`                        |
-| a11y:157–166              | 120 ms bg transition settle                 | `.poll` running-animations == 0                       |
-| Lightbox.stories:110      | 2.2 s chrome idle window                    | `waitFor({timeout:4000})`                             |
-| Toast.stories:121/147/161 | `autoDismissMs` 200/400 + hover/focus pause | `setTimeout(400/600)` + `waitFor({timeout:2000})`     |
-| ExportDialog.stories:18   | simulated export progress cadence           | `setTimeout(40)` ×3                                   |
+| location                  | product timer                                              | current wait                                          |
+| ------------------------- | ---------------------------------------------------------- | ----------------------------------------------------- |
+| import-flow:95            | toast 4 s auto-dismiss (#411)                              | `page.clock.fastForward(4_200)` (deterministic)       |
+| lightbox:304              | lightbox chrome idle-autohide                              | `toHaveAttribute('data-chrome','off',{timeout:5000})` |
+| lightbox:293–309          | chrome wake/sleep on input                                 | attribute assertions around idle                      |
+| app-lock:99/153           | unlock re-enable throttle                                  | `toBeVisible({timeout:3_000})`                        |
+| app-lock:169/191          | 1 s failed-password backoff (Touch ID & password change)   | `page.waitForTimeout(1200)`                           |
+| trash:246                 | 1 s failed-password backoff (Original deletion auth)       | `page.waitForTimeout(1_100)`                          |
+| backup:351                | 1 s failed-password backoff (`restore.discover` auth gate) | `page.waitForTimeout(1200)`                           |
+| a11y:157–166              | 120 ms bg transition settle                                | `.poll` running-animations == 0                       |
+| Lightbox.stories:110      | 2.2 s chrome idle window                                   | `waitFor({timeout:4000})`                             |
+| Toast.stories:121/147/161 | `autoDismissMs` 200/400 + hover/focus pause                | `setTimeout(400/600)` + `waitFor({timeout:2000})`     |
+| ExportDialog.stories:18   | simulated export progress cadence                          | `setTimeout(40)` ×3                                   |
 
 ## Event-driven waits (not time-based)
 

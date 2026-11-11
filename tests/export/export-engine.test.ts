@@ -553,6 +553,14 @@ describe('edited export (#497, ADR-0031 §6)', () => {
       mode: 'original-sidecars',
     });
     assert.deepEqual(untouched.files[0]?.sidecarNames, ['IMG_4021.xmp']);
+    // Metadata: Edits ('overlook') writes the disclosure-projected XMP + edits
+    // and never copies unfiltered source companions (#1142, #1438).
+    const editsOnlyWorld = await seededWorld(1);
+    const editsOnly = await engine.exportPhotos(['PHOTO0'], editsOnlyWorld.destination, undefined, 'original', 'overlook', {
+      mode: 'original-sidecars',
+    });
+    assert.deepEqual(editsOnly.files[0]?.sidecarNames, ['IMG_4021.xmp']);
+    assert.deepEqual(readdirSync(editsOnlyWorld.destination).sort(), ['IMG_4021.JPG', 'IMG_4021.xmp']);
   });
 
   test('Original only writes nothing beside the original, whatever the metadata policy', async () => {

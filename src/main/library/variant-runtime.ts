@@ -16,7 +16,7 @@ import { assetOwnerOf } from '../../shared/library/asset-owner.js';
 // renderer/library side effects arrive as callbacks.
 export interface VariantRuntimeContext {
   readonly parts: LibraryParts;
-  readonly runtime: ImportRuntime;
+  readonly runtime: Pick<ImportRuntime, 'thumbnails'>;
   readonly appVersion: string;
   readonly invalidateThumb: (id: string) => void;
   /** Promote changed rows in place. */

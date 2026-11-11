@@ -297,4 +297,31 @@ describe('BlobStore', () => {
     const expected = join(dataDir, 'blobs', ref.contentHash.slice(0, 2), ref.contentHash.slice(2, 4), ref.contentHash);
     assert.ok(statSync(expected).isFile());
   });
+
+  test('deleteSidecar removes a corrupt staged companion before retry while sparing valid siblings (#1431)', async () => {
+    const { store, dataDir } = await freshStore();
+    const firstPlain = Buffer.from('companion-xmp-one');
+    const secondPlain = Buffer.from('companion-aae-two');
+    const first = await store.putSidecar(Readable.from([firstPlain]), KEY, 'photo-sidecar');
+    const second = await store.putSidecar(Readable.from([secondPlain]), KEY, 'photo-sidecar');
+    const validCiphertext = await buffer(store.getEncryptedSidecarStream('photo-sidecar', first.contentHash));
+
+    // Corrupt the on-disk sidecar file as if a resumed restore had a damaged checkpointed file.
+    const firstPath = join(dataDir, 'sidecars', 'ph', 'photo-sidecar', first.contentHash);
+    writeFileSync(firstPath, randomBytes(validCiphertext.length));
+    assert.equal(await store.verifySidecar('photo-sidecar', first.contentHash, RESOLVE), false);
+
+    // Direct restoreSidecar refuses to clobber an existing path without explicit staging cleanup.
+    await assert.rejects(
+      store.restoreSidecar('photo-sidecar', first.contentHash, Readable.from([validCiphertext]), RESOLVE),
+      BlobStoreError,
+    );
+
+    // Clearing the targeted invalid companion spares the sibling and lets retry publish cleanly.
+    await store.deleteSidecar('photo-sidecar', first.contentHash);
+    assert.equal(await store.verifySidecar('photo-sidecar', second.contentHash, RESOLVE), true);
+    await store.restoreSidecar('photo-sidecar', first.contentHash, Readable.from([validCiphertext]), RESOLVE);
+    assert.equal(await store.verifySidecar('photo-sidecar', first.contentHash, RESOLVE), true);
+    assert.deepEqual(await buffer(store.getSidecarStream('photo-sidecar', first.contentHash, RESOLVE)), firstPlain);
+  });
 });

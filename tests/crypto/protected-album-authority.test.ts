@@ -3,6 +3,8 @@ import { randomBytes } from 'node:crypto';
 import { describe, test } from 'node:test';
 
 import { ProtectedAlbumAuthorityError, ProtectedAlbumAuthorityRegistry } from '../../src/main/crypto/protected-album-authority.js';
+import type { ProtectedLibraryService } from '../../src/main/library/protected-library-service.js';
+import { ProtectedMediaService } from '../../src/main/library/protected-media-service.js';
 
 describe('protected album session authority (#325)', () => {
   test('owns a key copy and zeroizes it on relock', () => {
@@ -77,5 +79,55 @@ describe('protected album session authority (#325)', () => {
     assert.equal(registry.isCurrent(second), false);
     assert.deepEqual(revoked, ['ALBUM1', 'ALBUM2']);
     off();
+  });
+
+  test('relockAll bumps generations, notifies revocation listeners once per unlocked album, and evicts ProtectedMediaService RAM caches (#1432)', async () => {
+    const authorities = new ProtectedAlbumAuthorityRegistry();
+    const revoked: string[] = [];
+    authorities.onRevoked((albumId) => {
+      assert.equal(authorities.isAuthorized(albumId), false, 'key must already be cleared before revocation listeners fire');
+      revoked.push(albumId);
+    });
+    authorities.authorize('ALBUM1', Buffer.alloc(32, 7));
+    authorities.authorize('ALBUM2', Buffer.alloc(32, 8));
+    const snap1 = authorities.snapshot('ALBUM1');
+    const snap2 = authorities.snapshot('ALBUM2');
+
+    const fakeLibrary: Pick<ProtectedLibraryService, 'isAuthorizedPhoto' | 'media'> = {
+      isAuthorizedPhoto: (albumId) => authorities.isAuthorized(albumId),
+      media: (albumId, photoId, kind) =>
+        Promise.resolve({
+          bytes: Buffer.alloc(kind === 'original' ? 2048 : 512, 0xaa),
+          opaqueRef: `${albumId}:${photoId}:${kind}`,
+          fileKind: 'jpeg',
+        }),
+    };
+    const media = new ProtectedMediaService({
+      // Fake satisfies the two methods ProtectedMediaService invokes.
+      library: fakeLibrary as ProtectedLibraryService,
+      authorities,
+    });
+    try {
+      assert.notEqual(await media.getThumb('ALBUM1', 'PHOTO1', 'thumb'), null);
+      assert.notEqual(await media.getFull('ALBUM2', 'PHOTO2'), null);
+      assert.deepEqual(media.stats(), { thumbBytes: 512, fullBytes: 2048 });
+
+      authorities.relockAll();
+
+      assert.deepEqual(revoked, ['ALBUM1', 'ALBUM2']);
+      assert.equal(authorities.isCurrent(snap1), false);
+      assert.equal(authorities.isCurrent(snap2), false);
+      assert.deepEqual(media.stats(), { thumbBytes: 0, fullBytes: 0 });
+
+      authorities.relockAll();
+      assert.deepEqual(revoked, ['ALBUM1', 'ALBUM2'], 'repeated relockAll with no unlocked albums is a no-op');
+
+      authorities.authorize('ALBUM1', Buffer.alloc(32, 9));
+      assert.equal(authorities.isCurrent(snap1), false, 're-authorizing after relockAll never revives a pre-lock snapshot');
+      assert.notEqual(authorities.snapshot('ALBUM1').generation, snap1.generation);
+    } finally {
+      await media.close();
+      authorities.close();
+    }
   });
 });

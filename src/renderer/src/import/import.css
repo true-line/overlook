@@ -75,6 +75,8 @@
   gap: var(--space-2);
   color: var(--accent-amber);
   font-size: var(--text-md);
+  user-select: text;
+  -webkit-app-region: no-drag;
 }
 
 /* Source picker (#237) — mock's "Import from" section + source states. */

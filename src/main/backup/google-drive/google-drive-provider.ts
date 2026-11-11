@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
 import { Readable } from 'node:stream';
-import { buffer } from 'node:stream/consumers';
 
 import {
   assertSafeRemotePath,
@@ -29,6 +28,7 @@ const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const BINARY_MIME = 'application/octet-stream';
 const BACKUP_OWNER = 'qwts-photos';
+const DRIVE_CHUNK_QUANTUM = 256 * 1024;
 const CHUNK_BYTES = 8 * 1024 * 1024;
 const FILE_FIELDS = 'id,name,mimeType,size,sha256Checksum,appProperties,trashed';
 
@@ -54,6 +54,8 @@ export interface GoogleDriveProviderOptions {
   readonly rootName?: string;
   readonly owner?: string;
   readonly fetchImpl?: typeof fetch;
+  /** Resumable upload chunk size; must be a positive multiple of 256 KiB. */
+  readonly chunkBytes?: number;
 }
 
 function quoteQuery(value: string): string {
@@ -110,6 +112,7 @@ export class GoogleDriveProvider implements StorageProvider {
   private readonly fetchImpl: typeof fetch;
   private readonly rootName: string;
   private readonly owner: string;
+  private readonly chunkBytes: number;
 
   constructor(
     private readonly options: GoogleDriveProviderOptions,
@@ -118,8 +121,12 @@ export class GoogleDriveProvider implements StorageProvider {
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.rootName = options.rootName ?? 'Overlook';
     this.owner = options.owner ?? BACKUP_OWNER;
+    this.chunkBytes = options.chunkBytes ?? CHUNK_BYTES;
     if (!/^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$/u.test(this.rootName) || !/^[a-z0-9-]{3,64}$/u.test(this.owner)) {
       throw new ProviderError('unsafe Google Drive namespace identity', 'corrupt');
+    }
+    if (!Number.isSafeInteger(this.chunkBytes) || this.chunkBytes <= 0 || this.chunkBytes % DRIVE_CHUNK_QUANTUM !== 0) {
+      throw new ProviderError('Google Drive upload chunk size must be a positive multiple of 256 KiB', 'corrupt');
     }
   }
 
@@ -176,43 +183,46 @@ export class GoogleDriveProvider implements StorageProvider {
   }
 
   async put(path: string, bytes: Readable): Promise<{ bytes: number }> {
-    const { payload, existing, session } = await prepareProviderMutation(async () => {
-      assertSafeRemotePath(path);
-      const payload = await buffer(bytes);
-      const existing = await this.resolveFile(path);
-      const parentPath = posix.dirname(path) === '.' ? '' : posix.dirname(path);
-      const parentId = await this.resolveFolder(parentPath, true);
-      if (parentId === null) throw new ProviderError('Google Drive could not create the destination folder', 'transient');
-      const name = posix.basename(path);
-      const metadata = {
-        name,
-        mimeType: BINARY_MIME,
-        appProperties: this.properties(googleDriveFileIdentity(this.options.libraryId, path)),
-        ...(existing === null ? { parents: [parentId] } : {}),
-      };
-      const endpoint =
-        existing === null
-          ? `${UPLOAD_API}/files?uploadType=resumable&fields=${encodeURIComponent(FILE_FIELDS)}`
-          : `${UPLOAD_API}/files/${encodeURIComponent(existing.id)}?uploadType=resumable&fields=${encodeURIComponent(FILE_FIELDS)}`;
-      const initiated = await this.authorizedFetch(endpoint, {
-        method: existing === null ? 'POST' : 'PATCH',
-        headers: {
-          'content-type': 'application/json; charset=UTF-8',
-          'x-upload-content-type': BINARY_MIME,
-          'x-upload-content-length': String(payload.length),
-        },
-        body: JSON.stringify(metadata),
-      });
-      if (!initiated.ok) throw await this.responseError(initiated, 'start resumable upload');
-      const location = initiated.headers.get('location');
-      if (location === null) throw new ProviderError('Google Drive returned no resumable upload location', 'transient');
-      const session = new URL(location);
-      if (session.protocol !== 'https:' || session.hostname !== 'www.googleapis.com') {
-        throw new ProviderError('Google Drive returned an unsafe resumable upload location', 'corrupt');
+    const { existing, session } = await prepareProviderMutation(async () => {
+      try {
+        assertSafeRemotePath(path);
+        const existing = await this.resolveFile(path);
+        const parentPath = posix.dirname(path) === '.' ? '' : posix.dirname(path);
+        const parentId = await this.resolveFolder(parentPath, true);
+        if (parentId === null) throw new ProviderError('Google Drive could not create the destination folder', 'transient');
+        const name = posix.basename(path);
+        const metadata = {
+          name,
+          mimeType: BINARY_MIME,
+          appProperties: this.properties(googleDriveFileIdentity(this.options.libraryId, path)),
+          ...(existing === null ? { parents: [parentId] } : {}),
+        };
+        const endpoint =
+          existing === null
+            ? `${UPLOAD_API}/files?uploadType=resumable&fields=${encodeURIComponent(FILE_FIELDS)}`
+            : `${UPLOAD_API}/files/${encodeURIComponent(existing.id)}?uploadType=resumable&fields=${encodeURIComponent(FILE_FIELDS)}`;
+        const initiated = await this.authorizedFetch(endpoint, {
+          method: existing === null ? 'POST' : 'PATCH',
+          headers: {
+            'content-type': 'application/json; charset=UTF-8',
+            'x-upload-content-type': BINARY_MIME,
+          },
+          body: JSON.stringify(metadata),
+        });
+        if (!initiated.ok) throw await this.responseError(initiated, 'start resumable upload');
+        const location = initiated.headers.get('location');
+        if (location === null) throw new ProviderError('Google Drive returned no resumable upload location', 'transient');
+        const session = new URL(location);
+        if (session.protocol !== 'https:' || session.hostname !== 'www.googleapis.com') {
+          throw new ProviderError('Google Drive returned an unsafe resumable upload location', 'corrupt');
+        }
+        return { existing, session };
+      } catch (error) {
+        bytes.destroy();
+        throw error;
       }
-      return { payload, existing, session };
     });
-    const uploaded = await this.uploadSession(session.toString(), payload);
+    const uploaded = await this.uploadSession(session.toString(), bytes);
     const id = idOf(uploaded) ?? existing?.id ?? null;
     const recordedBytes = bytesOf(uploaded.size);
     if (id === null || recordedBytes === null) {
@@ -527,44 +537,110 @@ export class GoogleDriveProvider implements StorageProvider {
     return files;
   }
 
-  private async uploadSession(session: string, payload: Buffer): Promise<DriveFile> {
-    let offset = 0;
-    let stalls = 0;
-    do {
-      const end = payload.length === 0 ? -1 : Math.min(payload.length, offset + CHUNK_BYTES) - 1;
-      const chunk = payload.length === 0 ? Buffer.alloc(0) : payload.subarray(offset, end + 1);
-      let response: Response;
-      try {
-        response = await this.authorizedFetch(session, {
-          method: 'PUT',
-          headers: {
-            'content-length': String(chunk.length),
-            'content-range': payload.length === 0 ? 'bytes */0' : `bytes ${String(offset)}-${String(end)}/${String(payload.length)}`,
-          },
-          body: chunk,
-        });
-      } catch (error) {
-        if (!(error instanceof ProviderError) || error.kind !== 'transient') throw error;
-        response = await this.queryUpload(session, payload.length);
+  private async uploadSession(session: string, bytes: Readable): Promise<DriveFile> {
+    const iterator = bytes[Symbol.asyncIterator]();
+    const pending: Buffer[] = [];
+    let pendingBytes = 0;
+    let sourceDone = false;
+
+    const fill = async (minBytes: number): Promise<void> => {
+      while (!sourceDone && pendingBytes < minBytes) {
+        const next = await iterator.next();
+        if (next.done) {
+          sourceDone = true;
+          break;
+        }
+        const chunk = Buffer.isBuffer(next.value) ? next.value : Buffer.from(next.value as Uint8Array);
+        if (chunk.length > 0) {
+          pending.push(chunk);
+          pendingBytes += chunk.length;
+        }
       }
-      if (response.status === 200 || response.status === 201) return (await response.json()) as DriveFile;
-      if (response.status !== 308) {
-        if (response.status >= 500 || response.status === 429) response = await this.queryUpload(session, payload.length);
-        if (response.status === 200 || response.status === 201) return (await response.json()) as DriveFile;
-        if (response.status !== 308) throw await this.responseError(response, 'resume upload');
+    };
+
+    const take = (count: number): Buffer => {
+      if (count === 0) return Buffer.alloc(0);
+      const first = pending[0];
+      if (first !== undefined && first.length === count) {
+        pending.shift();
+        pendingBytes -= count;
+        return first;
       }
-      const next = rangeOffset(response.headers.get('range'));
-      stalls = next <= offset ? stalls + 1 : 0;
-      if (stalls >= 4) throw new ProviderError('Google Drive resumable upload made no progress', 'transient');
-      offset = next;
-    } while (offset < payload.length || payload.length === 0);
-    throw new ProviderError('Google Drive resumable upload ended without file metadata', 'transient');
+      const out = Buffer.allocUnsafe(count);
+      let written = 0;
+      while (written < count && pending.length > 0) {
+        const head = pending[0]!;
+        const copyLen = Math.min(head.length, count - written);
+        head.copy(out, written, 0, copyLen);
+        written += copyLen;
+        pendingBytes -= copyLen;
+        if (copyLen === head.length) pending.shift();
+        else pending[0] = head.subarray(copyLen);
+      }
+      return out;
+    };
+
+    try {
+      let offset = 0;
+      let stalls = 0;
+      let isFinal = false;
+      do {
+        await fill(this.chunkBytes + 1);
+        isFinal = pendingBytes <= this.chunkBytes;
+        const window = take(isFinal ? pendingBytes : this.chunkBytes);
+        const windowStart = offset;
+        const windowEnd = windowStart + window.length;
+        const totalBytes = isFinal ? windowEnd : null;
+        do {
+          const chunk = window.length === 0 ? Buffer.alloc(0) : window.subarray(offset - windowStart);
+          const contentRange =
+            totalBytes === 0
+              ? 'bytes */0'
+              : totalBytes === null
+                ? `bytes ${String(offset)}-${String(windowEnd - 1)}/*`
+                : `bytes ${String(offset)}-${String(windowEnd - 1)}/${String(totalBytes)}`;
+          let response: Response;
+          try {
+            response = await this.authorizedFetch(session, {
+              method: 'PUT',
+              headers: {
+                'content-length': String(chunk.length),
+                'content-range': contentRange,
+              },
+              body: chunk,
+            });
+          } catch (error) {
+            if (!(error instanceof ProviderError) || error.kind !== 'transient') throw error;
+            response = await this.queryUpload(session, totalBytes);
+          }
+          if (response.status === 200 || response.status === 201) return (await response.json()) as DriveFile;
+          if (response.status !== 308) {
+            if (response.status >= 500 || response.status === 429) response = await this.queryUpload(session, totalBytes);
+            if (response.status === 200 || response.status === 201) return (await response.json()) as DriveFile;
+            if (response.status !== 308) throw await this.responseError(response, 'resume upload');
+          }
+          const next = rangeOffset(response.headers.get('range'));
+          if (next > windowEnd) {
+            throw new ProviderError('Google Drive returned an out-of-bounds resumable upload range', 'transient');
+          }
+          stalls = next <= offset ? stalls + 1 : 0;
+          if (stalls >= 4) throw new ProviderError('Google Drive resumable upload made no progress', 'transient');
+          offset = next;
+        } while (offset < windowEnd || totalBytes === 0);
+      } while (!isFinal);
+      throw new ProviderError('Google Drive resumable upload ended without file metadata', 'transient');
+    } finally {
+      bytes.destroy();
+    }
   }
 
-  private queryUpload(session: string, totalBytes: number): Promise<Response> {
+  private queryUpload(session: string, totalBytes: number | null): Promise<Response> {
     return this.authorizedFetch(session, {
       method: 'PUT',
-      headers: { 'content-length': '0', 'content-range': `bytes */${String(totalBytes)}` },
+      headers: {
+        'content-length': '0',
+        'content-range': `bytes */${totalBytes === null ? '*' : String(totalBytes)}`,
+      },
       body: Buffer.alloc(0),
     });
   }

@@ -1,11 +1,20 @@
 import { useLayoutEffect } from 'react';
-import { useIntl } from 'react-intl';
+import { defineMessages, useIntl } from 'react-intl';
 
 import { resolveCommand, type CommandId, type CommandPlatform, type CommandSurface } from '../../../shared/commands/registry.js';
 import { directionOf } from '../../../shared/i18n/locales.js';
+import { anyDialogOpen } from '../../../shared/library/app-state.js';
 import { useAppDispatch, useAppState } from './app-state-context';
 import { lightboxStepForKey } from './lightbox-direction';
 import { getApplicationThemeLayer } from '../theme/user-theme-layer';
+import { deletePhoto } from '../shell/delete-photo';
+
+const dispatcherMessages = defineMessages({
+  undid: { id: 'commands.toast.undid', defaultMessage: 'Undid last action' },
+  redid: { id: 'commands.toast.redid', defaultMessage: 'Redid last action' },
+  cannotUndo: { id: 'commands.toast.cannotUndo', defaultMessage: 'Cannot undo — {reason}' },
+  cannotRedo: { id: 'commands.toast.cannotRedo', defaultMessage: 'Cannot redo — {reason}' },
+});
 
 function commandPlatform(platform: string): CommandPlatform {
   if (platform === 'darwin') return 'darwin';
@@ -22,23 +31,28 @@ export function useCommandDispatcher(
   onHelp: (surface: CommandSurface) => void,
   helpOpen: boolean,
   onSelectAll: () => void,
+  onCommand?: (id: CommandId) => void,
 ): void {
   const state = useAppState();
   const dispatch = useAppDispatch();
-  const direction = directionOf(useIntl().locale);
+  const intl = useIntl();
+  const direction = directionOf(intl.locale);
 
   // A layout effect, not a passive one (#1279): the listener must match the
   // committed state before the browser can deliver another key. A passive
   // effect runs after paint, so a key pressed as a dialog closes or the
   // Lightbox opens was judged by the previous render and could be dropped.
   useLayoutEffect(() => {
-    const dialogOpen =
-      helpOpen || state.importOpen || state.exportOpen || state.settingsOpen || state.librariesOpen || state.duplicatesOpen;
+    const dialogOpen = helpOpen || anyDialogOpen(state);
     const surface: CommandSurface = state.lightboxId === null ? 'grid' : 'lightbox';
     const execute = (id: CommandId, event: KeyboardEvent): boolean => {
       switch (id) {
         case 'view.appearance.reset':
           void window.overlook.themes.reset().then(() => getApplicationThemeLayer().reset());
+          return true;
+        case 'library.duplicates':
+          if (platform === 'darwin' || state.protectedAlbum !== null || onCommand === undefined) return false;
+          onCommand(id);
           return true;
         case 'app.settings.open':
         case 'app.settings.open.storage':
@@ -50,7 +64,6 @@ export function useCommandDispatcher(
         case 'library.new':
         case 'library.import':
         case 'library.exportAll':
-        case 'library.duplicates':
         case 'view.sidebar.toggle':
         case 'view.mode.feed':
         case 'library.source.all':
@@ -107,10 +120,10 @@ export function useCommandDispatcher(
               type: 'toast/shown',
               toast: {
                 title: result.applied
-                  ? id === 'history.undo'
-                    ? 'Undid last action'
-                    : 'Redid last action'
-                  : `Cannot ${id === 'history.undo' ? 'undo' : 'redo'} — ${result.capability.reason}`,
+                  ? intl.formatMessage(id === 'history.undo' ? dispatcherMessages.undid : dispatcherMessages.redid)
+                  : intl.formatMessage(id === 'history.undo' ? dispatcherMessages.cannotUndo : dispatcherMessages.cannotRedo, {
+                      reason: result.capability.reason,
+                    }),
                 tone: result.applied ? 'neutral' : 'red',
               },
             });
@@ -144,7 +157,7 @@ export function useCommandDispatcher(
         }
         case 'photo.favorite.toggle': {
           const photo = state.photos.find(({ id: photoId }) => photoId === state.lightboxId);
-          if (photo === undefined) return false;
+          if (photo === undefined || photo.deletedAt !== null) return false;
           void window.overlook.library.toggleFavorite({ id: photo.id }).then(({ pendingCount }) => {
             dispatch({ type: 'pendingCount/set', count: pendingCount });
           });
@@ -153,15 +166,7 @@ export function useCommandDispatcher(
         case 'photo.trash': {
           const photo = state.photos.find(({ id: photoId }) => photoId === state.lightboxId);
           if (photo === undefined || photo.deletedAt !== null) return false;
-          void window.overlook.library.delete({ photoIds: [photo.id] }).then(({ protected: protectedCount }) => {
-            dispatch({
-              type: 'toast/shown',
-              toast: {
-                title: protectedCount === 0 ? 'Moved 1 photo to Trash' : 'Preserved 1 protected Original',
-                tone: protectedCount === 0 ? 'neutral' : 'amber',
-              },
-            });
-          });
+          deletePhoto(photo.id, dispatch, intl);
           return true;
         }
         case 'view.lightbox.zoomIn':
@@ -205,7 +210,7 @@ export function useCommandDispatcher(
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [direction, dispatch, helpOpen, onHelp, onSelectAll, platform, state]);
+  }, [direction, dispatch, helpOpen, intl, onCommand, onHelp, onSelectAll, platform, state]);
 }
 
 export { commandPlatform };

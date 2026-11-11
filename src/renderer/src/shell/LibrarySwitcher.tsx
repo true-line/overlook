@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
-import { defineMessages, useIntl } from 'react-intl';
+import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 
 import './library-switcher.css';
 import { useFormats } from '../i18n/use-formats.js';
@@ -48,18 +48,47 @@ interface Refusal {
   readonly host?: string | null;
 }
 
-const REFUSAL_COPY: Record<Refusal['kind'], { title: string; detail: string }> = {
-  'provider-busy': {
-    title: "Can't switch while a backup is running",
-    detail: 'Finish or wait for the current backup or restore before switching libraries.',
+const refusalMessages = defineMessages({
+  providerBusyTitle: { id: 'libswitch.refusal.providerBusy.title', defaultMessage: "Can't switch while a backup is running" },
+  providerBusyDetail: {
+    id: 'libswitch.refusal.providerBusy.detail',
+    defaultMessage: 'Finish or wait for the current backup or restore before switching libraries.',
   },
-  locked: { title: 'Overlook is locked', detail: 'Unlock the current library before switching.' },
-  'locked-elsewhere': { title: 'This library is open elsewhere', detail: 'Close it there first, then switch.' },
-  missing: { title: "This library's folder is missing", detail: 'Reconnect the volume it lives on, then try again.' },
-  'switch-in-progress': { title: 'A switch is already in progress', detail: 'Hold on — the current switch has to finish first.' },
-  'not-a-library': { title: "That folder isn't an Overlook library", detail: 'Choose a folder that contains an Overlook library.db.' },
-  'already-registered': { title: 'Already in the list', detail: 'That library is registered here already.' },
-  error: { title: 'Something went wrong', detail: 'The operation could not be completed safely. Try again.' },
+  lockedTitle: { id: 'libswitch.refusal.locked.title', defaultMessage: 'Overlook is locked' },
+  lockedDetail: { id: 'libswitch.refusal.locked.detail', defaultMessage: 'Unlock the current library before switching.' },
+  lockedElsewhereTitle: { id: 'libswitch.refusal.lockedElsewhere.title', defaultMessage: 'This library is open elsewhere' },
+  lockedElsewhereDetail: { id: 'libswitch.refusal.lockedElsewhere.detail', defaultMessage: 'Close it there first, then switch.' },
+  missingTitle: { id: 'libswitch.refusal.missing.title', defaultMessage: "This library's folder is missing" },
+  missingDetail: { id: 'libswitch.refusal.missing.detail', defaultMessage: 'Reconnect the volume it lives on, then try again.' },
+  switchInProgressTitle: { id: 'libswitch.refusal.switchInProgress.title', defaultMessage: 'A switch is already in progress' },
+  switchInProgressDetail: {
+    id: 'libswitch.refusal.switchInProgress.detail',
+    defaultMessage: 'Hold on — the current switch has to finish first.',
+  },
+  notALibraryTitle: { id: 'libswitch.refusal.notALibrary.title', defaultMessage: "That folder isn't an Overlook library" },
+  notALibraryDetail: {
+    id: 'libswitch.refusal.notALibrary.detail',
+    defaultMessage: 'Choose a folder that contains an Overlook library.db.',
+  },
+  alreadyRegisteredTitle: { id: 'libswitch.refusal.alreadyRegistered.title', defaultMessage: 'Already in the list' },
+  alreadyRegisteredDetail: {
+    id: 'libswitch.refusal.alreadyRegistered.detail',
+    defaultMessage: 'That library is registered here already.',
+  },
+  errorTitle: { id: 'libswitch.refusal.error.title', defaultMessage: 'Something went wrong' },
+  errorDetail: { id: 'libswitch.refusal.error.detail', defaultMessage: 'The operation could not be completed safely. Try again.' },
+  lockedOnHost: { id: 'libswitch.refusal.lockedOnHost', defaultMessage: 'Locked on {host}' },
+});
+
+const REFUSAL_COPY: Record<Refusal['kind'], { title: MessageDescriptor; detail: MessageDescriptor }> = {
+  'provider-busy': { title: refusalMessages.providerBusyTitle, detail: refusalMessages.providerBusyDetail },
+  locked: { title: refusalMessages.lockedTitle, detail: refusalMessages.lockedDetail },
+  'locked-elsewhere': { title: refusalMessages.lockedElsewhereTitle, detail: refusalMessages.lockedElsewhereDetail },
+  missing: { title: refusalMessages.missingTitle, detail: refusalMessages.missingDetail },
+  'switch-in-progress': { title: refusalMessages.switchInProgressTitle, detail: refusalMessages.switchInProgressDetail },
+  'not-a-library': { title: refusalMessages.notALibraryTitle, detail: refusalMessages.notALibraryDetail },
+  'already-registered': { title: refusalMessages.alreadyRegisteredTitle, detail: refusalMessages.alreadyRegisteredDetail },
+  error: { title: refusalMessages.errorTitle, detail: refusalMessages.errorDetail },
 };
 
 // New copy goes through the catalog (ADR-0020 §6); the switcher's legacy
@@ -559,7 +588,7 @@ export function LibrarySwitcher({
           </div>
           {refusal === null ? null : (
             <div className="ovl-libswitch__error" role="alert">
-              {REFUSAL_COPY[refusal.kind].detail}
+              {intl.formatMessage(REFUSAL_COPY[refusal.kind].detail)}
             </div>
           )}
         </form>
@@ -574,9 +603,13 @@ export function LibrarySwitcher({
           <div className="ovl-libswitch__banner" role="alert" data-testid="switch-refusal">
             <Icon name="triangle-alert" size={16} color="var(--accent-amber)" />
             <div className="ovl-libswitch__banner-copy">
-              <div className="ovl-libswitch__banner-title">{REFUSAL_COPY[refusal.kind].title}</div>
-              <div className="ovl-libswitch__banner-detail">{REFUSAL_COPY[refusal.kind].detail}</div>
-              {refusal.host == null ? null : <div className="prose-note ovl-libswitch__banner-host">Locked on {refusal.host}</div>}
+              <div className="ovl-libswitch__banner-title">{intl.formatMessage(REFUSAL_COPY[refusal.kind].title)}</div>
+              <div className="ovl-libswitch__banner-detail">{intl.formatMessage(REFUSAL_COPY[refusal.kind].detail)}</div>
+              {refusal.host == null ? null : (
+                <div className="prose-note ovl-libswitch__banner-host">
+                  {intl.formatMessage(refusalMessages.lockedOnHost, { host: refusal.host })}
+                </div>
+              )}
             </div>
             <IconButton icon="x" label="Dismiss" size="sm" onClick={() => setRefusal(null)} />
           </div>

@@ -2,6 +2,8 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createHash } from 'node:crypto';
+import { readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { Readable } from 'node:stream';
 import { buffer } from 'node:stream/consumers';
 
@@ -21,15 +23,17 @@ interface ApiCall {
   /** Multipart entry names in wire order — pCloud reads params only when
    * they PRECEDE the file part. */
   readonly entryOrder: readonly string[];
+  readonly fileBytes?: Buffer;
+  readonly contentLength?: string | null;
 }
 
-type Script = Record<string, (params: Map<string, string>) => unknown>;
+type Script = Record<string, (params: Map<string, string>, call: ApiCall) => unknown>;
 
 /** A fetch stub speaking pCloud's envelope: routes API methods through the
  * script, serves download hosts from `downloads`. */
-function world(script: Script, downloads: Record<string, string | number> = {}) {
+function world(script: Script, downloads: Record<string, string | number> = {}, spoolThresholdBytes?: number) {
   const calls: ApiCall[] = [];
-  const route = (input: string | URL | Request, init?: RequestInit): Response => {
+  const route = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url);
     if (url.hostname.startsWith('dl.')) {
       const body = downloads[url.pathname];
@@ -41,25 +45,48 @@ function world(script: Script, downloads: Record<string, string | number> = {}) 
     const method = url.pathname.slice(1);
     const params = new Map<string, string>();
     const entryOrder: string[] = [];
+    let fileBytes: Buffer | undefined;
+    const headers = new Headers(init?.headers);
+    const contentLength = headers.get('content-length');
     const body = init?.body;
-    if (body instanceof URLSearchParams || body instanceof FormData) {
+    if (body instanceof URLSearchParams) {
       for (const [key, value] of body.entries()) {
+        entryOrder.push(key);
+        params.set(key, value);
+      }
+    } else if (body !== undefined && body !== null) {
+      const form = body instanceof FormData ? body : await new Response(body, { headers }).formData();
+      for (const [key, value] of form.entries()) {
         entryOrder.push(key);
         if (typeof value === 'string') {
           params.set(key, value);
+        } else {
+          fileBytes = Buffer.from(await value.arrayBuffer());
         }
       }
     }
-    calls.push({ method, params, entryOrder });
+    const call: ApiCall = {
+      method,
+      params,
+      entryOrder,
+      ...(fileBytes === undefined ? {} : { fileBytes }),
+      contentLength,
+    };
+    calls.push(call);
     const handler = script[method];
     if (handler === undefined) {
       throw new Error(`unscripted pCloud method: ${method}`);
     }
-    const result = handler(params);
+    const result = handler(params, call);
     return result instanceof Response ? result : new Response(JSON.stringify(result));
   };
-  const fetchImpl = ((input: string | URL | Request, init?: RequestInit) => Promise.resolve(route(input, init))) as typeof fetch;
-  const provider = new PCloudProvider({ auth: () => RECORD, libraryId: 'lib1', fetchImpl });
+  const fetchImpl = ((input: string | URL | Request, init?: RequestInit) => route(input, init)) as typeof fetch;
+  const provider = new PCloudProvider({
+    auth: () => RECORD,
+    libraryId: 'lib1',
+    fetchImpl,
+    ...(spoolThresholdBytes === undefined ? {} : { spoolThresholdBytes }),
+  });
   return { provider, calls };
 }
 
@@ -331,5 +358,38 @@ describe('pCloud provider adapter (#255)', () => {
       sha256: createHash('sha256').update('DATA').digest('hex'),
       bytes: 4,
     });
+  });
+
+  test('#1438: large streams spill above spoolThresholdBytes with exact Content-Length, param-first wire order, and temp cleanup', async () => {
+    const payload = Buffer.alloc(64 * 1024, 0x5a);
+    const { provider, calls } = world(
+      {
+        createfolderifnotexists: () => ok(),
+        uploadfile: (_params, call) => ok({ metadata: [{ name: 'big.ovlk', isfolder: false, size: call.fileBytes?.length ?? 0 }] }),
+      },
+      {},
+      4096,
+    );
+    assert.deepEqual(await provider.put('blobs/ab/big.ovlk', Readable.from([payload.subarray(0, 8192), payload.subarray(8192)])), {
+      bytes: payload.length,
+    });
+    const upload = calls.find((call) => call.method === 'uploadfile');
+    assert.ok(upload !== undefined);
+    assert.equal(upload.entryOrder.at(-1), 'file');
+    assert.ok(Number(upload.contentLength) > payload.length);
+    assert.deepEqual(upload.fileBytes, payload);
+  });
+
+  test('#1438: closes the temporary spool writer before unlinking when an upload stream fails mid-spill', async () => {
+    const before = new Set(readdirSync(tmpdir()).filter((entry) => entry.startsWith('overlook-pcloud-')));
+    const { provider } = world({ createfolderifnotexists: () => ok() }, {}, 1024);
+    async function* failingBytes(): AsyncGenerator<Buffer> {
+      yield Buffer.alloc(2048, 0x33);
+      await Promise.resolve();
+      throw new Error('source stream failed');
+    }
+    await assert.rejects(() => provider.put('blobs/ab/broken.ovlk', Readable.from(failingBytes())), ProviderError);
+    const leaked = readdirSync(tmpdir()).filter((entry) => entry.startsWith('overlook-pcloud-') && !before.has(entry));
+    assert.deepEqual(leaked, []);
   });
 });

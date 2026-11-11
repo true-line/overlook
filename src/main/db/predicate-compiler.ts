@@ -74,9 +74,9 @@ function compileGroup(group: FacetGroup, prefix: string, params: Params): string
   }
 }
 
-export function compilePredicate(predicate: SmartPredicate): CompiledPredicate {
+export function compilePredicate(predicate: SmartPredicate, paramPrefix = ''): CompiledPredicate {
   const params: Params = {};
-  const clauses = predicate.groups.map((group, index) => `(${compileGroup(group, `f${String(index)}`, params)})`);
+  const clauses = predicate.groups.map((group, index) => `(${compileGroup(group, `${paramPrefix}f${String(index)}`, params)})`);
   const where = clauses.length === 0 ? '1 = 1' : `(${clauses.join(predicate.composition === 'and' ? ' AND ' : ' OR ')})`;
   return { where, params };
 }

@@ -468,44 +468,42 @@ export class PhotosRepository {
 
   /** StatusBar totals: live (non-deleted) photo count + bytes. */
   stats(): LibraryStats {
-    const row = queryAll<{ n: number; b: number | null }>(
-      this.db,
-      // Variants share one original (#496): bytes count each asset once.
-      `SELECT count(*) AS n,
-              (SELECT sum(d.bytes) FROM (SELECT DISTINCT content_hash, bytes FROM ordinary_visible_photos WHERE deleted_at IS NULL) d) AS b
-         FROM ordinary_visible_photos p WHERE p.deleted_at IS NULL`,
-    )[0];
+    // Variants share one original (#496): asset byte totals count each content_hash once,
+    // and offloaded/excluded bytes count only when every live row on that asset is offloaded/excluded (#1439).
+    const sql = `WITH by_asset AS (
+      SELECT max(p.bytes) AS bytes, count(*) AS rows,
+             sum(CASE WHEN l.status = 'offloaded' THEN 1 ELSE 0 END) AS offloaded_rows,
+             sum(CASE WHEN l.coverage = 'excluded' THEN 1 ELSE 0 END) AS excluded_rows,
+             sum(CASE WHEN l.coverage = 'excluding' THEN 1 ELSE 0 END) AS excluding_rows
+        FROM ordinary_visible_photos p LEFT JOIN sync_ledger l ON l.photo_id = p.id
+       WHERE p.deleted_at IS NULL GROUP BY p.content_hash
+    ) SELECT sum(rows) AS photos, sum(bytes) AS bytes,
+             sum(CASE WHEN offloaded_rows = rows THEN bytes ELSE 0 END) AS offloadedBytes,
+             sum(excluded_rows) AS excludedCount,
+             sum(CASE WHEN excluded_rows = rows THEN bytes ELSE 0 END) AS excludedBytes,
+             sum(excluding_rows) AS pendingRemovals FROM by_asset`;
+    const row = queryAll<{
+      photos: number | null;
+      bytes: number | null;
+      offloadedBytes: number | null;
+      excludedCount: number | null;
+      excludedBytes: number | null;
+      pendingRemovals: number | null;
+    }>(this.db, sql)[0];
     const lastBackupAt =
       queryAll<{ at: string | null }>(
         this.db,
-        `SELECT max(l.last_backup_at) AS at
-           FROM sync_ledger l JOIN ordinary_visible_photos p ON p.id = l.photo_id`,
+        `SELECT max(l.last_backup_at) AS at FROM sync_ledger l JOIN ordinary_visible_photos p ON p.id = l.photo_id`,
       )[0]?.at ?? null;
-    const offloadedBytes =
-      queryAll<{ b: number | null }>(
-        this.db,
-        `SELECT sum(p.bytes) AS b FROM ordinary_visible_photos p JOIN sync_ledger l ON l.photo_id = p.id
-          WHERE l.status = 'offloaded' AND p.deleted_at IS NULL`,
-      )[0]?.b ?? 0;
-    // ADR-0033 §1 populations: local-only by choice (settled), and rows whose provider
-    // copy is still awaiting removal after a failed delete (§6).
-    const coverage = queryAll<{ excludedCount: number; excludedBytes: number | null; pendingRemovals: number }>(
-      this.db,
-      `SELECT sum(CASE WHEN l.coverage = 'excluded' THEN 1 ELSE 0 END) AS excludedCount,
-              sum(CASE WHEN l.coverage = 'excluded' THEN p.bytes ELSE 0 END) AS excludedBytes,
-              sum(CASE WHEN l.coverage = 'excluding' THEN 1 ELSE 0 END) AS pendingRemovals
-         FROM ordinary_visible_photos p JOIN sync_ledger l ON l.photo_id = p.id
-        WHERE p.deleted_at IS NULL`,
-    )[0];
     return {
-      photos: row?.n ?? 0,
-      bytes: row?.b ?? 0,
+      photos: row?.photos ?? 0,
+      bytes: row?.bytes ?? 0,
       pending: this.pendingCount(),
       lastBackupAt,
-      offloadedBytes,
-      excludedCount: coverage?.excludedCount ?? 0,
-      excludedBytes: coverage?.excludedBytes ?? 0,
-      pendingRemovals: coverage?.pendingRemovals ?? 0,
+      offloadedBytes: row?.offloadedBytes ?? 0,
+      excludedCount: row?.excludedCount ?? 0,
+      excludedBytes: row?.excludedBytes ?? 0,
+      pendingRemovals: row?.pendingRemovals ?? 0,
     };
   }
 
@@ -573,7 +571,8 @@ export class PhotosRepository {
     );
     if (album === undefined) return undefined;
     const tree = readAlbumTree(this.db);
-    const node = tree.find((row) => row.id === albumId)!;
+    const node = tree.find((row) => row.id === albumId);
+    if (node === undefined) return undefined;
     return {
       ...album,
       showInAllPhotos: album.showInAllPhotos === 1,
