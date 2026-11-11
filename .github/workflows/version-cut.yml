@@ -61,6 +61,8 @@ jobs:
     name: Version packages PR
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The App credentials are bound to this main-only environment.
+    environment: version-cut
     outputs:
       has-releases: ${{ steps.version.outputs.has-releases }}
     env:
@@ -111,6 +113,7 @@ jobs:
             exit 0
           fi
           echo 'has-releases=true' >> "$GITHUB_OUTPUT"
+          cp scripts/publish-signed-version-commit.mjs "$RUNNER_TEMP/trusted-publish-version-commit.mjs"
           npx changeset version
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
@@ -146,10 +149,11 @@ jobs:
           set -euo pipefail
           version="$(node -p "require('./package.json').version")"
           # The branch is a disposable projection of main + the pending
-          # changesets, rebuilt from the current tip on every main push — force
-          # is the point. The branch updater excludes changeset-release branches.
-          git -c 'credential.helper=!f() { echo username=x-access-token; echo password=$GH_TOKEN; }; f' \
-            push --force origin "$BRANCH"
+          # changesets, rebuilt from the current tip on every main push.
+          # Published through the Git Data API so GitHub signs the commit: main
+          # requires signed commits and a commit pushed with git is unverified.
+          # The branch updater excludes changeset-release branches.
+          node "$RUNNER_TEMP/trusted-publish-version-commit.mjs"
           {
             echo "Merging this PR cuts \`v$version\`: the tag and the release build follow automatically."
             echo
@@ -182,6 +186,8 @@ jobs:
     name: Tag version merges
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # The App credentials are bound to this main-only environment.
+    environment: version-cut
     env:
       HAS_CHORES_DUMB: ${{ secrets.CHORES_DUMB_CLIENT_ID != '' && secrets.CHORES_DUMB_PRIVATE_KEY != '' }}
     steps:

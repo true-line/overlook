@@ -17,6 +17,7 @@ describe('version-cut workflow', () => {
     assert.match(workflow, /uses: actions\/create-github-app-token@[0-9a-f]{40}/u);
     assert.equal(workflow.match(/GH_TOKEN: \$\{\{ steps\.chores\.outputs\.token \}\}/gu)?.length, 2);
     assert.equal(workflow.match(/GH_TOKEN: \$\{\{ github\.token \}\}/gu)?.length, 2);
+    assert.equal(workflow.match(/\n {4}environment: version-cut\n/gu)?.length, 2);
     assert.match(workflow, /^ {2}actions: read$/mu);
     assert.doesNotMatch(workflow, /^\s+(?:actions|contents|pull-requests): write$/mu);
     assert.doesNotMatch(workflow, /RELEASE_TOKEN|\|\| github\.token/u);
@@ -59,9 +60,16 @@ describe('version-cut workflow', () => {
     assert.match(versionStep, /git branch main origin\/main/u);
     assert.match(versionStep, /npx changeset status --output/u);
     assert.match(versionStep, /\.releases\.length/u);
+    assert.match(versionStep, /cp scripts\/publish-signed-version-commit\.mjs "\$RUNNER_TEMP\/trusted-publish-version-commit\.mjs"/u);
     assert.match(versionStep, /npx changeset version/u);
+    assert.ok(
+      versionStep.indexOf('cp scripts/publish-signed-version-commit.mjs') < versionStep.indexOf('npx changeset version'),
+      'the publisher must be preserved before changeset version runs',
+    );
     assert.doesNotMatch(versionStep, /GH_TOKEN|RELEASE_TOKEN|steps\.chores\.outputs\.token/u);
     assert.match(versionJob, /if: steps\.version\.outputs\.ready == 'true'/u);
+    assert.match(versionJob, /node "\$RUNNER_TEMP\/trusted-publish-version-commit\.mjs"/u);
+    assert.doesNotMatch(versionJob, /push --force origin "\$BRANCH"/u);
   });
 
   test('does not open a version PR for empty governance changesets', () => {

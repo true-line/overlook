@@ -169,6 +169,7 @@ describe('governed CI lifecycle (ENG-0004)', () => {
     assert.doesNotMatch(versionCut, /gh workflow run ci\.yml/u);
     assert.match(versionCut, /event=push&head_sha=\$GITHUB_SHA/u);
     assert.equal(existsSync(join(root, '.github/workflows/auto-update-prs.yml')), true);
+    assert.match(autoUpdate, /^ {4}environment: version-cut$/mu);
     assert.match(autoUpdate, /name: Require chores-dumb credentials/u);
     assert.match(
       autoUpdate,

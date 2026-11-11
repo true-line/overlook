@@ -154,15 +154,21 @@ jobs:
     needs: [verify, build]
     runs-on: ubuntu-latest
     timeout-minutes: 22
+    # Release credentials live in this protected environment: it accepts only
+    # main and v* tags and waits for a maintainer's approval, so a dispatch
+    # from another branch cannot reach them.
+    environment: release
     permissions:
-      contents: write
+      contents: read
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
+      HAS_CHORES_DUMB: ${{ secrets.CHORES_DUMB_CLIENT_ID != '' && secrets.CHORES_DUMB_PRIVATE_KEY != '' }}
     steps:
       - name: Checkout the tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag || github.ref_name }}
+          persist-credentials: false
 
       - name: Download build artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -186,9 +192,22 @@ jobs:
             echo "_No CHANGELOG section found for $version._" > notes.md
           fi
 
+      - name: Require chores-dumb credentials
+        run: test "$HAS_CHORES_DUMB" = true
+
+      # Minted here, after every step that touches release artifacts or archive
+      # tooling, so the write credential exists only for the publish step.
+      - name: Mint the chores-dumb token
+        id: chores
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.CHORES_DUMB_CLIENT_ID }}
+          private-key: ${{ secrets.CHORES_DUMB_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Create release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.chores.outputs.token }}
           # Mirror package.yml's platform gates so each clickable installer
           # states its own signing status. A mac cert without notarization
           # credentials cannot produce a signed release artifact; Windows uses

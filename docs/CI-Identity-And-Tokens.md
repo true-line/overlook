@@ -7,15 +7,29 @@ the failure modes, so the rule is followable when something breaks.
 ## Bot identities, not human PATs
 
 **Anything that must start another workflow run authenticates as
-`chores-dumb[bot]`** — branch and tag pushes, bot-opened PRs, and
-`gh workflow run`. It is a GitHub App whose installation token is minted per run
-from `CHORES_DUMB_CLIENT_ID` / `CHORES_DUMB_PRIVATE_KEY` by
+`chores-dumb[bot]`** — branch and tag pushes, bot-opened PRs, release
+publication, and `gh workflow run`. It is a GitHub App whose installation token
+is minted per run from `CHORES_DUMB_CLIENT_ID` / `CHORES_DUMB_PRIVATE_KEY` by
 `actions/create-github-app-token`. Privileged writes have no PAT or
 `GITHUB_TOKEN` fallback.
 
+The App credentials are stored in protected GitHub Actions environments rather
+than repository-level secrets so runs from untrusted branches cannot read them:
+
+- `version-cut` (`version-cut.yml` `version-pr` and `tag` jobs, plus
+  `auto-update-prs.yml` `update`): accepts only `main`.
+- `release` (`release.yml` `publish` job): accepts only `main` and `v*` tags
+  and waits for maintainer approval before minting the `contents: write` token
+  immediately ahead of `Create release`.
+
 Version-cut jobs perform their read-only no-op checks before requiring App
 credentials. This lets a Dependabot-initiated main run exit cleanly when no
-version or tag write is needed. When a tag is needed, the job waits for exact-SHA
+version or tag write is needed. When a version PR update is needed,
+`scripts/publish-signed-version-commit.mjs` publishes the local `HEAD` commit to
+`changeset-release/main` through the Git Data API, verifying the published tree
+SHA against the local tree and asserting that GitHub signed the commit so the
+rolling PR satisfies `main`'s signed-commit requirement. When a tag is needed,
+the job waits for exact-SHA
 CI with the read-only repository token, then mints a fresh App token immediately
 before the write; installation tokens expire after one hour. Empty governance
 changesets satisfy the PR gate but do not create a Version packages PR or block
@@ -162,6 +176,9 @@ after the replacement contexts first report successfully:
    enabled in `true-line/overlook` until a native `MERGE` queue is enabled and
    exact-SHA merge-group validation is proven.
 
-No secret is added merely for actor authorization. The existing `CHORES_DUMB`
-credentials remain required by the governed branch updater and version/tag
-automation; `RELEASE_TOKEN` is not consumed by those privileged writes.
+No secret is added merely for actor authorization. The `CHORES_DUMB`
+credentials live in the `version-cut` and `release` environments for the
+governed branch updater, version/tag automation, and release publication; do not
+keep repository-level copies of `CHORES_DUMB_CLIENT_ID` or
+`CHORES_DUMB_PRIVATE_KEY`, and `RELEASE_TOKEN` is not consumed by those
+privileged writes.
