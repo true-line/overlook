@@ -21,6 +21,7 @@ import type { AlbumListing } from '../../../shared/library/types.js';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
 import { Segmented } from '../components/Segmented';
+import { WORD_SEPARATOR } from '../components/word-separator';
 import { useFormats } from '../i18n/use-formats.js';
 import { useAppDispatch, useAppState } from '../state/app-state-context';
 import { SaveSmartAlbumDialog } from './SmartAlbumDialogs';
@@ -198,19 +199,30 @@ function ValuePanel({ facet, additive }: { readonly facet: Exclude<FacetId, 'meg
       {options.map(({ value, count }) => {
         const fixed = fixedValueLabels[`${facet}:${value}`];
         const label = fixed === undefined ? (facet === 'fileType' ? value.toUpperCase() : value) : intl.formatMessage(fixed);
+        const countText = count === null ? null : formatCount(count);
+        // The chip shows the value and how many photos carry it; the accessible
+        // name repeats both so the visible words stay inside the name
+        // (WCAG 2.5.3).
+        const ariaLabel = countText === null ? label : `${label} ${countText}`;
         return (
           <button
             key={value}
             type="button"
             className="ovl-facetbar__value"
             aria-pressed={selected.has(value)}
-            aria-label={label}
+            aria-label={ariaLabel}
             onClick={(event) => {
               dispatch({ type: 'facet/toggled', facet, value, additive: additive || event.shiftKey });
             }}
           >
-            <span>{label}</span>
-            {count === null ? null : <span className="ovl-facetbar__count mono-data">{formatCount(count)}</span>}
+            {/* The separator keeps the value and the count two separate words:
+                axe reads the visible text of a button by concatenating child
+                text with no separator. */}
+            <span>
+              {label}
+              {WORD_SEPARATOR}
+            </span>
+            {countText === null ? null : <span className="ovl-facetbar__count mono-data">{countText}</span>}
           </button>
         );
       })}

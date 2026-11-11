@@ -1,4 +1,7 @@
 import { defineMessages } from 'react-intl';
+import type { IntlShape } from 'react-intl';
+
+import type { PlacementAvailability } from '../../../shared/moodboard/availability.js';
 
 // User-facing copy for the Moodboard view (#693). Overlook voice: calm,
 // factual, sentence case, addresses "you", no scare words, no emoji. Strings
@@ -50,3 +53,17 @@ export const moodboardMessages = defineMessages({
   distributeH: { id: 'moodboard.distribute.horizontal', defaultMessage: 'Distribute horizontally' },
   distributeV: { id: 'moodboard.distribute.vertical', defaultMessage: 'Distribute vertically' },
 });
+
+/** The status a placement shows for its content availability — the badge for
+ * an offloaded photo, the placeholder for an unavailable or locked one, and
+ * nothing for a placement that renders its own pixels.
+ *
+ * The placement's accessible name carries the same words as the status it
+ * renders, so WCAG 2.5.3 (label in name) holds: the visible words are part of
+ * the accessible name. Both sides read this one mapping, so they cannot drift. */
+export function moodboardStatusText(intl: IntlShape, availability: PlacementAvailability): string | null {
+  if (availability === 'locked') return intl.formatMessage(moodboardMessages.locked);
+  if (availability === 'unavailable') return intl.formatMessage(moodboardMessages.unavailable);
+  if (availability === 'offloaded') return intl.formatMessage(moodboardMessages.badgeOffloaded);
+  return null;
+}

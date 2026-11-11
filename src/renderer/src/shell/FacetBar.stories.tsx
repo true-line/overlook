@@ -96,18 +96,18 @@ export const LiveFilter: Story = {
     await expect(canvas.getByRole('button', { name: 'Save as Smart Album…' })).toBeDisabled();
     await userEvent.click(canvas.getByRole('button', { name: 'Camera' }));
     const panel = await canvas.findByRole('group', { name: 'Camera values' });
-    await userEvent.click(await within(panel).findByRole('button', { name: 'FUJIFILM X-T5' }));
-    await expect(within(panel).getByRole('button', { name: 'FUJIFILM X-T5' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(await within(panel).findByRole('button', { name: 'FUJIFILM X-T5 214' }));
+    await expect(within(panel).getByRole('button', { name: 'FUJIFILM X-T5 214' })).toHaveAttribute('aria-pressed', 'true');
     // A plain pick replaces; "Add to selection" widens the union.
-    await userEvent.click(within(panel).getByRole('button', { name: 'SONY A7 IV' }));
-    await expect(within(panel).getByRole('button', { name: 'FUJIFILM X-T5' })).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(within(panel).getByRole('button', { name: 'SONY A7 IV 88' }));
+    await expect(within(panel).getByRole('button', { name: 'FUJIFILM X-T5 214' })).toHaveAttribute('aria-pressed', 'false');
     await userEvent.click(within(panel).getByRole('checkbox', { name: 'Add to selection' }));
-    await userEvent.click(within(panel).getByRole('button', { name: 'FUJIFILM X-T5' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'FUJIFILM X-T5 214' }));
     await expect(canvas.getByRole('button', { name: 'Camera · 2' })).toBeVisible();
     await expect(canvas.getByRole('status')).toHaveTextContent('1 facet');
     await userEvent.click(canvas.getByRole('button', { name: 'File type' }));
     await userEvent.click(
-      await within(await canvas.findByRole('group', { name: 'File type values' })).findByRole('button', { name: 'RAW' }),
+      await within(await canvas.findByRole('group', { name: 'File type values' })).findByRole('button', { name: 'RAW 14' }),
     );
     await expect(canvas.getByRole('status')).toHaveTextContent('2 facets · match all');
     await userEvent.click(canvas.getByRole('radio', { name: 'Match any' }));

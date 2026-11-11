@@ -905,6 +905,9 @@
   "duplicates.photo.moving": {
     "defaultMessage": "Moving…"
   },
+  "duplicates.photo.movingLabel": {
+    "defaultMessage": "Moving {name} to Trash"
+  },
   "duplicates.photo.protectedHow": {
     "defaultMessage": "To remove it, use Shift+Delete in the library"
   },
@@ -918,7 +921,7 @@
     "defaultMessage": "Move to Trash"
   },
   "duplicates.photo.trashLabel": {
-    "defaultMessage": "Move {name} to Trash"
+    "defaultMessage": "Move to Trash: {name}"
   },
   "duplicates.privacy": {
     "defaultMessage": "Compared on this device from each photo’s own preview. Suggestions only: nothing is merged or deleted for you."
@@ -1385,6 +1388,9 @@
   "inspector.metadata.removeEverywhere": {
     "defaultMessage": "Remove from {count} photos"
   },
+  "inspector.metadata.removeImportedTag": {
+    "defaultMessage": "Remove {tag}, {imported}"
+  },
   "inspector.metadata.removeTag": {
     "defaultMessage": "Remove {tag}"
   },
@@ -1588,6 +1594,9 @@
   },
   "inspector.variants.show": {
     "defaultMessage": "Show {name}, {kind}, {date}"
+  },
+  "inspector.variants.showCurrent": {
+    "defaultMessage": "Show {name}, {kind}, {date}, Shown"
   },
   "inspector.variants.shown": {
     "defaultMessage": "Shown"
@@ -2341,6 +2350,9 @@
   },
   "lightbox.video.volume": {
     "defaultMessage": "Volume"
+  },
+  "lightbox.zoom.fitImage": {
+    "defaultMessage": "Fit image, currently {zoom}%"
   },
   "lock.attemptsRemaining": {
     "defaultMessage": "{count, plural, one {# attempt} other {# attempts}} remaining before recovery"

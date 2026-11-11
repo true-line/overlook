@@ -36,8 +36,10 @@ export const DeliberatelyExcluded: Story = {
     );
     const select = canvas.getByRole('button', { name: /Select library/u });
     await expect(select).toBeEnabled();
-    await expect(select).toHaveAccessibleDescription(
-      '2 photos (4.1 kB) deliberately not held by this backup; kept as placeholders when restored.',
+    // The exclusion notice is visible inside the button, so it is part of the
+    // accessible name rather than a separate description (WCAG 2.5.3).
+    await expect(select).toHaveAccessibleName(
+      /Select library 01JZZZZZZZZZZZZZZZZZZZZZZZ.*2 photos \(4\.1 kB\) deliberately not held by this backup; kept as placeholders when restored\./u,
     );
   },
 };

@@ -4,7 +4,7 @@ import { useIntl } from 'react-intl';
 import type { Placement } from '../../../shared/moodboard/board.js';
 import { canRenderPixels } from '../../../shared/moodboard/availability.js';
 import { Icon } from '../components/Icon';
-import { moodboardMessages } from './messages';
+import { moodboardStatusText } from './messages';
 import type { PlacementView } from './board-seed';
 
 // One placement on the canvas (#693). A real focusable button so keyboard focus
@@ -34,12 +34,10 @@ export function MoodboardPlacement({
   const { availability } = view;
   const showPixels = canRenderPixels(availability) && view.thumbSrc !== null;
 
-  const placeholderText =
-    availability === 'locked'
-      ? intl.formatMessage(moodboardMessages.locked)
-      : availability === 'unavailable'
-        ? intl.formatMessage(moodboardMessages.unavailable)
-        : null;
+  // The placeholder text and the badge are the placement's visible words, so
+  // the accessible name carries the same string (see moodboardStatusText).
+  const statusText = moodboardStatusText(intl, availability);
+  const placeholderText = availability === 'offloaded' ? null : statusText;
 
   return (
     <button
@@ -78,7 +76,7 @@ export function MoodboardPlacement({
       {availability === 'offloaded' ? (
         <span className="ovl-moodboard__badge">
           <Icon name="cloud" size={11} color="currentColor" />
-          {intl.formatMessage(moodboardMessages.badgeOffloaded)}
+          {statusText}
         </span>
       ) : null}
     </button>

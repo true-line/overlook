@@ -7,6 +7,7 @@ import type { PhotoRecord } from '../../../shared/library/types.js';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { useAnnouncer } from '../components/LiveAnnouncer';
+import { WORD_SEPARATOR } from '../components/word-separator';
 import { useFormats } from '../i18n/use-formats.js';
 import { duplicateToast } from '../grid/duplicate-photos.js';
 import { usePhotoVariants, type PhotoVariantsApi } from './use-photo-variants';
@@ -29,6 +30,9 @@ const messages = defineMessages({
   derived: { id: 'inspector.variants.derived', defaultMessage: 'Duplicate' },
   shown: { id: 'inspector.variants.shown', defaultMessage: 'Shown' },
   show: { id: 'inspector.variants.show', defaultMessage: 'Show {name}, {kind}, {date}' },
+  // The shown row's visible meta line ends with "Shown", so the name has to
+  // carry that word too (WCAG 2.5.3: the visible label must be in the name).
+  showCurrent: { id: 'inspector.variants.showCurrent', defaultMessage: 'Show {name}, {kind}, {date}, Shown' },
   sharedOriginal: {
     id: 'inspector.variants.sharedOriginal',
     defaultMessage: 'One encrypted original · each variant keeps its own previews',
@@ -98,14 +102,20 @@ export function VariantsSection({ photo, onShowPhoto, api }: VariantsSectionProp
               <button
                 type="button"
                 className={OPEN_CLASS}
-                aria-label={intl.formatMessage(messages.show, { name: variant.fileName, kind, date })}
+                aria-label={intl.formatMessage(current ? messages.showCurrent : messages.show, { name: variant.fileName, kind, date })}
                 aria-current={current ? 'true' : undefined}
                 disabled={current || onShowPhoto === undefined}
                 onClick={() => onShowPhoto?.(variant.id)}
               >
                 <img className={THUMB_CLASS} src={thumbUrl(variant.id)} alt="" />
                 <span className={TEXT_CLASS}>
-                  <span className={NAME_CLASS}>{variant.fileName}</span>
+                  {/* The separator keeps the file name and the meta line two
+                      separate words: axe reads the visible text of a button by
+                      concatenating child text with no separator. */}
+                  <span className={NAME_CLASS}>
+                    {variant.fileName}
+                    {WORD_SEPARATOR}
+                  </span>
                   <span className={META_CLASS}>
                     {[kind, date, current ? intl.formatMessage(messages.shown) : null].filter((part) => part !== null).join(' · ')}
                   </span>

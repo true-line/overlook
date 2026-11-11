@@ -52,8 +52,11 @@ const messages = defineMessages({
   distance: { id: 'duplicates.evidence.distance', defaultMessage: '{distance} of {bits} bits differ' },
   size: { id: 'duplicates.photo.size', defaultMessage: '{width}×{height}' },
   trash: { id: 'duplicates.photo.trash', defaultMessage: 'Move to Trash' },
-  trashLabel: { id: 'duplicates.photo.trashLabel', defaultMessage: 'Move {name} to Trash' },
+  // The button's visible label is "Move to Trash", so the name has to contain
+  // that run of words; the filename follows it (WCAG 2.5.3).
+  trashLabel: { id: 'duplicates.photo.trashLabel', defaultMessage: 'Move to Trash: {name}' },
   moving: { id: 'duplicates.photo.moving', defaultMessage: 'Moving…' },
+  movingLabel: { id: 'duplicates.photo.movingLabel', defaultMessage: 'Moving {name} to Trash' },
   protectedKept: { id: 'duplicates.photo.protectedKept', defaultMessage: 'Protected Original — kept' },
   protectedHow: { id: 'duplicates.photo.protectedHow', defaultMessage: 'To remove it, use Shift+Delete in the library' },
   trashed: { id: 'duplicates.toast.trashed', defaultMessage: 'Moved {name} to Trash' },
@@ -159,7 +162,9 @@ function GroupCard({
                   variant="secondary"
                   icon="trash-2"
                   data-trash-photo={photo.id}
-                  aria-label={intl.formatMessage(messages.trashLabel, { name: photo.fileName })}
+                  aria-label={intl.formatMessage(busyId === photo.id ? messages.movingLabel : messages.trashLabel, {
+                    name: photo.fileName,
+                  })}
                   // Unavailable during a move, not disabled, so focus stays put.
                   aria-disabled={busyId !== null ? true : undefined}
                   onClick={() => {

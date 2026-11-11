@@ -51,6 +51,10 @@ const messages = defineMessages({
     defaultMessage: 'Loading full-resolution image…',
   },
   editToolbar: { id: 'lightbox.edit.toolbar', defaultMessage: 'Edit controls' },
+  // The zoom-reset button shows the current zoom as its visible label, so the
+  // name has to carry that number outside a parenthetical (axe strips
+  // parentheticals before comparing the label with the name).
+  fitImage: { id: 'lightbox.zoom.fitImage', defaultMessage: 'Fit image, currently {zoom}%' },
   cropSurface: { id: 'lightbox.edit.cropSurface', defaultMessage: 'Crop area — drag to frame the photo' },
   cropApply: { id: 'lightbox.edit.cropApply', defaultMessage: 'Apply crop (Enter)' },
   cropCancel: { id: 'lightbox.edit.cropCancel', defaultMessage: 'Cancel crop (Esc)' },
@@ -625,7 +629,13 @@ export function LightboxViewport({
         style={{ top: toolbarTop }}
       >
         <IconButton icon="minus" size="sm" label="Zoom out (−)" onClick={() => zoomBy(1 / KEYBOARD_ZOOM_STEP)} />
-        <Button className="ovl-lightbox__zoom-reset mono-data" variant="ghost" size="sm" aria-label="Fit image (0)" onClick={resetView}>
+        <Button
+          className="ovl-lightbox__zoom-reset mono-data"
+          variant="ghost"
+          size="sm"
+          aria-label={intl.formatMessage(messages.fitImage, { zoom: String(Math.round(transform.zoom * 100)) })}
+          onClick={resetView}
+        >
           {Math.round(transform.zoom * 100)}%
         </Button>
         <IconButton icon="plus" size="sm" label="Zoom in (+)" onClick={() => zoomBy(KEYBOARD_ZOOM_STEP)} />

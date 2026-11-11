@@ -51,16 +51,18 @@ test('smart albums: union within a facet, explicit composition, save, relaunch, 
     // Live facets: a plain pick, a Shift-click union, a second facet ANDed, then ORed.
     await page.getByRole('button', { name: 'Filters' }).click();
     await facetBar.getByRole('button', { name: /^Camera/u }).click();
-    await panel('Camera').getByRole('button', { name: 'FUJIFILM X-T5' }).click();
+    await panel('Camera')
+      .getByRole('button', { name: /^FUJIFILM X-T5/u })
+      .click();
     await expect(cells).toHaveCount(3);
     await panel('Camera')
-      .getByRole('button', { name: 'SONY A7 IV' })
+      .getByRole('button', { name: /^SONY A7 IV/u })
       .click({ modifiers: ['Shift'] });
     await expect(cells).toHaveCount(6);
-    await expect(panel('Camera').getByRole('button', { name: 'SONY A7 IV' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(panel('Camera').getByRole('button', { name: /^SONY A7 IV/u })).toHaveAttribute('aria-pressed', 'true');
     await expect(facetBar.getByRole('button', { name: 'Camera · 2' })).toBeVisible();
     await facetBar.getByRole('button', { name: /^File type/u }).click();
-    await panel('File type').getByRole('button', { name: 'RAW' }).click();
+    await panel('File type').getByRole('button', { name: /^RAW/u }).click();
     await expect(cells).toHaveCount(2);
     await expect(facetBar.getByRole('status')).toContainText('2 facets · match all');
     await facetBar.getByRole('radio', { name: 'Match any' }).click();
@@ -92,7 +94,7 @@ test('smart albums: union within a facet, explicit composition, save, relaunch, 
 
     // Editing: dropping the RAW value narrows the query; Save changes writes it back.
     await facetBar.getByRole('button', { name: /^File type/u }).click();
-    await panel('File type').getByRole('button', { name: 'RAW' }).click();
+    await panel('File type').getByRole('button', { name: /^RAW/u }).click();
     await expect(cells).toHaveCount(6);
     await facetBar.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.locator('.ovl-toast-host')).toContainText('Saved changes to Two cameras');

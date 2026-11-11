@@ -82,7 +82,7 @@ test('duplicates: review groups the copies, Trash and the Original policy reshap
   // Move to Trash is the ordinary delete: the copy leaves the group. From the
   // keyboard, focus moves on to the next candidate in the dialog, and the
   // groups left are announced (#1305).
-  await dialog.getByRole('button', { name: 'Move landscape-web.jpg to Trash' }).focus();
+  await dialog.getByRole('button', { name: 'Move to Trash: landscape-web.jpg' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('.ovl-toast-host')).toContainText('Moved landscape-web.jpg to Trash');
   await expect(group).toHaveAttribute('data-count', '2');
@@ -96,7 +96,7 @@ test('duplicates: review groups the copies, Trash and the Original policy reshap
         `(() => { const el = document.activeElement; return el && el.closest('[role="dialog"]') ? el.getAttribute('aria-label') : null; })()`,
       ),
     )
-    .toMatch(/^Move landscape(-turned)?\.jpg to Trash$/u);
+    .toMatch(/^Move to Trash: landscape(-turned)?\.jpg$/u);
 
   // #482: an Original never pairs with a non-Original — the group is gone
   // the moment the marker lands, with no rescan.
@@ -115,7 +115,7 @@ test('duplicates: review groups the copies, Trash and the Original policy reshap
   await page.evaluate(`window.overlook.library.setOriginal({ photoIds: ['${turnedId}'], isOriginal: true })`);
   await expect(body).toHaveAttribute('data-groups', '1');
   await expect(dialog.getByRole('region', { name: 'Possible duplicates, 2 photos, 2 protected Originals' })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: /^Move .* to Trash$/u })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /^Move to Trash: /u })).toHaveCount(0);
   await expect(dialog.getByText('Protected Original — kept')).toHaveCount(2);
   await expect(dialog.getByText('To remove it, use Shift+Delete in the library').first()).toBeVisible();
 });

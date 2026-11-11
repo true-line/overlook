@@ -41,7 +41,9 @@ describe('placementLabel', () => {
   });
 
   test('appends a placeholder qualifier when present', () => {
-    assert.equal(placementLabel({ photoName: 'Dunes', layer: 2, total: 5, qualifier: 'offloaded' }), 'Dunes (offloaded) — layer 2 of 5');
+    // The qualifier sits outside parentheses: a parenthetical is stripped
+    // before a label-in-name check compares the visible words with the name.
+    assert.equal(placementLabel({ photoName: 'Dunes', layer: 2, total: 5, qualifier: 'offloaded' }), 'Dunes, offloaded — layer 2 of 5');
     assert.equal(placementLabel({ photoName: 'Dunes', layer: 2, total: 5, qualifier: '  ' }), 'Dunes — layer 2 of 5');
   });
 });

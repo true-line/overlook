@@ -18,6 +18,9 @@ const messages = defineMessages({
   addTag: { id: 'inspector.metadata.addTag', defaultMessage: 'Add tag' },
   tagPlaceholder: { id: 'inspector.metadata.tagPlaceholder', defaultMessage: 'Type a tag and press Enter' },
   removeTag: { id: 'inspector.metadata.removeTag', defaultMessage: 'Remove {tag}' },
+  // An imported keyword's chip reads "Lisbon · Imported keyword ×", so its
+  // remove label has to carry the same words (WCAG 2.5.3).
+  removeImportedTag: { id: 'inspector.metadata.removeImportedTag', defaultMessage: 'Remove {tag}, {imported}' },
   tagChip: { id: 'inspector.metadata.tagChip', defaultMessage: '{tag} ×' },
   importedTagChip: { id: 'inspector.metadata.importedTagChip', defaultMessage: '{tag} · {imported} ×' },
   saveOne: { id: 'inspector.metadata.saveOne', defaultMessage: 'Save metadata' },
@@ -258,20 +261,27 @@ export function PhotoMetadataEditor({ photo, photoIds }: PhotoMetadataEditorProp
           <div className="ovl-inspector__metadataLabel">{intl.formatMessage(messages.tags)}</div>
           {commonTags.length === 0 ? null : <div className="ovl-inspector__tagGroupLabel">{intl.formatMessage(messages.common)}</div>}
           <div className="ovl-inspector__tags">
-            {commonTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                className="ovl-inspector__tag"
-                aria-label={intl.formatMessage(messages.removeTag, { tag })}
-                onClick={() => remove(tag)}
-              >
-                {intl.formatMessage(imported.has(tag.toLowerCase()) ? messages.importedTagChip : messages.tagChip, {
-                  tag,
-                  imported: intl.formatMessage(messages.imported),
-                })}
-              </button>
-            ))}
+            {commonTags.map((tag) => {
+              const isImported = imported.has(tag.toLowerCase());
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  className="ovl-inspector__tag"
+                  aria-label={
+                    isImported
+                      ? intl.formatMessage(messages.removeImportedTag, { tag, imported: intl.formatMessage(messages.imported) })
+                      : intl.formatMessage(messages.removeTag, { tag })
+                  }
+                  onClick={() => remove(tag)}
+                >
+                  {intl.formatMessage(isImported ? messages.importedTagChip : messages.tagChip, {
+                    tag,
+                    imported: intl.formatMessage(messages.imported),
+                  })}
+                </button>
+              );
+            })}
           </div>
           {varyingTags.length === 0 ? null : <div className="ovl-inspector__tagGroupLabel">{intl.formatMessage(messages.varying)}</div>}
           <div className="ovl-inspector__tags">

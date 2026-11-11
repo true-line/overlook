@@ -322,7 +322,7 @@ test('SettingsDialog no longer nests RestoreWorkflow, so closing Settings cannot
   assert.match(source, /onRestore\?:/u);
 });
 
-test('backup selection descriptions identify each exclusion notice without dangling references (#1125)', async () => {
+test('backup selection names identify each exclusion notice without dangling references (#1125)', async () => {
   const { restore } = installOverlook(idleRestoreStatus());
   try {
     container = document.createElement('div');
@@ -348,16 +348,19 @@ test('backup selection descriptions identify each exclusion notice without dangl
     await flush();
     const buttons = [...container.querySelectorAll('.ovl-restore__librarySelect')];
     assert.equal(buttons.length, 3);
-    assert.equal(buttons[0]?.getAttribute('aria-describedby'), null);
-    const descriptions = buttons.slice(1).map((button) => {
-      const id = button.getAttribute('aria-describedby');
-      assert.ok(id);
-      const notice = document.getElementById(id);
-      assert.equal(notice?.getAttribute('data-testid'), 'restore-excluded');
-      assert.match(notice?.textContent ?? '', /deliberately not held by this backup/u);
-      return id;
+    // The notice is visible inside the button, so the button's name carries it
+    // (WCAG 2.5.3) and the reference can never dangle.
+    assert.equal(buttons[0]?.querySelector('[data-testid="restore-excluded"]'), null);
+    const notices = buttons.slice(1).map((button) => {
+      const notice = button.querySelector('[data-testid="restore-excluded"]');
+      assert.ok(notice);
+      assert.match(notice.textContent ?? '', /deliberately not held by this backup/u);
+      // The button names its notice: the notice lives inside the button, so
+      // the accessible name carries its words.
+      assert.match(button.textContent ?? '', /deliberately not held by this backup/u);
+      return notice;
     });
-    assert.equal(new Set(descriptions).size, 2, 'each card refers to its own exclusion totals');
+    assert.equal(new Set(notices).size, 2, 'each card names its own exclusion totals');
   } finally {
     restore();
   }
