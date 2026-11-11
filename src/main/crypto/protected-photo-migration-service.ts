@@ -16,7 +16,12 @@ import type {
   ProtectedPhotoMigrationRepository,
 } from '../db/protected-photo-migration-repository.js';
 import type { EnvelopeKey, KeyResolver } from './envelope.js';
-import { openProtectedPhotoMetadata, sealProtectedPhotoMetadata, type ProtectedPhotoMetadata } from './protected-photo-metadata.js';
+import {
+  openProtectedPhotoMetadata,
+  sealProtectedPhotoMetadata,
+  type ProtectedPhotoMetadata,
+  type ProtectedSidecarMetadata,
+} from './protected-photo-metadata.js';
 import type { PhotoInsert, PhotoRecord } from '../../shared/library/types.js';
 
 interface UnprotectItemLayout {
@@ -71,6 +76,10 @@ function unprotectBatchLayout(items: readonly ProtectedMigrationItem[]): Readonl
     }
   }
   return layout;
+}
+
+function metadataSidecars(metadata: ProtectedPhotoMetadata): readonly ProtectedSidecarMetadata[] {
+  return metadata.version === 2 ? (metadata.sidecars ?? []) : [];
 }
 
 export interface ProtectedMigrationAuthority {
@@ -160,18 +169,37 @@ export class ProtectedPhotoMigrationService {
       if (!this.options.ordinaryBlobs.hasOriginal(photo.contentHash) || !this.options.ordinaryBlobs.hasThumbs(photo.derivativeKey)) {
         throw new ProtectedPhotoMigrationServiceError(`ordinary photo ${photoId} requires a local original and both derivatives`);
       }
+      const sidecarRows = this.options.migrations.ordinarySidecars(photoId);
+      for (const sidecar of sidecarRows) {
+        if (!this.options.ordinaryBlobs.hasSidecar(sidecar.ownerId ?? photoId, sidecar.contentHash)) {
+          throw new ProtectedPhotoMigrationServiceError(`ordinary photo ${photoId} is missing companion sidecar ${sidecar.contentHash}`);
+        }
+      }
+      const sidecars: ProtectedSidecarMetadata[] = sidecarRows.map(({ role, fileName, contentHash, bytes, importedAt }) => ({
+        role,
+        fileName,
+        contentHash,
+        bytes,
+        importedAt,
+      }));
       const metadata: ProtectedPhotoMetadata = {
         version: 2,
         editRevisions: editHistories.get(photoId) ?? [],
+        ...(sidecars.length > 0 ? { sidecars } : {}),
         photo: photoMetadata(photo),
         ordinaryMemberships: this.options.migrations.ordinaryMemberships(photoId),
       };
+      const targetBlobRef = this.options.protectedBlobs.opaqueRef(albumKey, photo.contentHash, photoId);
+      const targetSidecarRefs = sidecars.map((sidecar) =>
+        this.options.protectedBlobs.opaqueSidecarRef(albumKey, targetBlobRef, sidecar.contentHash),
+      );
       return {
         photoId,
         sourceBlobRef: photo.contentHash,
         sourceAssetOwnerId: assetOwnerOf(photo),
         sourceDerivativeRef: photo.derivativeKey,
-        targetBlobRef: this.options.protectedBlobs.opaqueRef(albumKey, photo.contentHash, photoId),
+        targetBlobRef,
+        targetSidecarRefs,
         sealedTargetMetadata: sealProtectedPhotoMetadata(
           { libraryId: this.options.libraryId, albumId: input.albumId, photoId },
           albumKey,
@@ -287,10 +315,14 @@ export class ProtectedPhotoMigrationService {
         metadata.photo.contentHash,
         metadata.version === 2 ? photoId : undefined,
       );
+      const targetSidecarRefs = metadataSidecars(metadata).map((sidecar) =>
+        this.options.protectedBlobs.opaqueSidecarRef(targetKey, targetBlobRef, sidecar.contentHash),
+      );
       return {
         photoId,
         sourceBlobRef: source.blobRef,
         targetBlobRef,
+        targetSidecarRefs,
         sealedTargetMetadata: sealProtectedPhotoMetadata(
           { libraryId: this.options.libraryId, albumId: input.targetAlbumId, photoId },
           targetKey,
@@ -408,6 +440,15 @@ export class ProtectedPhotoMigrationService {
       kind: 'mid',
       plaintext: this.options.ordinaryBlobs.getThumbStream(item.sourceDerivativeRef ?? item.sourceBlobRef, 'mid', resolver, item.photoId),
     });
+    for (const sidecar of this.options.migrations.ordinarySidecars(item.photoId)) {
+      await this.options.protectedBlobs.putSidecar({
+        albumId,
+        albumKey,
+        blobRef: ref,
+        sidecarHash: sidecar.contentHash,
+        plaintext: this.options.ordinaryBlobs.getSidecarStream(sidecar.ownerId ?? item.photoId, sidecar.contentHash, resolver),
+      });
+    }
   }
 
   private async copyUnprotect(
@@ -420,6 +461,7 @@ export class ProtectedPhotoMigrationService {
     const albumKey = requireAlbumKey(authority.sourceAlbumKey, 'source album');
     const targetKey = authority.targetLibraryKey;
     if (targetKey === undefined) throw new ProtectedPhotoMigrationServiceError('ordinary library write authority is required');
+    const metadata = this.metadata(journal, item, authority);
     if (item.photoId === itemLayout.ownerPhotoId) {
       const written = await this.options.ordinaryBlobs.putOriginal(
         this.options.protectedBlobs.getStream(albumId, item.sourceBlobRef, 'original', albumKey),
@@ -447,6 +489,24 @@ export class ProtectedPhotoMigrationService {
       itemLayout.derivativeKey,
       'mid',
     );
+    const fallback = authority.libraryResolver;
+    const resolver: KeyResolver = (keyId) => (keyId === targetKey.id ? targetKey.key : fallback?.(keyId));
+    for (const sidecar of metadataSidecars(metadata)) {
+      const writtenSidecar = await this.options.ordinaryBlobs.putSidecar(
+        this.options.protectedBlobs.getSidecarStream(albumId, item.sourceBlobRef, sidecar.contentHash, albumKey),
+        targetKey,
+        itemLayout.ownerPhotoId,
+      );
+      if (writtenSidecar.contentHash !== sidecar.contentHash) {
+        throw new ProtectedPhotoMigrationServiceError('ordinary target sidecar content hash changed');
+      }
+      if (
+        writtenSidecar.keyId !== targetKey.id &&
+        !(await this.options.ordinaryBlobs.verifySidecar(itemLayout.ownerPhotoId, sidecar.contentHash, resolver))
+      ) {
+        throw new ProtectedPhotoMigrationServiceError('ordinary target sidecar failed verification');
+      }
+    }
   }
 
   private async copyMove(
@@ -458,11 +518,12 @@ export class ProtectedPhotoMigrationService {
     const targetId = journal.targetAlbumId!;
     const sourceKey = requireAlbumKey(authority.sourceAlbumKey, 'source album');
     const targetKey = requireAlbumKey(authority.targetAlbumKey, 'target album');
+    const metadata = this.metadata(journal, item, authority);
     const ref = await this.options.protectedBlobs.putOriginal({
       albumId: targetId,
       albumKey: targetKey,
-      contentHash: this.metadata(journal, item, authority).photo.contentHash,
-      ...(this.metadata(journal, item, authority).version === 2 ? { variantId: item.photoId } : {}),
+      contentHash: metadata.photo.contentHash,
+      ...(metadata.version === 2 ? { variantId: item.photoId } : {}),
       plaintext: this.options.protectedBlobs.getStream(sourceId, item.sourceBlobRef, 'original', sourceKey),
     });
     if (ref !== item.targetBlobRef) throw new ProtectedPhotoMigrationServiceError('protected move target reference changed');
@@ -473,6 +534,15 @@ export class ProtectedPhotoMigrationService {
         blobRef: ref,
         kind,
         plaintext: this.options.protectedBlobs.getStream(sourceId, item.sourceBlobRef, kind, sourceKey),
+      });
+    }
+    for (const sidecar of metadataSidecars(metadata)) {
+      await this.options.protectedBlobs.putSidecar({
+        albumId: targetId,
+        albumKey: targetKey,
+        blobRef: ref,
+        sidecarHash: sidecar.contentHash,
+        plaintext: this.options.protectedBlobs.getSidecarStream(sourceId, item.sourceBlobRef, sidecar.contentHash, sourceKey),
       });
     }
   }
@@ -490,6 +560,11 @@ export class ProtectedPhotoMigrationService {
         const validOriginal = await this.options.ordinaryBlobs.verifyOriginal(item.targetBlobRef, resolver, itemLayout.ownerPhotoId);
         const validThumbs = await this.options.ordinaryBlobs.verifyThumbs(itemLayout.derivativeKey, resolver, item.photoId);
         if (!validOriginal || !validThumbs) throw new ProtectedPhotoMigrationServiceError('ordinary destination failed verification');
+        for (const sidecar of metadataSidecars(metadata)) {
+          if (!(await this.options.ordinaryBlobs.verifySidecar(itemLayout.ownerPhotoId, sidecar.contentHash, resolver))) {
+            throw new ProtectedPhotoMigrationServiceError('ordinary destination failed verification');
+          }
+        }
         continue;
       }
       const albumId = journal.targetAlbumId!;
@@ -505,6 +580,11 @@ export class ProtectedPhotoMigrationService {
       const validMid = await this.options.protectedBlobs.verify(albumId, item.targetBlobRef, 'mid', albumKey);
       if (!validOriginal || !validThumb || !validMid) {
         throw new ProtectedPhotoMigrationServiceError('protected destination failed verification');
+      }
+      for (const sidecar of metadataSidecars(metadata)) {
+        if (!(await this.options.protectedBlobs.verifySidecar(albumId, item.targetBlobRef, sidecar.contentHash, albumKey))) {
+          throw new ProtectedPhotoMigrationServiceError('protected destination failed verification');
+        }
       }
     }
   }
@@ -528,6 +608,7 @@ export class ProtectedPhotoMigrationService {
         photo: PhotoInsert;
         memberships: ProtectedPhotoMetadata['ordinaryMemberships'];
         editRevisions?: readonly BackupManifestEditRevisionV11[];
+        sidecars?: readonly (ProtectedSidecarMetadata & { readonly keyId?: number })[];
       }
     >();
     for (const item of journal.items) {
@@ -552,6 +633,14 @@ export class ProtectedPhotoMigrationService {
         },
         memberships: metadata.ordinaryMemberships,
         ...(metadata.version === 2 ? { editRevisions: metadata.editRevisions } : {}),
+        ...(metadata.version === 2 && metadata.sidecars !== undefined
+          ? {
+              sidecars: metadata.sidecars.map((sidecar) => ({
+                ...sidecar,
+                keyId: this.options.ordinaryBlobs.sidecarKeyId(itemLayout.ownerPhotoId, sidecar.contentHash),
+              })),
+            }
+          : {}),
       });
     }
     this.options.migrations.commitUnprotect(journal.migrationId, restorations, authority.ordinaryAlbum);
@@ -584,6 +673,11 @@ export class ProtectedPhotoMigrationService {
         if (item.sourceDerivativeRef !== undefined && item.sourceDerivativeRef !== item.sourceBlobRef) {
           await this.options.ordinaryBlobs.deleteThumbs(item.sourceDerivativeRef);
         }
+        for (const ownerId of new Set([item.photoId, ...(item.sourceAssetOwnerId === undefined ? [] : [item.sourceAssetOwnerId])])) {
+          if (!this.options.migrations.hasOrdinarySidecarOwner(ownerId)) {
+            await this.options.ordinaryBlobs.deleteSidecars(ownerId);
+          }
+        }
         continue;
       }
       const sourceAlbumId = journal.sourceAlbumId!;
@@ -604,6 +698,9 @@ export class ProtectedPhotoMigrationService {
         }
         if (itemLayout.derivativeKey !== item.targetBlobRef) {
           await this.options.ordinaryBlobs.deleteThumbs(itemLayout.derivativeKey);
+        }
+        if (!this.options.migrations.hasOrdinarySidecarOwner(itemLayout.ownerPhotoId)) {
+          await this.options.ordinaryBlobs.deleteSidecars(itemLayout.ownerPhotoId);
         }
       } else if (this.options.migrations.countProtectedBlobOwners(journal.targetAlbumId!, item.targetBlobRef) === 0) {
         await this.options.protectedBlobs.deleteBlob(journal.targetAlbumId!, item.targetBlobRef);
