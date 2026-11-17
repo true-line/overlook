@@ -40,3 +40,40 @@ clearest case (8067 MB local vs 3849 MB on CI for the same work). So:
   comparable, and a lane that fits comfortably in CI can still exhaust a local
   machine. CI passing is not evidence that a lane is safe to run locally.
 - Read the numbers above with that gap in mind.
+
+## Hard-killed E2E runs used to orphan Electron
+
+Playwright starts every Electron app in its own process group and drives it
+over a debugging socket, so nothing tied an app's lifetime to the worker that
+launched it. When a run was hard-killed — an agent's command timeout, the OOM
+killer, a memory guard's `SIGKILL` of its process group, a double Ctrl-C — each
+live instance (main, zygotes, GPU, renderer and network processes) was
+reparented to init and kept running forever. It sat outside the killed group
+and outside the descendant tree, which is why the removed guard, which walked
+the tree and its own process group, neither counted nor killed it. Repeated
+killed runs stacked orphans until the machine ran out of memory.
+
+Measured on Linux (4 cores, 16 GB, Xvfb, 2 workers, `SIGKILL` of the runner's
+process group once both workers had an app up, no cleanup between runs):
+
+| Killed runs | Orphaned Electron RSS before | After the owner watchdog |
+| ----------- | ---------------------------- | ------------------------ |
+| 1           | 1207 MB (11 processes)       | 0                        |
+| 2           | 2346 MB (22 processes)       | 0                        |
+| 3           | 3472 MB (33 processes)       | 0                        |
+
+`src/main/e2e-owner-watchdog.ts` now makes an unpackaged `OVERLOOK_E2E=1`
+launch exit within a second of its Playwright worker going away (reparented,
+or the pid gone), including a worker that died mid-launch and an
+`app.relaunch()` successor, which follows the original worker through
+`OVERLOOK_E2E_OWNER_PID` and `OVERLOOK_E2E_OWNER_START`. The start time
+(`/proc/<pid>/stat` on Linux, `ps -o lstart` on macOS) stops a successor from
+mistaking a process that reused the worker's pid for the worker. Windows has no
+cheap start-time source here, so a successor there relies on the pid alone.
+Packaged builds and ordinary development launches are untouched.
+
+An uninterrupted run was already flat: the full suite (150 tests, 2 workers)
+peaked at 4144 MB aggregate RSS in its first minute and stayed between 2.0 and
+3.7 GB to the end, with at most one live app per worker. Per-run cost scales
+with the worker count, which locally is Playwright's default of half the
+logical cores, not with run length.
