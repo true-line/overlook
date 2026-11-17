@@ -1,7 +1,7 @@
-import { test, describe } from 'node:test';
+import { after, test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -25,10 +25,21 @@ function fakeSafeStorage(available = true): SafeStorageLike {
   };
 }
 
+// Each world gets its own temp dir; remove them so runs leave nothing behind.
+const tempDirs: string[] = [];
+function tempDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'overlook-pcloud-auth-'));
+  tempDirs.push(dir);
+  return dir;
+}
+after(() => {
+  for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
+});
+
 const RECORD = { accessToken: 'tok-1', apiHost: 'eapi.pcloud.com', connectedAt: '2026-07-13T00:00:00.000Z' } as const;
 
 function world(available = true) {
-  const dataDir = join(mkdtempSync(join(tmpdir(), 'overlook-pcloud-auth-')), 'library');
+  const dataDir = join(tempDir(), 'library');
   return { dataDir, store: new PCloudTokenStore({ safeStorage: fakeSafeStorage(available), dataDir }) };
 }
 

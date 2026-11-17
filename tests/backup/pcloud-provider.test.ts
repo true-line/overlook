@@ -2,8 +2,9 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createHash } from 'node:crypto';
-import { readdirSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { buffer } from 'node:stream/consumers';
 
@@ -31,7 +32,7 @@ type Script = Record<string, (params: Map<string, string>, call: ApiCall) => unk
 
 /** A fetch stub speaking pCloud's envelope: routes API methods through the
  * script, serves download hosts from `downloads`. */
-function world(script: Script, downloads: Record<string, string | number> = {}, spoolThresholdBytes?: number) {
+function world(script: Script, downloads: Record<string, string | number> = {}, spoolThresholdBytes?: number, spoolDir?: string) {
   const calls: ApiCall[] = [];
   const route = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url);
@@ -86,11 +87,24 @@ function world(script: Script, downloads: Record<string, string | number> = {}, 
     libraryId: 'lib1',
     fetchImpl,
     ...(spoolThresholdBytes === undefined ? {} : { spoolThresholdBytes }),
+    ...(spoolDir === undefined ? {} : { spoolDir }),
   });
   return { provider, calls };
 }
 
 const ok = (extra: Record<string, unknown> = {}) => ({ result: 0, ...extra });
+
+/** A private spool dir per test. Leak checks read only this dir: the shared OS
+ * temp dir also holds other test files' dirs, created concurrently because
+ * node --test runs files in parallel, so diffing it is racy. */
+async function withSpoolDir(run: (spoolDir: string) => Promise<void>): Promise<void> {
+  const spoolDir = mkdtempSync(join(tmpdir(), 'overlook-pcloud-spool-test-'));
+  try {
+    await run(spoolDir);
+  } finally {
+    rmSync(spoolDir, { recursive: true, force: true, maxRetries: 5 });
+  }
+}
 
 test('pCloud distinguishes folder preparation refusal from an issued upload', async () => {
   for (const result of [2094, 2008]) {
@@ -361,35 +375,44 @@ describe('pCloud provider adapter (#255)', () => {
   });
 
   test('#1438: large streams spill above spoolThresholdBytes with exact Content-Length, param-first wire order, and temp cleanup', async () => {
-    const payload = Buffer.alloc(64 * 1024, 0x5a);
-    const { provider, calls } = world(
-      {
-        createfolderifnotexists: () => ok(),
-        uploadfile: (_params, call) => ok({ metadata: [{ name: 'big.ovlk', isfolder: false, size: call.fileBytes?.length ?? 0 }] }),
-      },
-      {},
-      4096,
-    );
-    assert.deepEqual(await provider.put('blobs/ab/big.ovlk', Readable.from([payload.subarray(0, 8192), payload.subarray(8192)])), {
-      bytes: payload.length,
+    await withSpoolDir(async (spoolDir) => {
+      const payload = Buffer.alloc(64 * 1024, 0x5a);
+      let spooledDuringUpload: string[] = [];
+      const { provider, calls } = world(
+        {
+          createfolderifnotexists: () => ok(),
+          uploadfile: (_params, call) => {
+            spooledDuringUpload = readdirSync(spoolDir);
+            return ok({ metadata: [{ name: 'big.ovlk', isfolder: false, size: call.fileBytes?.length ?? 0 }] });
+          },
+        },
+        {},
+        4096,
+        spoolDir,
+      );
+      assert.deepEqual(await provider.put('blobs/ab/big.ovlk', Readable.from([payload.subarray(0, 8192), payload.subarray(8192)])), {
+        bytes: payload.length,
+      });
+      const upload = calls.find((call) => call.method === 'uploadfile');
+      assert.ok(upload !== undefined);
+      assert.equal(upload.entryOrder.at(-1), 'file');
+      assert.ok(Number(upload.contentLength) > payload.length);
+      assert.deepEqual(upload.fileBytes, payload);
+      assert.equal(spooledDuringUpload.length, 1, 'the payload spilled to one spool file');
+      assert.deepEqual(readdirSync(spoolDir), [], 'the spool file is removed after upload');
     });
-    const upload = calls.find((call) => call.method === 'uploadfile');
-    assert.ok(upload !== undefined);
-    assert.equal(upload.entryOrder.at(-1), 'file');
-    assert.ok(Number(upload.contentLength) > payload.length);
-    assert.deepEqual(upload.fileBytes, payload);
   });
 
   test('#1438: closes the temporary spool writer before unlinking when an upload stream fails mid-spill', async () => {
-    const before = new Set(readdirSync(tmpdir()).filter((entry) => entry.startsWith('overlook-pcloud-')));
-    const { provider } = world({ createfolderifnotexists: () => ok() }, {}, 1024);
-    async function* failingBytes(): AsyncGenerator<Buffer> {
-      yield Buffer.alloc(2048, 0x33);
-      await Promise.resolve();
-      throw new Error('source stream failed');
-    }
-    await assert.rejects(() => provider.put('blobs/ab/broken.ovlk', Readable.from(failingBytes())), ProviderError);
-    const leaked = readdirSync(tmpdir()).filter((entry) => entry.startsWith('overlook-pcloud-') && !before.has(entry));
-    assert.deepEqual(leaked, []);
+    await withSpoolDir(async (spoolDir) => {
+      const { provider } = world({ createfolderifnotexists: () => ok() }, {}, 1024, spoolDir);
+      async function* failingBytes(): AsyncGenerator<Buffer> {
+        yield Buffer.alloc(2048, 0x33);
+        await Promise.resolve();
+        throw new Error('source stream failed');
+      }
+      await assert.rejects(() => provider.put('blobs/ab/broken.ovlk', Readable.from(failingBytes())), ProviderError);
+      assert.deepEqual(readdirSync(spoolDir), []);
+    });
   });
 });
