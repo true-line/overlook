@@ -66,8 +66,11 @@ process group once both workers had an app up, no cleanup between runs):
 launch exit within a second of its Playwright worker going away (reparented,
 or the pid gone), including a worker that died mid-launch and an
 `app.relaunch()` successor, which follows the original worker through
-`OVERLOOK_E2E_OWNER_PID`. Packaged builds and ordinary development launches
-are untouched.
+`OVERLOOK_E2E_OWNER_PID` and `OVERLOOK_E2E_OWNER_START`. The start time
+(`/proc/<pid>/stat` on Linux, `ps -o lstart` on macOS) stops a successor from
+mistaking a process that reused the worker's pid for the worker. Windows has no
+cheap start-time source here, so a successor there relies on the pid alone.
+Packaged builds and ordinary development launches are untouched.
 
 An uninterrupted run was already flat: the full suite (150 tests, 2 workers)
 peaked at 4144 MB aggregate RSS in its first minute and stayed between 2.0 and

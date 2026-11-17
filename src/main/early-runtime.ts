@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, session } from 'electron';
 
 import { isInspectorWindow } from './app-window.js';
 import { registerDiagnosticsLifecycle } from './diagnostics/diagnostics-runtime.js';
-import { processExists, startE2eOwnerWatchdog } from './e2e-owner-watchdog.js';
+import { processExists, processStartIdentity, startE2eOwnerWatchdog } from './e2e-owner-watchdog.js';
 import { installIpcSenderGuard } from './ipc-sender-guard.js';
 import { installDenyAllPermissionRequestHandler } from './permission-policy.js';
 import { registerSchemePrivileges } from './protocol-privileges.js';
@@ -15,6 +15,7 @@ export function registerEarlyRuntime(): void {
     env: process.env,
     parentPid: () => process.ppid,
     isAlive: (pid) => processExists(pid),
+    startIdentity: (pid) => processStartIdentity(pid),
     exit: () => app.exit(1),
     schedule: (tick, intervalMs) => setInterval(tick, intervalMs),
   });
