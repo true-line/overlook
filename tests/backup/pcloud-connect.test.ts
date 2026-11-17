@@ -1,7 +1,7 @@
-import { test, describe } from 'node:test';
+import { after, test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,12 +18,23 @@ const fakeSafeStorage: SafeStorageLike = {
   decryptString: (encrypted) => encrypted.toString('utf8').slice('sealed:'.length),
 };
 
+// Each world gets its own temp dir; remove them so runs leave nothing behind.
+const tempDirs: string[] = [];
+function tempDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'overlook-pcloud-'));
+  tempDirs.push(dir);
+  return dir;
+}
+after(() => {
+  for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
+});
+
 let nextPort = 42_100;
 
 function world(browser: (authorizeUrl: string, port: number) => Promise<void>) {
   const port = nextPort;
   nextPort += 1;
-  const tokenStore = new PCloudTokenStore({ safeStorage: fakeSafeStorage, dataDir: mkdtempSync(join(tmpdir(), 'overlook-pcloud-')) });
+  const tokenStore = new PCloudTokenStore({ safeStorage: fakeSafeStorage, dataDir: tempDir() });
   let connectedCalls = 0;
   const connect = createPCloudConnect({
     tokenStore,

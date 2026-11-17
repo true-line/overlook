@@ -100,7 +100,12 @@ function createMultipartBodyStream(prefix: Buffer, suffix: Buffer, upload: Prepa
   });
 }
 
-async function prepareBoundedUpload(filename: string, bytes: Readable, spoolThresholdBytes: number): Promise<PreparedUpload> {
+async function prepareBoundedUpload(
+  filename: string,
+  bytes: Readable,
+  spoolThresholdBytes: number,
+  spoolDir: string,
+): Promise<PreparedUpload> {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
   let spoolPath: string | null = null;
@@ -114,7 +119,7 @@ async function prepareBoundedUpload(filename: string, bytes: Readable, spoolThre
         continue;
       }
       if (writer === null) {
-        spoolPath = join(tmpdir(), `overlook-pcloud-${randomUUID()}.part`);
+        spoolPath = join(spoolDir, `overlook-pcloud-${randomUUID()}.part`);
         writer = createWriteStream(spoolPath, { mode: 0o600 });
         for (const prior of chunks) {
           if (!writer.write(prior)) await once(writer, 'drain');
@@ -197,6 +202,8 @@ export interface PCloudProviderOptions {
   readonly fetchImpl?: typeof fetch;
   /** Ciphertext streams larger than this spill to a 0o600 temp file instead of V8 heap. */
   readonly spoolThresholdBytes?: number;
+  /** Test seam: where spool files go. Production uses the OS temp dir, read per upload. */
+  readonly spoolDir?: string;
 }
 
 export class PCloudProvider implements StorageProvider {
@@ -380,7 +387,7 @@ export class PCloudProvider implements StorageProvider {
         const folder = remote.slice(0, lastSlash);
         const filename = remote.slice(lastSlash + 1);
         await this.ensureFolder(folder);
-        const upload = await prepareBoundedUpload(filename, bytes, this.spoolThresholdBytes);
+        const upload = await prepareBoundedUpload(filename, bytes, this.spoolThresholdBytes, this.options.spoolDir ?? tmpdir());
         return { folder, filename, upload };
       } catch (error) {
         bytes.destroy();
