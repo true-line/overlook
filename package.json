@@ -157,7 +157,6 @@
     "eslint-plugin-jsx-a11y": {
       "eslint": "$eslint"
     },
-    "adm-zip": "0.6.0",
     "@unicode/unicode-17.0.0": "2.0.6"
   },
   "lint-staged": {
