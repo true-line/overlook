@@ -20,13 +20,13 @@ describe('encrypted SQLite v13 migration (#1020)', () => {
     const packages = lock['packages'] as Record<string, Record<string, unknown>>;
     const locked = packages[`node_modules/${dependencyName}`] ?? {};
 
-    assert.equal(dependencies[dependencyName], '13.0.3');
+    assert.equal(dependencies[dependencyName], '13.2.0');
     assert.equal(allowScripts[dependencyName], false);
     assert.equal(
       Object.keys(allowScripts).some((name) => name.startsWith(`${dependencyName}@`)),
       false,
     );
-    assert.equal(locked['version'], '13.0.3');
+    assert.equal(locked['version'], '13.2.0');
     assert.equal(locked['hasInstallScript'], undefined);
     assert.deepEqual(locked['engines'], { node: '>=22' });
   });

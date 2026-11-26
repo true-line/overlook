@@ -46,7 +46,7 @@ components; their full license texts ship inside the Electron distribution at
 | `@opentelemetry/api` | 1.9.1 | Apache-2.0 |
 | `@stablelib/base64` | 1.0.1 | MIT |
 | `adm-zip` | 0.6.1 | MIT |
-| `better-sqlite3-multiple-ciphers` | 13.0.3 | MIT |
+| `better-sqlite3-multiple-ciphers` | 13.2.0 | MIT |
 | `define-data-property` | 1.1.4 | MIT |
 | `define-properties` | 1.2.1 | MIT |
 | `detect-libc` | 2.1.2 | Apache-2.0 |
@@ -923,15 +923,16 @@ SOFTWARE.
 
 ---
 
-## better-sqlite3-multiple-ciphers 13.0.3
+## better-sqlite3-multiple-ciphers 13.2.0
 
 License: MIT
 
 ```
 The MIT License (MIT)
 
-Copyright (c) 2021 Mahesh Bandara Wijerathna
+Copyright (c) 2021-2026 Mahesh Bandara Wijerathna
 Copyright (c) 2017 Joshua Wise
+Copyright (c) 2019-2026 Ulrich Telle
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
