@@ -67,8 +67,8 @@ components; their full license texts ship inside the Electron distribution at
 | `mpegts.js` | 1.8.2 | Apache-2.0 |
 | `node-addon-api` | 8.9.0 | MIT |
 | `object-keys` | 1.1.1 | MIT |
-| `onnxruntime-common` | 1.30.0 | MIT |
-| `onnxruntime-node` | 1.30.0 | MIT |
+| `onnxruntime-common` | 1.31.1 | MIT |
+| `onnxruntime-node` | 1.31.1 | MIT |
 | `openai` | 7.63.0 | Apache-2.0 |
 | `semver` | 7.8.5 | ISC |
 | `serialize-error` | 8.1.0 | MIT |
@@ -1883,7 +1883,7 @@ THE SOFTWARE.
 
 ---
 
-## onnxruntime-common 1.30.0
+## onnxruntime-common 1.31.1
 
 License: MIT
 
@@ -1891,7 +1891,7 @@ _No license text file was found in the published package._
 
 ---
 
-## onnxruntime-node 1.30.0
+## onnxruntime-node 1.31.1
 
 License: MIT
 

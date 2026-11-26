@@ -179,7 +179,7 @@
     "electron-winstaller@5.4.0": true,
     "esbuild@0.28.2": true,
     "fsevents@2.3.3": true,
-    "onnxruntime-node@1.30.0": true,
+    "onnxruntime-node@1.31.1": true,
     "unrs-resolver@1.12.2": true
   },
   "dependencies": {
