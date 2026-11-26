@@ -144,7 +144,6 @@
     "zod": "4.6.7"
   },
   "overrides": {
-    "shell-quote": "1.9.0",
     "uuid": "11.1.1",
     "madge": {
       "typescript": "$typescript"
@@ -158,7 +157,6 @@
     "eslint-plugin-jsx-a11y": {
       "eslint": "$eslint"
     },
-    "adm-zip": "0.6.0",
     "@unicode/unicode-17.0.0": "2.0.6"
   },
   "lint-staged": {

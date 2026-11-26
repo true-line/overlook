@@ -45,7 +45,7 @@ components; their full license texts ship inside the Electron distribution at
 | `@img/sharp-win32-x64` | 0.35.5 | Apache-2.0 AND LGPL-3.0-or-later |
 | `@opentelemetry/api` | 1.9.1 | Apache-2.0 |
 | `@stablelib/base64` | 1.0.1 | MIT |
-| `adm-zip` | 0.6.0 | MIT |
+| `adm-zip` | 0.6.1 | MIT |
 | `better-sqlite3-multiple-ciphers` | 13.0.3 | MIT |
 | `define-data-property` | 1.1.4 | MIT |
 | `define-properties` | 1.2.1 | MIT |
@@ -893,7 +893,7 @@ SOFTWARE.
 
 ---
 
-## adm-zip 0.6.0
+## adm-zip 0.6.1
 
 License: MIT
 
