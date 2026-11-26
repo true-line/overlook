@@ -161,12 +161,21 @@ describe('packaged release launch smoke (#357)', () => {
     );
   });
 
-  test('admits only a real app.asar through the explicit installed-artifact harness', async () => {
-    const { profile } = smokeApp(join(tmpdir(), `overlook-release-import-smoke-${Date.now()}`));
+  test('requires an on-disk app.asar for the explicit installed-artifact harness', async (t) => {
+    const profile = mkdtempSync(join(tmpdir(), 'overlook-release-import-smoke-'));
+    t.after(() => rmSync(profile, { recursive: true, force: true }));
     const archive = join(profile, 'app.asar');
     const source = join(tmpdir(), 'overlook-release-import-fixture.jpg');
     const result = join(profile, 'release-import-result.txt');
-    writeFileSync(archive, 'packaged bytes');
+    // The harness checks for a physical file. Electron 45 intercepts writes
+    // to the .asar path, so use the underlying filesystem to create it.
+    const previousNoAsar = process.noAsar;
+    process.noAsar = true;
+    try {
+      writeFileSync(archive, 'packaged bytes');
+    } finally {
+      process.noAsar = previousNoAsar;
+    }
     const app = { isPackaged: false, getAppPath: () => archive, getPath: () => profile, exit: () => undefined };
     const argv = [
       'electron',
