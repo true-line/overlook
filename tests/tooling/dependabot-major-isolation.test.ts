@@ -38,6 +38,16 @@ describe('Dependabot update isolation (#1018, #1038)', () => {
     assert.match(groupBody('dev-tooling'), /- '\*'/u);
   });
 
+  test('routes exact-SHA third-party actions before the Actions catch-all', () => {
+    const restricted = dependabot.indexOf('      exact-sha-third-party-actions:\n');
+    const catchAll = dependabot.indexOf('      actions:\n');
+    assert.ok(restricted >= 0 && restricted < catchAll);
+    const group = groupBody('exact-sha-third-party-actions');
+    assert.match(group, /- 'zizmorcore\/\*'/u);
+    assert.match(group, /- 'peaceiris\/\*'/u);
+    assert.match(groupBody('actions'), /- '\*'/u);
+  });
+
   test('excludes only the governed CI policy from action automation', () => {
     const githubActionsStart = dependabot.indexOf('  - package-ecosystem: github-actions\n');
     assert.ok(githubActionsStart >= 0);
