@@ -83,7 +83,7 @@ components; their full license texts ship inside the Electron distribution at
 | `ts-algebra` | 2.0.0 | MIT |
 | `tslib` | 2.8.1 | 0BSD |
 | `type-fest` | 0.20.2 | (MIT OR CC0-1.0) |
-| `undici` | 6.28.0 | MIT |
+| `undici` | 6.29.1 | MIT |
 | `ws` | 8.21.1 | MIT |
 | `zod` | 4.6.7 | MIT |
 
@@ -2477,7 +2477,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---
 
-## undici 6.28.0
+## undici 6.29.1
 
 License: MIT
 
