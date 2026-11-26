@@ -143,8 +143,11 @@ describe('governed CI lifecycle (ENG-0004)', () => {
     assert.doesNotMatch(codeql, /^ {2}(?:pull_request|push|workflow_dispatch|schedule):$/mu);
     assert.match(codeql, /language: \[actions, javascript-typescript\]/u);
     assert.match(codeql, /security-events: write/u);
-    assert.match(codeql, /github\/codeql-action\/init@33d7b85da1a04171e211befe2c739303b9a4c066/u);
-    assert.match(codeql, /github\/codeql-action\/analyze@33d7b85da1a04171e211befe2c739303b9a4c066/u);
+    const initPin = /^ +uses: github\/codeql-action\/init@([0-9a-f]{40})(?:[ \t]+#|$)/mu.exec(codeql)?.[1];
+    const analyzePin = /^ +uses: github\/codeql-action\/analyze@([0-9a-f]{40})(?:[ \t]+#|$)/mu.exec(codeql)?.[1];
+    assert.ok(initPin, 'CodeQL init must use a full commit SHA');
+    assert.ok(analyzePin, 'CodeQL analyze must use a full commit SHA');
+    assert.equal(analyzePin, initPin, 'CodeQL init and analyze must use the same commit');
   });
 
   test('keeps main on smoke-or-complete fallback while CodeQL owns default-branch alerts', () => {
