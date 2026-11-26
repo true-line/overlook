@@ -116,6 +116,12 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # Updating these actions requires a matching exact-SHA allowlist entry.
+      # Keep their PR separate so blocked SHAs do not hold up GitHub-owned actions.
+      exact-sha-third-party-actions:
+        patterns:
+          - 'zizmorcore/*'
+          - 'peaceiris/*'
       actions:
         patterns:
           - '*'
