@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
@@ -75,6 +76,17 @@ describe('third-party notices license-text guard', () => {
     const { assertLicenseTextsResolvable } = await noticesModule();
     const closure = [pkg('sharp-linux-x64', null, true), pkg('sharp-win32-x64', null, true)];
     assert.doesNotThrow(() => assertLicenseTextsResolvable(closure));
+  });
+
+  test('preserves both the primary and supplemental Anthropic SDK license texts', async () => {
+    const { resolveShippedClosure } = await dependencyClosureModule();
+    const sdk = resolveShippedClosure().find((pkg) => pkg.name === '@anthropic-ai/sdk');
+    assert.ok(sdk?.licenseText);
+    const sdkDir = join(root, 'node_modules/@anthropic-ai/sdk');
+    for (const name of ['LICENSE', 'LICENSE-MIT']) {
+      const text = readFileSync(join(sdkDir, name), 'utf8').replaceAll('\r\n', '\n').trim();
+      assert.ok(sdk.licenseText.includes(text), `Anthropic SDK notices omit ${name}`);
+    }
   });
 
   test('the real shipped closure passes, so the exemption list matches reality', async () => {
