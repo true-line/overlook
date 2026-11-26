@@ -135,7 +135,7 @@ qualification therefore get separate PRs instead of holding routine SDK and
 tooling updates (#1170). These groups change batching, not version eligibility;
 all existing exact pins, ignore bounds, and validation requirements still apply.
 
-Four overrides exist, each with a removal condition:
+The following overrides have explicit removal conditions:
 
 - **`axe-core`** is pinned exact and overridden into `axe-playwright` (which
   depends on a floating range). Its rule set _defines_ the a11y violation-budget
@@ -149,9 +149,6 @@ Four overrides exist, each with a removal condition:
   this is a stale peer range, not an incompatibility. If a bump ever breaks rule
   execution the symptom is jsx-a11y silently reporting **nothing**, so treat a
   sudden drop to zero findings as a failure, not a win.
-- **`shell-quote`** is overridden to 1.9.0 because `concurrently` pins vulnerable
-  1.8.4 (CVE-2026-13311). Remove when `concurrently` adopts 1.9.0 or later and
-  its Storybook orchestration lane passes without the override.
 - **`uuid`** is overridden to 11.1.1 because `@storybook/test-runner` resolves
   vulnerable 8.3.2 through `jest-junit` and `nyc` (CVE-2026-41907). Remove when
   the Storybook testing stack resolves only unaffected versions, the
