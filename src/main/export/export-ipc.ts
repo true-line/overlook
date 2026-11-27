@@ -1,5 +1,3 @@
-import type { IpcMain } from 'electron';
-
 import { channels } from '../../shared/ipc/channels.js';
 import type { wrapHandler as validatedHandler } from '../../shared/ipc/registry.js';
 import type { ExportDisclosureIntentWire } from '../../shared/ipc/export-channels.js';
@@ -7,6 +5,10 @@ import type { ActivityFacade } from '../activity/activity-publication.js';
 import type { ExportFacade } from '../ipc.js';
 import type { ExportDestinationAuthority } from './export-destination-authority.js';
 import { authorizeDisclosure, type DisclosureConsentAuthority } from '../disclosure/disclosure-consent.js';
+
+interface ExportIpcRegistrar {
+  readonly handle: (channel: string, handler: (event: { readonly sender: { readonly id: number } }, request: unknown) => unknown) => void;
+}
 
 /** ADR-0032 §6: consent at operation scope is recorded by field NAME only. */
 function disclosurePayload(disclosure: ExportDisclosureIntentWire | undefined): {
@@ -26,7 +28,7 @@ export function registerExportHandlersWith(
   getActivity: (() => ActivityFacade) | undefined,
   destinationAuthority: ExportDestinationAuthority,
   consent: DisclosureConsentAuthority | undefined,
-  registrar: Pick<IpcMain, 'handle'>,
+  registrar: ExportIpcRegistrar,
   wrapHandler: typeof validatedHandler,
 ): void {
   registrar.handle(channels.exportRun.name, (event, request: unknown) =>

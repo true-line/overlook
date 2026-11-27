@@ -51,34 +51,40 @@ export function registerPhotoKitHandlersWith(
     })(request),
   );
   registrar.handle(channels.photoKitExportRun.name, (_event, request: unknown) =>
-    wrapHandler(channels.photoKitExportRun, async ({ photoIds, disclosure }) => {
-      admit();
-      const authorized = authorizeDisclosure(consent, {
-        photoIds,
-        boundary: 'photo-kit',
-        payload: 'original',
-        metadata: 'original',
-        disclosure,
-      });
-      const result = await getService().runExport(photoIds, authorized.disclosure);
-      getActivity?.().record({
-        eventType: 'photo.exported',
-        entityIds: photoIds,
-        outcome: result.failed > 0 || result.cancelled > 0 ? 'partial' : 'succeeded',
-        payload: {
-          destination: 'apple-photos',
-          format: 'original',
-          metadata: 'embedded-supported',
-          disclosureDestination: disclosure?.destination ?? 'shared',
-          disclosureWidened: authorized.disclosure?.operation.widen.join(',') ?? '',
-          disclosureNarrowed: authorized.disclosure?.operation.narrow.join(',') ?? '',
-          exported: result.exported,
-          failed: result.failed,
-          cancelled: result.cancelled,
-        },
-      });
-      return { ...result, failures: [...result.failures] };
-    })(request),
+    wrapHandler(
+      channels.photoKitExportRun,
+      async ({ photoIds, disclosure }) => {
+        admit();
+        const authorized = authorizeDisclosure(consent, {
+          photoIds,
+          boundary: 'photo-kit',
+          payload: 'original',
+          metadata: 'original',
+          disclosure,
+        });
+        const result = await getService().runExport(photoIds, authorized.disclosure);
+        getActivity?.().record({
+          eventType: 'photo.exported',
+          entityIds: photoIds,
+          outcome: result.failed > 0 || result.cancelled > 0 ? 'partial' : 'succeeded',
+          payload: {
+            destination: 'apple-photos',
+            format: 'original',
+            metadata: 'embedded-supported',
+            disclosureDestination: disclosure?.destination ?? 'shared',
+            disclosureWidened: authorized.disclosure?.operation.widen.join(',') ?? '',
+            disclosureNarrowed: authorized.disclosure?.operation.narrow.join(',') ?? '',
+            exported: result.exported,
+            failed: result.failed,
+            cancelled: result.cancelled,
+          },
+        });
+        return { ...result, failures: [...result.failures] };
+      },
+      {
+        reportError: ({ channelName, code, error }) => console.error(`[overlook] ${code} on ${channelName}`, error),
+      },
+    )(request),
   );
   registrar.handle(channels.photoKitCancel.name, (_event, request: unknown) =>
     wrapHandler(channels.photoKitCancel, () => {

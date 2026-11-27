@@ -398,6 +398,11 @@ participants or a promise the cryptography cannot keep.
   question is answered for sharing only — a native-platform port still needs
   its own ADR before reusing §1's custody shape.
 
+- **Revisit when:** a participant count beyond small-group sharing makes
+  wrap-per-participant key distribution impractical; or a credible
+  provider-neutral transport removes the need for a shared blob namespace at
+  all.
+
 ## Amendment — operation consent capability (#1141)
 
 Accepted as part of #1141's implementation of §6. A renderer preview and its
@@ -412,14 +417,12 @@ default. Only affirmative confirmation may return an opaque capability through
 The capability is main-memory-only, short-lived and single-use, bound to the
 photo IDs (including the resolved Export all selection), boundary, destination,
 operation (widening and narrowing), payload/metadata mode, policy version and
-override revision, active library and authorization epoch. Main rechecks these
-bindings after confirmation and consumes the capability synchronously before
+policy/override revision, active library and authorization epoch. The confirmed
+preview and exact per-photo values are also bound: main recomputes and compares
+them after confirmation and at redemption, so metadata changes cannot substitute
+unreviewed values. Main consumes the capability synchronously before
 asynchronous export work. Export plans use the stored operation, never a
 renderer-supplied widening list. Failed binding checks also burn the capability.
 Policy or override changes, lock, library switch and use invalidate it. No
 capability is needed when no operation widening is requested. Neither token nor
 preview values enter Activity; widening is recorded only by field name.
-- **Revisit when:** a participant count beyond small-group sharing makes
-  wrap-per-participant key distribution impractical; or a credible
-  provider-neutral transport removes the need for a shared blob namespace at
-  all.

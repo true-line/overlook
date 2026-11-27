@@ -20,8 +20,8 @@ Scope resolves library → collection → photo → operation: any level may
 narrow; widening takes an explicit action at that level and is never
 inherited downward. The policy is one shared module
 (`src/shared/disclosure/policy.ts`); main compiles the **disclosure plan**
-for every crossing from the renderer's intent and builds the payload from
-the plan, so a stale renderer or a direct channel invocation cannot widen
+for every crossing and builds the payload from the plan. Operation widening
+requires a main-issued consent capability; renderer intent alone cannot widen
 disclosure. Fields that travel inside the original bytes (capture time,
 camera, lens, location) cannot be filtered per field: an Original export or
 a Send to Apple Photos that would carry a withheld embedded field is refused
@@ -32,7 +32,11 @@ class only — never a value.
 
 Automated coverage: `tests/e2e/disclosure.spec.ts`,
 `tests/disclosure/policy.test.ts` (defaults, scope resolution, the plan,
-boundaries that carry nothing), `tests/db/disclosure.test.ts` (migration
+boundaries that carry nothing), `tests/disclosure/consent.test.ts`,
+`tests/disclosure/export-consent.test.ts` and
+`tests/photo-kit/photo-kit-ipc.test.ts` (main-owned consent, direct widening
+refusal, one-time use, replay/concurrent reuse, binding mismatches and lifecycle
+invalidation at both export adapters), `tests/db/disclosure.test.ts` (migration
 37, the repository's fail-safe parsing, the service's activity records),
 `tests/export/export-engine.test.ts › disclosure classes`,
 `tests/photo-kit/photo-kit-service.test.ts › withholds a private embedded
@@ -65,9 +69,15 @@ capture time`, `DisclosureSettings.stories.tsx › Defaults / Preview`.
    (politely, not as an alert), and **Export 1 photo** is unavailable with
    "Include the withheld field, or export Baked." under the footer.
 5. Tick **Include Capture time in this export**. **Expected:** the warning
-   clears, the row reads "1 photo of 1", the button enables. Export.
-   **Expected:** the file lands; Activity's export record names
-   `disclosureWidened: captureTime` and no value.
+   clears, the row reads "1 photo of 1", the button enables after choosing a
+   folder. Passive previews do not prompt or authorize widening. Click Export.
+   **Expected:** main opens a native confirmation naming the selection, export
+   boundary/destination class, payload and metadata mode, every field's exact
+   value and whether it crosses, the widening fields and the effect of declining.
+   Cancel is the default. Cancel: no file lands and the options remain available.
+   Click Export again and confirm **Include for this export**: the file lands;
+   Activity's export record names `disclosureWidened: captureTime`, with no values
+   or token. Reopen Export: the checkbox and consent do not persist.
 6. Reopen Export, switch the payload to **Baked**. **Expected:** no warning
    even without the checkbox — a baked payload carries no embedded metadata.
 7. Choose **Public** as the destination. **Expected:** its hint says only
@@ -77,7 +87,9 @@ capture time`, `DisclosureSettings.stories.tsx › Defaults / Preview`.
 8. On macOS with Photos authorized, set Precise location to Private (the
    default), import a photo that has GPS, select it → **Send to Apple
    Photos**. **Expected:** the item fails with "Withheld by disclosure
-   policy: location"; tick **Include Precise location** and it transfers.
+   policy: location"; tick **Include Precise location**, click Export and confirm
+   the main-owned native prompt naming Apple Photos and the GPS value. It
+   transfers once. Cancel the prompt on a second attempt: nothing transfers.
 9. Enable the read-only File Provider on an album. **Expected:** in Finder
    each file's date is the capture time while Capture time is Shared, and
    the import date after it is set to Private.
@@ -87,3 +99,23 @@ capture time`, `DisclosureSettings.stories.tsx › Defaults / Preview`.
 11. Open a library created before this release. **Expected:** migration 37
     adds the policy at the §6 defaults; nothing that was shared before is
     widened, and location that was already never exported stays private.
+
+## Capability regression checks (#1141)
+
+Exercise selected folder export, Export all, and PhotoKit export with Photos
+already authorized. A direct run carrying `operation.widen: ['location']`
+without consent must fail before any facade/bridge call; main's refusal names
+`location` (IPC transports retain their opaque failure envelope). A passive
+`disclosure:preview`, a cancelled confirmation, or a renderer-supplied boolean
+does not authorize a run. After affirmative native confirmation, send the
+returned `disclosure.consent` with an empty wire widening list. Main recovers
+the widening set from its stored capability and compiles the plan.
+
+Reuse the token, including two concurrent calls: only the first may enter
+export. Change photo IDs, boundary, destination class, narrowing, payload or
+metadata mode: the call fails and burns the capability. Change a library,
+collection or photo policy, lock and unlock, switch libraries and back, or wait
+five minutes: the old token fails. Change Export all's selection after preview:
+it fails rather than extending consent to the new photos. Changes during the
+native prompt also prevent issuance. Refresh the preview and confirm again to
+retry. Baked and other ordinary exports with no widening need no token.

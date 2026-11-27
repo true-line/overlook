@@ -1,8 +1,11 @@
-import { dialog } from 'electron';
+import electron, { type MessageBoxOptions } from 'electron';
 
 /** This prompt is owned by main; no renderer boolean authorizes disclosure. */
-export async function confirmDisclosureWidening(detail: string): Promise<boolean> {
-  const result = await dialog.showMessageBox({
+export async function confirmDisclosureWidening(
+  detail: string,
+  show: (options: MessageBoxOptions) => Promise<{ response: number }> = (options) => electron.dialog.showMessageBox(options),
+): Promise<boolean> {
+  const result = await show({
     type: 'warning',
     title: 'Include private fields in this export?',
     message: 'Review exactly what will leave Overlook.',
