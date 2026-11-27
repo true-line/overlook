@@ -453,3 +453,9 @@ Asynchronous inspection may follow synchronous, single-use capability
 consumption; no export starts until validation succeeds. Main rechecks policy,
 authorization and content identities across inspection, and verifies the exact
 companion bytes it copies. No inspection rewrites the retained source.
+
+Valid XMP is not necessarily fully classified XMP. A metadata property outside
+the supported export projection (for example ratings, comments or face regions)
+refuses Source export even when every supported export field is widened. RDF
+and XMP structural wrappers are not metadata properties. Preview identifies
+unclassified properties; Edits/None remains the way to omit that source packet.
