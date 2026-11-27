@@ -13,7 +13,7 @@ import { createActivityFacade } from '../../src/main/activity/activity-publicati
 import { DisclosureService } from '../../src/main/disclosure/disclosure-service.js';
 import { NativeDragOutService, type NativeDragOutDeps } from '../../src/main/native-drag/native-drag-service.js';
 import { nativeDragChannels } from '../../src/shared/ipc/native-drag-channels.js';
-import type { DisclosureField } from '../../src/shared/disclosure/policy.js';
+import { BOUNDARY_FIELDS, type DisclosureField } from '../../src/shared/disclosure/policy.js';
 import { FakeBridge, photo } from './native-drag-fixture.js';
 
 function world(t: TestContext) {
@@ -33,6 +33,7 @@ function world(t: TestContext) {
     audit: () => undefined,
   });
   const activity = createActivityFacade(db, () => undefined);
+  for (const field of BOUNDARY_FIELDS.export) if (field !== 'location') disclosure.setField(field, 'public');
   const bridge = new FakeBridge();
   let opens = 0;
   let releases = 0;
@@ -109,6 +110,7 @@ describe('native original disclosure materialization only (#1137; signed session
       const row = f.rows.get('P1');
       assert.ok(row);
       f.rows.set('P1', { ...row, gpsLat: null, gpsLon: null, takenAt: '2026-01-01', camera: 'PRIVATE CAMERA', lens: 'PRIVATE LENS' });
+      f.disclosure.setField('location', 'public');
       f.disclosure.setField(field, 'private');
       assert.deepEqual(f.start().withheld, [field]);
       assert.equal(f.opens(), 0);
@@ -116,7 +118,7 @@ describe('native original disclosure materialization only (#1137; signed session
 
   test('allowed bytes stay lazy and exact; Activity contains field names and approved classes only', async (t) => {
     const f = world(t);
-    f.disclosure.setOverride('photo', 'P1', 'location', 'shared');
+    f.disclosure.setOverride('photo', 'P1', 'location', 'public');
     const row = f.rows.get('P1');
     assert.ok(row);
     f.rows.set('P1', { ...row, camera: 'PRIVATE CAMERA VALUE' });
@@ -133,11 +135,10 @@ describe('native original disclosure materialization only (#1137; signed session
     assert.deepEqual(event.payload, {
       scope: 'native-drag',
       format: 'original',
-      disclosureClass: 'shared',
+      disclosureClass: 'public',
       disclosureWidened: '',
       disclosureNarrowed: '',
-      disclosureShared: 'location',
-      disclosurePublic: 'camera',
+      disclosurePublic: BOUNDARY_FIELDS.export.join(','),
     });
     const recorded = JSON.stringify(event.payload);
     for (const value of ['52.37', '4.9', 'PRIVATE CAMERA VALUE', row.contentHash, f.output, 'original bytes'])
@@ -146,7 +147,7 @@ describe('native original disclosure materialization only (#1137; signed session
 
   test('policy narrowed after advertisement refuses before opening receiver content', async (t) => {
     const f = world(t);
-    f.disclosure.setField('location', 'shared');
+    f.disclosure.setField('location', 'public');
     assert.equal(f.start().started, true);
     f.disclosure.setField('location', 'private');
     await assert.rejects(f.materialize(), /withheld location/u);
@@ -154,13 +155,16 @@ describe('native original disclosure materialization only (#1137; signed session
     assert.equal(existsSync(f.output), false);
   });
 
-  test('newly discovered original metadata is checked from the current main record', async (t) => {
+  test('all-null extraction cannot authorize potentially private original metadata', (t) => {
     const f = world(t);
-    assert.equal(f.start(['P2']).started, true);
-    const row = f.rows.get('P2');
-    assert.ok(row);
-    f.rows.set('P2', { ...row, gpsLat: 52.37, gpsLon: 4.9 });
-    await assert.rejects(f.materialize(), /withheld location/u);
+    assert.deepEqual(f.start(['P2']), { started: false, reason: 'disclosure-withheld', withheld: ['location'] });
+    assert.equal(f.opens(), 0);
+  });
+
+  test('a shared photo override cannot authorize an unidentified public receiver', (t) => {
+    const f = world(t);
+    f.disclosure.setOverride('photo', 'P1', 'location', 'shared');
+    assert.deepEqual(f.start().withheld, ['location']);
     assert.equal(f.opens(), 0);
   });
 
@@ -169,7 +173,7 @@ describe('native original disclosure materialization only (#1137; signed session
     const row = f.rows.get('P1');
     assert.ok(row);
     f.rows.set('P1', { ...row, syncState: 'offloaded' });
-    f.disclosure.setField('location', 'shared');
+    f.disclosure.setField('location', 'public');
     let released = false;
     f.setOpen(() => {
       f.disclosure.setField('location', 'private');
@@ -190,7 +194,7 @@ describe('native original disclosure materialization only (#1137; signed session
 
   test('policy changes during streaming remove the partial receiver file and release custody', async (t) => {
     const f = world(t);
-    f.disclosure.setField('location', 'shared');
+    f.disclosure.setField('location', 'public');
     f.setOpen(() =>
       Promise.resolve({
         stream: Readable.from(
@@ -213,7 +217,7 @@ describe('native original disclosure materialization only (#1137; signed session
   for (const state of ['locked', 'deleted', 'migrating', 'replaced'] as const)
     test(`${state} custody after advertisement cannot materialize a stale photo record`, async (t) => {
       const f = world(t);
-      f.disclosure.setField('location', 'shared');
+      f.disclosure.setField('location', 'public');
       assert.equal(f.start().started, true);
       const row = f.rows.get('P1');
       assert.ok(row);
@@ -230,7 +234,11 @@ describe('native original disclosure materialization only (#1137; signed session
     });
 
   test('no renderer-supplied Baked payload or widening intent is supported by native drag', () => {
-    for (const extra of [{ mode: 'baked' }, { operation: { narrow: [], widen: ['location'] satisfies DisclosureField[] } }])
+    for (const extra of [
+      { mode: 'baked' },
+      { destination: 'shared' },
+      { operation: { narrow: [], widen: ['location'] satisfies DisclosureField[] } },
+    ])
       assert.equal(
         nativeDragChannels.nativeDragStart.request.safeParse({ photoIds: ['P1'], sourceAlbumId: null, ...extra }).success,
         false,

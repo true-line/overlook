@@ -226,8 +226,8 @@ export class NativeDragOutService {
       assetOwnerOf(photo) !== assetOwnerOf(original)
     )
       throw new Error('drag content unavailable');
-    const plan = this.deps.disclosure.plan(photo.id, 'export', 'shared');
-    nativeOriginalFields(photo, plan);
+    const plan = this.deps.disclosure.plan(photo.id, 'export', 'public');
+    nativeOriginalFields(plan);
     return { photo, plan };
   }
 

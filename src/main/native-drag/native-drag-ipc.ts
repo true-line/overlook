@@ -13,7 +13,8 @@ export function registerNativeDragHandlers(getService: () => NativeDragOutServic
       admit();
       const window = BrowserWindow.fromWebContents(event.sender);
       if (window === null) return { started: false as const, reason: 'content-unavailable' as const };
-      return getService().start(window.getNativeWindowHandle(), { photoIds, sourceAlbumId });
+      const { withheld, ...result } = getService().start(window.getNativeWindowHandle(), { photoIds, sourceAlbumId });
+      return { ...result, ...(withheld === undefined ? {} : { withheld: [...withheld] }) };
     })(request),
   );
 }

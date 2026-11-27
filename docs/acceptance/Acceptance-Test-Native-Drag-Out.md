@@ -9,10 +9,14 @@ native source remain for a separately reviewed redesign; they are not a shipped
 capability while the production bridge reports `disabled`.
 
 The disclosure posture is **refuse originals carrying withheld embedded
-fields**, using main's shared export planner for a shared destination. The
-materializer is original-only and carries the same embedded fields as
-Original-only export (capture time, camera, lens, location); it copies no source
-sidecars or authored metadata and adds no new boundary. It has no operation
+fields**, using main's shared policy compiler with the **public export plan**:
+initiation does not establish a trusted recipient. Extraction completeness is
+not attested, so null photo-record fields cannot authorize original bytes.
+Conservatively require every potential export field (title, description, tags,
+capture time, camera, lens, location) to be Public before any original promise.
+Even an apparently metadata-free original is refused under a withheld plan.
+The materializer copies no source sidecars or authored metadata and adds no new
+boundary. It has no operation
 widening or native Baked mode. Use ordinary **Export → Baked** instead; that
 separate export path is covered by the disclosure/export tests.
 
@@ -23,21 +27,27 @@ separate export path is covered by the disclosure/export tests.
 - Confirm missing, deleted, protected/migrating, locked, malformed, and oversized selections produce no promise.
 - Confirm offloaded originals use verified ephemeral custody, release it after the promise settles, and never become durable as a side effect.
 - Cancel or lock during materialization. Confirm the stream aborts, partial output is removed, native promises fail, and library shutdown waits for release.
-- Import the EXIF GPS fixture with location Private. The materialization harness
+- In the materialization harness, mark the other export fields Public and
+  import the EXIF GPS fixture with location Private. The materialization harness
   must refuse the whole native selection before advertising a promise or
   opening an original. The refusal names `location`; the renderer notice names
   Precise location and suggests Export → Baked. Internal album-drag data remains
   present. Repeat with withheld capture time, camera and lens.
-- With all carried fields permitted, accept a promise and confirm byte-exact
+- Repeat with an all-null extraction record: private GPS remains potentially
+  present, so a native promise is refused without opening original bytes.
+  Shared photo overrides also cannot authorize an unidentified public receiver.
+- With all potential export fields Public, accept a promise and confirm byte-exact
   output and lazy custody release. Activity records `photo.exported` with field
-  names and approved Shared/Public classifications only: no GPS values, camera
+  names authorized by the Public plan only, without claiming byte-inspection
+  findings: no GPS values, camera
   strings, filenames, paths, content hashes, or custody details.
 - Narrow library or photo policy after advertisement, while opening offloaded
   custody, and during streaming. Confirm current policy is recomputed in main,
   withheld bytes are refused, partial output is removed, custody is released,
   and no successful crossing is recorded. Repeat after lock, protected
   migration, deletion or source replacement.
-- Direct native-drag IPC cannot request a Baked mode or operation widening.
+- Direct native-drag IPC cannot request a Baked mode, shared-recipient trust,
+  or operation widening.
 
 `tests/native-drag/*` proves the planner/materializer and disabled-bridge
 contracts. `tests/e2e/native-drag-out.spec.ts` exercises real app import,

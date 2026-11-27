@@ -1,9 +1,27 @@
 import type { PhotoRecord } from '../../src/shared/library/types.js';
 import type { NativeDragBridge, NativeDragStartInput } from '../../src/main/native-drag/native-drag-bridge.js';
-import { compileDisclosurePlan, DEFAULT_DISCLOSURE_POLICY } from '../../src/shared/disclosure/policy.js';
+import {
+  BOUNDARY_FIELDS,
+  compileDisclosurePlan,
+  DEFAULT_DISCLOSURE_POLICY,
+  disclosureFieldClassesSchema,
+} from '../../src/shared/disclosure/policy.js';
 
 export const defaultPlanner = {
-  plan: () => compileDisclosurePlan({ boundary: 'export', destination: 'shared', chain: { library: DEFAULT_DISCLOSURE_POLICY } }),
+  plan: () =>
+    compileDisclosurePlan({
+      boundary: 'export',
+      destination: 'public',
+      chain: {
+        library: {
+          ...DEFAULT_DISCLOSURE_POLICY,
+          fields: disclosureFieldClassesSchema.parse({
+            ...DEFAULT_DISCLOSURE_POLICY.fields,
+            ...Object.fromEntries(BOUNDARY_FIELDS.export.map((field) => [field, 'public'])),
+          }),
+        },
+      },
+    }),
 };
 
 export function photo(id: string, fileName = `${id}.JPG`): PhotoRecord {

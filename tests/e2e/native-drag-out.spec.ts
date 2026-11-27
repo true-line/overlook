@@ -3,7 +3,23 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { expect, test } from './support/app.js';
+import type { Page } from '@playwright/test';
 import { decodePhotoDrag, PHOTO_DRAG_TYPE } from '../../src/shared/library/photo-drag.js';
+import { BOUNDARY_FIELDS, type DisclosureField } from '../../src/shared/disclosure/policy.js';
+
+async function allowHarnessFields(page: Page, locationPublic: boolean): Promise<void> {
+  await page.evaluate(
+    async ({ fields, locationPublic: includeLocation }) => {
+      const api = (
+        globalThis as unknown as {
+          overlook: { disclosure: { setField(request: { field: DisclosureField; class: 'public' | 'private' }): Promise<unknown> } };
+        }
+      ).overlook.disclosure;
+      for (const field of fields) await api.setField({ field, class: field === 'location' && !includeLocation ? 'private' : 'public' });
+    },
+    { fields: [...BOUNDARY_FIELDS.export], locationPublic },
+  );
+}
 
 test('selected photos enter the bounded materializer; this does not exercise a signed native session (#796/#1028)', async ({
   launchOverlook,
@@ -17,6 +33,7 @@ test('selected photos enter the bounded materializer; this does not exercise a s
   await expect
     .poll(() => running.page.evaluate<{ available: boolean; reason: string | null }>('window.overlook.nativeDrag.status()'))
     .toEqual({ available: true, reason: null });
+  await allowHarnessFields(running.page, true);
   await running.page.getByRole('button', { name: 'Select IMG_4021.RAF' }).click();
   await running.page.getByRole('button', { name: 'Select IMG_4028.JPG' }).click();
 
@@ -50,7 +67,8 @@ test('private GPS refuses original materialization and retains the internal drag
   await page.getByRole('button', { name: 'Import', exact: true }).click();
   await page.getByRole('button', { name: 'Import 1 photo', exact: true }).click();
   await page.getByRole('button', { name: 'Show in library' }).click();
-  await page.getByRole('button', { name: 'Select native-gps.jpg' }).click();
+  await allowHarnessFields(page, false);
+  await page.getByRole('button', { name: /^(?:Select|Deselect) native-gps\.jpg$/u }).click();
   const transfer = await page.evaluateHandle(
     () => new (globalThis as unknown as { DataTransfer: new () => { getData(type: string): string } }).DataTransfer(),
   );

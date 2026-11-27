@@ -3023,7 +3023,7 @@
     {
       "id": "796-native-drag-out",
       "wiki": "Acceptance-Test-Native-Drag-Out",
-      "$note": "The signed production bridge remains disabled (#1027). Main's export planner refuses withheld original metadata in the materializer (#1137); no native Baked payload or widening is supported. Harness evidence does not satisfy #1028's signed initiation-design gate or close #1137's signed receiver acceptance.",
+      "$note": "The signed production bridge remains disabled (#1027). Main uses the public export plan for an unidentified receiver and requires all potential fields to be Public because null extraction records do not attest absence (#1137). No native Baked payload or widening is supported. Harness evidence does not satisfy #1028's signed initiation-design gate or establish #1137's signed receiver acceptance.",
       "coverage": [
         {
           "type": "playwright-e2e",
