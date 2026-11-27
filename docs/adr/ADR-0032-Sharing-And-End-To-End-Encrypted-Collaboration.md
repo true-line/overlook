@@ -477,3 +477,21 @@ native dragging remains disabled by #1027. Materialization-only enforcement and
 automated evidence do not satisfy #1028's signed initiation-design gate, do not
 authorize a new native session path, and do not establish signed receiver or
 preview acceptance for #1137.
+
+### Clarification — unidentified receivers and uninspected originals
+
+This supersedes the shared-destination choice above. Native initiation does not
+establish a named, authorized recipient, so main uses the **public export
+plan**. The current photo model also does not attest that embedded metadata
+extraction was complete; null fields cannot prove that original bytes contain
+no GPS or other metadata. Until a separate byte-inspection contract exists,
+every potentially carried export field must be Public, regardless of the photo
+record's apparent field presence. Any withheld field refuses the entire native
+selection before a promise is advertised and is checked again during lazy
+materialization. This deliberately conservative posture preserves lazy,
+bounded custody instead of opening originals speculatively at initiation.
+
+Activity names the fields authorized by that public plan, not claimed findings
+from byte inspection. No native widening or trusted-recipient ceremony is
+introduced. Ordinary Export → Baked remains the alternative, and the signed
+initiation/session/preview evidence gate above remains unchanged.
