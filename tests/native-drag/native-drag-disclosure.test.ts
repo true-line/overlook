@@ -104,6 +104,29 @@ describe('native original disclosure materialization only (#1137; signed session
     assert.equal(f.activity.page(10).events.length, 0);
   });
 
+  test('refusal aggregates all selected photos in stable field order without opening bytes', (t) => {
+    const f = world(t);
+    f.disclosure.setOverride('photo', 'P2', 'location', 'public');
+    f.disclosure.setOverride('photo', 'P2', 'camera', 'private');
+    for (const ids of [
+      ['P1', 'P2'],
+      ['P2', 'P1'],
+    ])
+      assert.deepEqual(f.start(ids), { started: false, reason: 'disclosure-withheld', withheld: ['camera', 'location'] });
+    assert.equal(f.bridge.input, null);
+    assert.equal(f.opens(), 0);
+  });
+
+  test('custody refusal takes precedence over accumulated metadata fields', (t) => {
+    const f = world(t);
+    const row = f.rows.get('P2');
+    assert.ok(row);
+    f.rows.set('P2', { ...row, locked: true });
+    assert.deepEqual(f.start(['P1', 'P2']), { started: false, reason: 'content-unavailable' });
+    assert.equal(f.bridge.input, null);
+    assert.equal(f.opens(), 0);
+  });
+
   for (const field of ['captureTime', 'camera', 'lens'] as const)
     test(`a withheld embedded ${field} uses the same export policy`, (t) => {
       const f = world(t);

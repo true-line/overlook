@@ -7,7 +7,7 @@ import { Readable } from 'node:stream';
 import { encodePhotoDrag, type PhotoDragPayload } from '../../shared/library/photo-drag.js';
 import type { PhotoRecord } from '../../shared/library/types.js';
 import { assetOwnerOf } from '../../shared/library/asset-owner.js';
-import type { DisclosureField, DisclosurePlan } from '../../shared/disclosure/policy.js';
+import { BOUNDARY_FIELDS, type DisclosureField, type DisclosurePlan } from '../../shared/disclosure/policy.js';
 import type { DisclosurePlanner } from '../disclosure/disclosure-service.js';
 import type { ActivityFacade } from '../activity/activity-publication.js';
 import { NativeDragDisclosureError, nativeDragActivity, nativeOriginalFields } from './native-drag-disclosure.js';
@@ -159,13 +159,21 @@ export class NativeDragOutService {
       return { started: false, reason: 'content-unavailable' };
     }
     const available = photos.filter((photo): photo is PhotoRecord => photo !== undefined);
+    const withheld = new Set<DisclosureField>();
     try {
-      for (const photo of available) this.current(photo);
-    } catch (error) {
-      return error instanceof NativeDragDisclosureError
-        ? { started: false, reason: 'disclosure-withheld', withheld: error.fields }
-        : { started: false, reason: 'content-unavailable' };
+      for (const photo of available) {
+        try {
+          this.current(photo);
+        } catch (error) {
+          if (!(error instanceof NativeDragDisclosureError)) throw error;
+          for (const field of error.fields) withheld.add(field);
+        }
+      }
+    } catch {
+      return { started: false, reason: 'content-unavailable' };
     }
+    if (withheld.size > 0)
+      return { started: false, reason: 'disclosure-withheld', withheld: BOUNDARY_FIELDS.export.filter((field) => withheld.has(field)) };
     const names = uniquePromiseNames(available.map((photo) => photo.fileName));
     const records = new Map<string, PromiseRecord>();
     for (const [index, photo] of available.entries()) {
