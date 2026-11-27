@@ -459,3 +459,39 @@ the supported export projection (for example ratings, comments or face regions)
 refuses Source export even when every supported export field is widened. RDF
 and XMP structural wrappers are not metadata properties. Preview identifies
 unclassified properties; Edits/None remains the way to omit that source packet.
+
+## Amendment — native drag materialization (#1137)
+
+Original-only native promises use the export plan for a shared destination,
+recomputed in main without operation widening. Their embedded field set matches
+Original-only export; no separate boundary is needed. A withheld embedded field
+refuses the whole selection before promises are advertised, with the field
+names returned for a refusal notice. Policy and custody are checked again when
+the receiver requests bytes and across asynchronous materialization. Activity
+records crossings by field name and approved class only, never field values,
+paths, blob addresses or custody details.
+
+No Baked native payload or drag-specific consent ceremony is introduced. The
+ordinary Export dialog's Baked payload is the compliant alternative. Production
+native dragging remains disabled by #1027. Materialization-only enforcement and
+automated evidence do not satisfy #1028's signed initiation-design gate, do not
+authorize a new native session path, and do not establish signed receiver or
+preview acceptance for #1137.
+
+### Clarification — unidentified receivers and uninspected originals
+
+This supersedes the shared-destination choice above. Native initiation does not
+establish a named, authorized recipient, so main uses the **public export
+plan**. The current photo model also does not attest that embedded metadata
+extraction was complete; null fields cannot prove that original bytes contain
+no GPS or other metadata. Until a separate byte-inspection contract exists,
+every potentially carried export field must be Public, regardless of the photo
+record's apparent field presence. Any withheld field refuses the entire native
+selection before a promise is advertised and is checked again during lazy
+materialization. This deliberately conservative posture preserves lazy,
+bounded custody instead of opening originals speculatively at initiation.
+
+Activity names the fields authorized by that public plan, not claimed findings
+from byte inspection. No native widening or trusted-recipient ceremony is
+introduced. Ordinary Export → Baked remains the alternative, and the signed
+initiation/session/preview evidence gate above remains unchanged.

@@ -1,6 +1,10 @@
 import { defineMessages } from 'react-intl';
 
 export const libraryGridMessages = defineMessages({
+  nativeDragWithheld: {
+    id: 'library.nativeDrag.withheld',
+    defaultMessage: 'Original drag blocked. Withheld: {fields}. Use Export → Baked.',
+  },
   trashPolicyDays: {
     id: 'library.trash.retentionPolicy.days',
     defaultMessage: 'Items in Trash are deleted permanently after {days} days.',

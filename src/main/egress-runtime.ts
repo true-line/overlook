@@ -67,6 +67,10 @@ export class EgressRuntime {
     const repo = new PhotosRepository(parts.db);
     const testDestination = this.options.harnessEnv('OVERLOOK_NATIVE_DRAG_DESTINATION');
     this.dragOut = new NativeDragOutService({
+      disclosure: {
+        plan: (photoId, boundary, destination, operation) => this.disclosure().plan(photoId, boundary, destination, operation),
+      },
+      activity: this.options.activity,
       bridge:
         testDestination === undefined
           ? createNativeDragBridge({ platform: process.platform, packaged: app.isPackaged, enabled: false })
