@@ -10,7 +10,9 @@ interface DestinationGrant {
 }
 
 function requestFingerprint(request: unknown): string {
-  return JSON.stringify(request);
+  // Disclosure consent is obtained at Export, after the native folder picker.
+  // Its independent authority binds the disclosure request and selection.
+  return JSON.stringify(request, (key: string, value: unknown) => (key === 'consent' ? undefined : value));
 }
 
 /** One-use proof that a renderer chose a destination through main's native picker. */

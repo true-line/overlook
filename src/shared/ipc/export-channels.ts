@@ -20,9 +20,14 @@ const payloadMode = z.enum(['baked', 'original-sidecars', 'original']);
 const jpegQuality = z.number().int().min(1).max(100);
 const authorization = z.string().uuid();
 // ADR-0032 §6 (#509): the recipient class of the destination and the
-// operation-scope narrowing/widening. Intent only — main compiles the plan.
+// operation-scope narrowing. Widening requires main-issued consent; legacy
+// raw widen lists remain parseable so main can refuse them by field name.
 export const exportDisclosureIntentSchema = z
-  .object({ destination: disclosureDestinationSchema, operation: disclosureOperationSchema })
+  .object({
+    destination: disclosureDestinationSchema,
+    operation: disclosureOperationSchema.default({ narrow: [], widen: [] }),
+    consent: z.string().uuid().optional(),
+  })
   .strict();
 const selectedExportIntent = z.object({
   operation: z.literal('selected'),

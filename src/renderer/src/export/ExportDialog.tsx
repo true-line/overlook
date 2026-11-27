@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactElement } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 
 import type { ExportDestinationIntent, ExportPayloadMode } from '../../../shared/ipc/export-channels.js';
+import type { DisclosurePreviewRequest } from '../../../shared/ipc/disclosure-channels.js';
 import { Button } from '../components/Button';
 import { Dialog } from '../components/Dialog';
 import { Icon } from '../components/Icon';
@@ -129,24 +130,21 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
   const [bakedEdits, setBakedEdits] = useState(0);
   const [editSidecars, setEditSidecars] = useState(0);
   const [runError, setRunError] = useState(false);
-  // ADR-0032 §6 (#509): operation-scope disclosure intent. Main compiles the
-  // plan from it; the preview below is main's answer for the same intent.
+  // The preview proposes widening; only main's native ceremony can authorize it.
   const [disclosureDestination, setDisclosureDestination] = useState<DisclosureDestination>('shared');
   const [widen, setWiden] = useState<readonly DisclosureField[]>([]);
   const preflight = useExportPreflight(photoIds, allPhotos, mode, open && destinationKind === 'folder');
-  const disclosureIntent = { destination: disclosureDestination, operation: { narrow: [], widen: [...widen] } };
-  const disclosurePreview = useDisclosurePreview(
-    open && phase === 'options'
-      ? {
-          boundary: destinationKind === 'apple-photos' ? 'photo-kit' : 'export',
-          destination: disclosureDestination,
-          ...(allPhotos ? {} : { photoIds: [...photoIds] }),
-          payload: destinationKind === 'folder' && mode === 'baked' ? 'baked' : 'original',
-          metadata: destinationKind === 'apple-photos' ? 'original' : metadata,
-          operation: disclosureIntent.operation,
-        }
-      : null,
-  );
+  const disclosureIntent = { destination: disclosureDestination, operation: { narrow: [], widen: [] } };
+  const previewRequest: DisclosurePreviewRequest = {
+    boundary: destinationKind === 'apple-photos' ? 'photo-kit' : 'export',
+    destination: disclosureDestination,
+    ...(allPhotos ? {} : { photoIds: [...photoIds] }),
+    payload: destinationKind === 'folder' && mode === 'baked' ? 'baked' : 'original',
+    mode: destinationKind === 'apple-photos' ? 'original' : mode,
+    metadata: destinationKind === 'apple-photos' ? 'original' : metadata,
+    operation: { narrow: [], widen: [...widen] },
+  };
+  const disclosurePreview = useDisclosurePreview(open && phase === 'options' ? previewRequest : null);
   const disclosureBlocked = disclosurePreview === null || disclosurePreview.blocked.length > 0;
 
   useEffect(() => {
@@ -211,26 +209,33 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
   };
 
   const start = (): void => {
-    const run =
-      destinationKind === 'apple-photos'
-        ? window.overlook.photoKit.export({ photoIds: [...photoIds], disclosure: disclosureIntent })
+    const run = async () => {
+      const preview = widen.length === 0 ? null : await window.overlook.disclosure.preview({ ...previewRequest, confirmWidening: true });
+      if (widen.length > 0 && preview?.consent === undefined) {
+        setPhase('options');
+        return null;
+      }
+      const disclosure = { ...disclosureIntent, ...(preview?.consent === undefined ? {} : { consent: preview.consent }) };
+      return destinationKind === 'apple-photos'
+        ? window.overlook.photoKit.export({ photoIds: [...photoIds], disclosure })
         : destination === null
           ? null
           : allPhotos
-            ? window.overlook.export.runAll({ authorization: destination.authorization, metadata, ...edits, disclosure: disclosureIntent })
+            ? window.overlook.export.runAll({ authorization: destination.authorization, metadata, ...edits, disclosure })
             : window.overlook.export.run({
                 photoIds: [...photoIds],
                 authorization: destination.authorization,
                 format,
                 metadata,
                 ...edits,
-                disclosure: disclosureIntent,
+                disclosure,
               });
-    if (run === null) return;
+    };
     setRunError(false);
     setPhase('running');
-    void run
+    void run()
       .then((summary) => {
+        if (summary === null) return;
         setExported(summary.exported);
         setFailed(summary.failed);
         setFailures(summary.failures);
