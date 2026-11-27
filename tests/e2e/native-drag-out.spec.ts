@@ -65,7 +65,7 @@ test('private GPS refuses original materialization and retains the internal drag
     env: { OVERLOOK_SEED: '1', OVERLOOK_IMPORT_SOURCE: source, OVERLOOK_NATIVE_DRAG_DESTINATION: destination },
   });
   await page.getByRole('button', { name: 'Import', exact: true }).click();
-  await page.getByRole('button', { name: 'Import 1 photo', exact: true }).click();
+  await page.getByRole('button', { name: 'Import 1 photos', exact: true }).click();
   await page.getByRole('button', { name: 'Show in library' }).click();
   await allowHarnessFields(page, false);
   await page.getByRole('button', { name: /^(?:Select|Deselect) native-gps\.jpg$/u }).click();
