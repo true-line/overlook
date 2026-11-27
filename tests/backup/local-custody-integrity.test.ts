@@ -143,6 +143,19 @@ test('missing excluded originals persist honest loss and recover on a verified r
   assert.deepEqual(w.changed, [['A'], ['A']]);
 });
 
+test('legacy local-absence errors cannot borrow remote custody and clear only after full local proof (#1135)', async (t) => {
+  const w = await world(t);
+  await w.add('A');
+  run(w.db, "UPDATE photos SET original_failure = 'missing-original' WHERE id = 'A'");
+  run(w.db, "UPDATE sync_ledger SET status = 'error', dirty = 0 WHERE photo_id = 'A'");
+  const before = w.policy('A');
+  assert.equal(w.ledger.requiresRemoteCustody('A'), false);
+  assert.equal((await w.scrub()).hashed, 1);
+  assert.equal(w.photos.get('A')?.originalFailure, null);
+  assert.deepEqual(w.policy('A'), before);
+  assert.equal(w.ledger.requiresRemoteCustody('A'), false);
+});
+
 test('malformed headers, truncation, authentication damage, wrong AAD and wrong content all fail local verification (#1135)', async (t) => {
   for (const damage of ['header', 'truncated-header', 'truncated-final', 'tag', 'wrong-owner', 'wrong-hash'] as const) {
     await t.test(damage, async (st) => {
