@@ -84,7 +84,8 @@ export function inspectSourceXmp(fileName: string, bytes: Buffer): SourceInspect
     if (owner?.field !== undefined) add(owner.field, owner.local, frame.text);
   });
   try {
-    parser.write(new TextDecoder('utf-8', { fatal: true }).decode(bytes)).close();
+    const encoding = bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf-16le' : bytes[0] === 0xfe && bytes[1] === 0xff ? 'utf-16be' : 'utf-8';
+    parser.write(new TextDecoder(encoding, { fatal: true }).decode(bytes)).close();
     if (!rdf) return { status: 'malformed', fields: [] };
     return { status: 'inspected', fields: [...fields].map(([field, values]) => ({ field, values: [...values] })) };
   } catch {

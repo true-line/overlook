@@ -59,7 +59,7 @@ export const disclosureMessages = defineMessages({
   previewBlocked: {
     id: 'disclosure.preview.blocked',
     defaultMessage:
-      'The originals cannot leave while a withheld field is embedded in them. Include it for this export, or export Baked, which strips embedded metadata.',
+      'This export cannot leave while an original or retained source sidecar contains a withheld field. Include it for this export, choose Metadata: Edits or None to omit source sidecars, or export Baked.',
   },
   previewBlockedAnnounce: {
     id: 'disclosure.preview.blocked.announce',
@@ -69,7 +69,26 @@ export const disclosureMessages = defineMessages({
   previewWiden: { id: 'disclosure.preview.widen', defaultMessage: 'Include {field} in this export (recorded in activity)' },
   previewSidecars: {
     id: 'disclosure.preview.sidecars',
-    defaultMessage: '{count, plural, one {# retained source sidecar travels} other {# retained source sidecars travel}} unfiltered.',
+    defaultMessage: '{count, plural, one {# retained source sidecar checked} other {# retained source sidecars checked}}.',
+  },
+  sidecarFound: { id: 'disclosure.sidecar.found', defaultMessage: 'Found: {fields}.' },
+  sidecarEmpty: { id: 'disclosure.sidecar.empty', defaultMessage: 'No supported disclosure fields found.' },
+  sidecarWithheld: { id: 'disclosure.sidecar.withheld', defaultMessage: 'Withheld: {fields}.' },
+  sidecarUnknown: {
+    id: 'disclosure.sidecar.unknown',
+    defaultMessage: 'Unknown format. Any withheld field may be present; its values cannot be inspected.',
+  },
+  sidecarMalformed: {
+    id: 'disclosure.sidecar.malformed',
+    defaultMessage: 'Malformed or oversized source sidecar. Choose Metadata: Edits or None to omit it.',
+  },
+  sidecarUnavailable: {
+    id: 'disclosure.sidecar.unavailable',
+    defaultMessage: 'Sidecar could not be read or verified. Choose Metadata: Edits or None to omit it.',
+  },
+  sidecarBudget: {
+    id: 'disclosure.sidecar.budget',
+    defaultMessage: 'This selection is too large to inspect. Select fewer photos or choose Metadata: Edits or None.',
   },
   previewDecline: {
     id: 'disclosure.preview.decline',

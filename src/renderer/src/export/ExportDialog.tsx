@@ -39,13 +39,17 @@ const messages = defineMessages({
   metadataNone: { id: 'export.metadata.none', defaultMessage: 'None' },
   metadataSourceHint: {
     id: 'export.metadata.sourceHint',
-    defaultMessage: 'Copy retained source sidecars when originals are exported.',
+    defaultMessage: 'Copy retained source sidecars only when their metadata is permitted.',
   },
   metadataEditsHint: {
     id: 'export.metadata.editsHint',
     defaultMessage: 'Write title, description, and effective tags to a new XMP sidecar.',
   },
   metadataNoneHint: { id: 'export.metadata.noneHint', defaultMessage: 'Write no metadata sidecars.' },
+  exportReasonSidecar: {
+    id: 'export.reason.sidecar',
+    defaultMessage: 'A source sidecar cannot be inspected. Choose Metadata: Edits or None.',
+  },
   exportTo: { id: 'export.destination.kind', defaultMessage: 'Export to' },
   exportDestination: { id: 'export.destination.label', defaultMessage: 'Export destination' },
   folder: { id: 'export.destination.folder', defaultMessage: 'Folder' },
@@ -145,7 +149,9 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
     operation: { narrow: [], widen: [...widen] },
   };
   const disclosurePreview = useDisclosurePreview(open && phase === 'options' ? previewRequest : null);
-  const disclosureBlocked = disclosurePreview === null || disclosurePreview.blocked.length > 0;
+  const sourceSidecarInvalid =
+    disclosurePreview?.sourceSidecars?.some((sidecar) => sidecar.status === 'malformed' || sidecar.status === 'unavailable') ?? false;
+  const disclosureBlocked = disclosurePreview === null || disclosurePreview.blocked.length > 0 || sourceSidecarInvalid;
 
   useEffect(() => {
     if (phase !== 'running') {
@@ -189,9 +195,11 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
   // about it, and says what (#1307).
   const exportReason = editsBlocked
     ? intl.formatMessage(messages.exportReasonEdits)
-    : disclosurePreview !== null && disclosurePreview.blocked.length > 0
-      ? intl.formatMessage(messages.exportReasonBlocked)
-      : undefined;
+    : sourceSidecarInvalid
+      ? intl.formatMessage(messages.exportReasonSidecar)
+      : disclosurePreview !== null && disclosurePreview.blocked.length > 0
+        ? intl.formatMessage(messages.exportReasonBlocked)
+        : undefined;
   const intent: ExportDestinationIntent = allPhotos
     ? { operation: 'all', metadata, ...edits, disclosure: disclosureIntent }
     : { operation: 'selected', photoIds: [...photoIds], format, metadata, ...edits, disclosure: disclosureIntent };

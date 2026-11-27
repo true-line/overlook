@@ -49,6 +49,18 @@ describe('retained source XMP inspection (#1142)', () => {
     assert.equal(inspectSourceXmp('photo.aae', Buffer.from(XMP)).status, 'unknown');
   });
 
+  test('UTF-16 BOMs cannot hide supported fields or a DTD', () => {
+    const little = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(XMP, 'utf16le')]);
+    const big = Buffer.concat([Buffer.from([0xfe, 0xff]), Buffer.from(XMP, 'utf16le').swap16()]);
+    assert.deepEqual(inspectSourceXmp('photo.xmp', little), inspectSourceXmp('photo.xmp', Buffer.from(XMP)));
+    assert.deepEqual(inspectSourceXmp('photo.xmp', big), inspectSourceXmp('photo.xmp', Buffer.from(XMP)));
+    const dtd = Buffer.concat([
+      Buffer.from([0xff, 0xfe]),
+      Buffer.from(`<!DOCTYPE x SYSTEM "https://example.invalid/dtd">${XMP}`, 'utf16le'),
+    ]);
+    assert.equal(inspectSourceXmp('photo.xmp', dtd).status, 'malformed');
+  });
+
   test('bounded reads authenticate content identities and close their stream on failure', async () => {
     const bytes = Buffer.from(XMP);
     const sidecar = { fileName: 'photo.xmp', bytes: bytes.length, keyId: 1, contentHash: createHash('sha256').update(bytes).digest('hex') };

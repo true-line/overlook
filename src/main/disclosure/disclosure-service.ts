@@ -244,6 +244,7 @@ export class DisclosureService implements DisclosurePlanner {
                   return reader.sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash);
                 });
           const finding = sourceSidecarFinding(photo.id, sidecar, inspection, plan);
+          if (sourcePreviewBytes > MAX_SOURCE_PREVIEW_BYTES) finding.reason = 'budget';
           sourceSidecars.push(finding);
           for (const field of finding.blocked) blocked.add(field);
         }

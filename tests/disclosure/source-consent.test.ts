@@ -92,6 +92,7 @@ describe('source companion consent and preview (#1142)', () => {
     assert.equal(opens, 6);
     assert.equal(preview.sourceSidecars?.length, 10);
     assert.ok(preview.sourceSidecars?.every((sidecar) => sidecar.refused));
+    assert.equal(preview.sourceSidecars?.[6]?.reason, 'budget');
   });
   test('source-only fields appear in preview and native consent, then an issued token permits exact original bytes once', async (t) => {
     const f = sourceWorld(t);
@@ -170,6 +171,20 @@ describe('source companion consent and preview (#1142)', () => {
       await assert.rejects(f.authority.consume({ ...f.request, disclosure: f.wire(issued.consent) }), /does not match/u);
       assert.equal(f.written.size, 0);
     });
+
+  test('changing a companion after redemption fails the continuation guard; tampered bytes refuse before output', async (t) => {
+    const f = sourceWorld(t);
+    const issued = await f.authority.preview({ ...f.request, confirmWidening: true });
+    const authorized = await f.authority.consume({ ...f.request, disclosure: f.wire(issued.consent) });
+    f.tamper();
+    await assert.rejects(
+      f.engine.exportPhotos(['P1'], '/chosen', undefined, 'original', 'original', undefined, authorized.disclosure),
+      /unavailable/u,
+    );
+    assert.equal(f.written.size, 0);
+    f.replace(SAFE);
+    assert.throws(() => authorized.disclosure.assertCurrent?.(), /no longer current/u);
+  });
 
   test('a capability is burned before awaiting companion inspection, preventing concurrent redemption', async (t) => {
     const f = sourceWorld(t);

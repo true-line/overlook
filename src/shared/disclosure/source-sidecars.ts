@@ -9,6 +9,7 @@ export const sourceSidecarFindingSchema = z.object({
   fields: z.array(z.object({ field: disclosureFieldSchema, values: z.array(z.string()) })),
   blocked: z.array(disclosureFieldSchema),
   refused: z.boolean(),
+  reason: z.literal('budget').optional(),
 });
 export type SourceSidecarFinding = z.output<typeof sourceSidecarFindingSchema>;
 
