@@ -31,6 +31,8 @@ Policy changes and per-operation widening reach Activity by field name and
 class only — never a value.
 
 Automated coverage: `tests/e2e/disclosure.spec.ts`,
+`tests/e2e/import-flow.spec.ts`, `tests/e2e/photokit.spec.ts` (native affirmative
+consent simulated in main),
 `tests/disclosure/policy.test.ts` (defaults, scope resolution, the plan,
 boundaries that carry nothing), `tests/disclosure/consent.test.ts`,
 `tests/disclosure/export-consent.test.ts` and
@@ -77,7 +79,9 @@ capture time`, `DisclosureSettings.stories.tsx › Defaults / Preview`.
    Cancel is the default. Cancel: no file lands and the options remain available.
    Click Export again and confirm **Include for this export**: the file lands;
    Activity's export record names `disclosureWidened: captureTime`, with no values
-   or token. Reopen Export: the checkbox and consent do not persist.
+   or token. Its `disclosureClass` is the chosen destination class (the audit
+   field contains no path); PhotoKit also records `recipientKind: apple-photos`.
+   Reopen Export: the checkbox and consent do not persist.
 6. Reopen Export, switch the payload to **Baked**. **Expected:** no warning
    even without the checkbox — a baked payload carries no embedded metadata.
 7. Choose **Public** as the destination. **Expected:** its hint says only

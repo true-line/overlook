@@ -644,6 +644,10 @@
           "path": "tests/e2e/disclosure.spec.ts"
         },
         {
+          "type": "playwright-e2e",
+          "paths": ["tests/e2e/import-flow.spec.ts", "tests/e2e/photokit.spec.ts"]
+        },
+        {
           "type": "storybook",
           "path": "src/renderer/src/disclosure/DisclosureSettings.stories.tsx"
         },

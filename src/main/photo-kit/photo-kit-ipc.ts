@@ -68,10 +68,10 @@ export function registerPhotoKitHandlersWith(
           entityIds: photoIds,
           outcome: result.failed > 0 || result.cancelled > 0 ? 'partial' : 'succeeded',
           payload: {
-            destination: 'apple-photos',
+            recipientKind: 'apple-photos',
             format: 'original',
             metadata: 'embedded-supported',
-            disclosureDestination: disclosure?.destination ?? 'shared',
+            disclosureClass: disclosure?.destination ?? 'shared',
             disclosureWidened: authorized.disclosure?.operation.widen.join(',') ?? '',
             disclosureNarrowed: authorized.disclosure?.operation.narrow.join(',') ?? '',
             exported: result.exported,

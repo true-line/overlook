@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { expect, test } from './support/app.js';
+import { confirmNativeDisclosure } from './support/disclosure-consent.js';
 
 test('explicit Apple Photos review imports and add-only export writes the selected original (#798)', async ({ launchOverlook }) => {
   const importSource = mkdtempSync(join(tmpdir(), 'overlook-e2e-photokit-source-'));
@@ -39,6 +40,7 @@ test('explicit Apple Photos review imports and add-only export writes the select
   await expect(page.getByTestId('export-reason')).toHaveText('Include the withheld field, or export Baked.');
   await page.getByTestId('disclosure-widen-location').getByRole('checkbox').click();
   await expect(page.getByTestId('disclosure-blocked')).toHaveCount(0);
+  await confirmNativeDisclosure(running.app, 'Apple Photos');
   await page.getByRole('button', { name: 'Export 1 photo', exact: true }).click();
   await expect(page.getByText('1 photo exported and decrypted to Apple Photos.')).toBeVisible({ timeout: 20_000 });
   await expect.poll(() => readdirSync(exportDestination).length).toBe(1);

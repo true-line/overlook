@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import type { ActivityDraft, ActivityFacade } from '../../src/main/activity/activity-publication.js';
+import { createActivityFacade, type ActivityDraft, type ActivityFacade } from '../../src/main/activity/activity-publication.js';
 import { registerPhotoKitHandlersWith, type PhotoKitIpcHandlerRegistrar } from '../../src/main/photo-kit/photo-kit-ipc.js';
 import type { PhotoKitService } from '../../src/main/photo-kit/photo-kit-service.js';
 import { channels } from '../../src/shared/ipc/channels.js';
@@ -104,10 +104,10 @@ describe('PhotoKit IPC adapters (#798)', () => {
       entityIds: ['photo', 'missing'],
       outcome: 'partial',
       payload: {
-        destination: 'apple-photos',
+        recipientKind: 'apple-photos',
         format: 'original',
         metadata: 'embedded-supported',
-        disclosureDestination: 'shared',
+        disclosureClass: 'shared',
         disclosureWidened: '',
         disclosureNarrowed: '',
         exported: 1,
@@ -160,6 +160,7 @@ describe('PhotoKit operation disclosure consent (#1141)', () => {
     const f = consentFixture(t);
     const handlers = new Map<string, (event: unknown, request: unknown) => unknown>();
     const received: (ExportDisclosureIntentWire | undefined)[] = [];
+    const activity = createActivityFacade(f.db, () => undefined);
     let finish!: () => void;
     registerPhotoKitHandlersWith(
       () =>
@@ -178,7 +179,7 @@ describe('PhotoKit operation disclosure consent (#1141)', () => {
         },
       },
       undefined,
-      undefined,
+      () => activity,
       f.authority,
     );
     const invoke = (request: unknown) => Promise.resolve(handlers.get(channels.photoKitExportRun.name)!({}, request));
@@ -195,6 +196,12 @@ describe('PhotoKit operation disclosure consent (#1141)', () => {
     assert.deepEqual(await invoke(input), failed);
     finish();
     assert.deepEqual(await first, result);
+    const events = activity.page(10).events;
+    assert.equal(events[0]?.payload['disclosureWidened'], 'location');
+    assert.equal(events[0]?.payload['disclosureClass'], 'shared');
+    assert.equal(events[0]?.payload['recipientKind'], 'apple-photos');
+    assert.ok(!JSON.stringify(events).includes(preview.consent));
+    assert.ok(!JSON.stringify(events).includes('52.37'));
     assert.deepEqual(await invoke(input), failed);
     assert.equal(received.length, 1);
   });

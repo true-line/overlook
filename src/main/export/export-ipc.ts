@@ -12,12 +12,12 @@ interface ExportIpcRegistrar {
 
 /** ADR-0032 §6: consent at operation scope is recorded by field NAME only. */
 function disclosurePayload(disclosure: ExportDisclosureIntentWire | undefined): {
-  readonly disclosureDestination: string;
+  readonly disclosureClass: string;
   readonly disclosureWidened: string;
   readonly disclosureNarrowed: string;
 } {
   return {
-    disclosureDestination: disclosure?.destination ?? 'shared',
+    disclosureClass: disclosure?.destination ?? 'shared',
     disclosureWidened: disclosure?.operation.widen.join(',') ?? '',
     disclosureNarrowed: disclosure?.operation.narrow.join(',') ?? '',
   };

@@ -24,8 +24,8 @@ function defineChannel<TRequest extends z.ZodType, TResponse extends z.ZodType>(
 // policy, changes one field's class, reads and sets scope overrides, and
 // asks for the PREVIEW of one crossing — field names, sample values,
 // counts, what the originals carry embedded, what would need widening. The
-// export and Apple Photos channels carry the same operation intent; main
-// recompiles the plan from it and never accepts a field list.
+// export and Apple Photos channels carry narrowing and a main-issued consent
+// capability; main recovers any widening from the capability's bound proposal.
 
 export const disclosurePreviewFieldSchema = z.object({
   field: disclosureFieldSchema,
