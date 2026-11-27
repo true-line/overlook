@@ -71,7 +71,7 @@ export class LocalCustodyScrubber {
             age < 0 ||
             age >= LOCAL_CUSTODY_HASH_INTERVAL_MS;
           if (needsHash) {
-            const identity = `${item.contentHash}:${item.assetOwnerId ?? item.id}`;
+            const identity = `${item.contentHash}:${item.assetOwnerId ?? item.id}:${String(item.bytes)}:${String(item.keyId)}`;
             const cached = authenticated.get(identity);
             const reusable = cached?.fingerprint === inspection.fingerprint;
             // No starvation of large originals: one oversized object may consume

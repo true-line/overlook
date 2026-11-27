@@ -226,6 +226,19 @@ test('excluded shared variants use the original owner and missing-byte statistic
   assert.equal(w.photos.stats().localMissingBytes, original.plaintext.length);
 });
 
+test('shared verification cannot be reused across a different recorded size binding (#1135)', async (t) => {
+  const w = await world(t);
+  const original = await w.add('A');
+  const root = w.photos.get('A');
+  assert.ok(root);
+  new VariantRepository(w.db).duplicate(root, 'B', '2026-11-27');
+  run(w.db, "UPDATE sync_ledger SET coverage = 'excluded', dirty = 0 WHERE photo_id = 'B'");
+  run(w.db, "UPDATE photos SET bytes = ? WHERE id = 'B'", original.plaintext.length + 1);
+  assert.equal((await w.scrub()).hashed, 2);
+  assert.equal(w.photos.get('A')?.localCustodyFailure, null);
+  assert.equal(w.photos.get('B')?.localCustodyFailure, 'local-corrupt');
+});
+
 test('included rows, absent keys and restored placeholders never become excluded local-loss findings (#1135)', async (t) => {
   const w = await world(t);
   for (const id of ['included', 'locked', 'placeholder']) {
