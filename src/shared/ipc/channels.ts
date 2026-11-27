@@ -256,6 +256,7 @@ const photoRecordSchema = z.object({
   deletedAt: z.string().nullable(),
   previewFailure: z.enum(['corrupt', 'unsupported-codec', 'decode-failed', 'deferred-original']).nullable(),
   originalFailure: z.literal('missing-original').nullable().optional(),
+  localCustodyFailure: z.enum(['local-missing', 'local-corrupt']).nullable().optional(),
   dimensionStatus: z.enum(['legacy', 'verified', 'metadata-mismatch', 'unavailable']),
   mediaInfo: mediaInfoSchema.nullable(),
   syncState: syncStatusSchema,
@@ -865,6 +866,9 @@ export const channels = {
       excludedCount: z.number().int().nonnegative(),
       excludedBytes: z.number().nonnegative(),
       pendingRemovals: z.number().int().nonnegative(),
+      localMissingCount: z.number().int().nonnegative().optional(),
+      localCorruptCount: z.number().int().nonnegative().optional(),
+      localMissingBytes: z.number().nonnegative().optional(),
     }),
   ),
   // Multi-library registry (#384, ADR-0017 §1/§2): list/create/select/remove

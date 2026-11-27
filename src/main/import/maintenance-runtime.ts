@@ -20,6 +20,7 @@ import { createVariantRuntime } from '../library/variant-runtime.js';
 import type { VariantService } from '../library/variant-service.js';
 import { createOriginalRecoveryRuntime } from '../library/original-recovery-runtime.js';
 import type { OriginalRecoveryService } from '../library/original-recovery-service.js';
+import { createLocalCustodyRuntime } from '../backup/local-custody-runtime.js';
 
 // RAW/HEIC preview repair and video poster capture (ADR-0026 §6) are both
 // post-import background passes over the same library parts, and persisted
@@ -70,6 +71,11 @@ export interface MaintenanceServices {
 
 export function buildMaintenanceServices(ctx: MaintenanceContext): MaintenanceServices {
   const { parts, runtime } = ctx;
+  const localCustody = createLocalCustodyRuntime(
+    parts,
+    (ids) => ctx.emitChanged(ids, 'library'),
+    (line) => console.info('[overlook]', line),
+  );
   const repo = new PhotosRepository(parts.db);
   const shared = {
     blobs: parts.blobStore,
@@ -165,11 +171,12 @@ export function buildMaintenanceServices(ctx: MaintenanceContext): MaintenanceSe
     histogram,
     duplicates,
     close: async () => {
+      const localDrain = localCustody.close();
       originalRecovery.close();
       rawRepair.close();
       posterCapture.close();
       unfollowLibrary();
-      await Promise.all([histogram.close(), duplicates.close(), originalRecovery.drain()]);
+      await Promise.all([histogram.close(), duplicates.close(), originalRecovery.drain(), localDrain]);
     },
   };
 }

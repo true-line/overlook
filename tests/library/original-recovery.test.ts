@@ -96,6 +96,15 @@ test('wrong same-sized file leaves missing evidence and publishes no original (#
   assert.deepEqual(w.changed, []);
 });
 
+test('excluded local-missing evidence alone admits exact-file recovery and clears without re-inclusion (#1135)', async (t) => {
+  const w = await world(t);
+  run(w.db, "UPDATE photos SET original_failure = NULL, local_custody_failure = 'local-missing' WHERE id = 'sibling'");
+  assert.equal(await new OriginalRecoveryService(w.options).recover('sibling', w.source), 'recovered');
+  assert.equal(w.repo.get('sibling')?.localCustodyFailure, null);
+  assert.equal(w.repo.get('sibling')?.coverage, 'excluded');
+  assert.equal(w.repo.pendingCount(), 1, 'only the included root is backup work');
+});
+
 test('recovery publishes with the active write key and commits the verified key ID to every sibling (#1101)', async (t) => {
   const w = await world(t);
   const active = { id: 2, key: randomBytes(32) };
