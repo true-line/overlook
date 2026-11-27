@@ -94,13 +94,25 @@ through the Git Data API, which GitHub signs server-side.
 
 ## Merge automation
 
+**Interim hold (#1172): do not enable auto-merge or perform normal merges until
+an administrator restores the five App-bound required contexts and strict
+freshness, and an independent effective-rule read verifies both.** Coordinate
+with the owner to disable any already-enabled auto-merge while the gap remains.
+This hold applies to the usual queue instructions, including those in
+`AGENTS.md`. A green head alone cannot close the race between a base advance and
+the governed updater. Keep completed PRs ready for review; do not use a bypass
+or substitute an immediate merge. See the [current audit](#main-protection-audit--2026-11-27-1172)
+for owner repair and verification steps. Resume the normal lifecycle only after
+the repair is verified, with complete successful checks on the then-current head.
+
 `true-line/overlook` is a private repository in the `true-line` organization and
 currently retains `.github/workflows/auto-update-prs.yml` until a native merge
 queue is rolled out. After a `main` push, PR open, or ready transition, the
 workflow uses `chores-dumb[bot]` to merge current `main` into each eligible
 ready branch through the update-branch API. The resulting `synchronize` event
-runs the complete suite, and strict required checks prevent auto-merge from
-landing stale evidence.
+runs the complete suite. Under the intended configuration, strict required
+checks prevent auto-merge from landing stale evidence; the audit below records
+why that guarantee is currently absent.
 
 The final merge commit has a new SHA, so it is not treated as the validated PR
 head. Its `main` push therefore runs the complete-suite fallback plus
@@ -140,8 +152,10 @@ Consequences worth knowing before touching a branch:
   local gates. A stale install fails E2E in ways that look like flakes; an
   Electron bump landing mid-session produced two identical timeout failures this
   way.
-- Auto-merge uses merge commits. The ruleset retains strict status checks,
-  approval, CODEOWNERS, and resolved review threads.
+- After the interim hold is lifted, auto-merge uses merge commits. The intended
+  ruleset requires strict status checks, approval, CODEOWNERS, and resolved
+  review threads; verify the live rules rather than assuming this contract is
+  already deployed.
 
 ## Workflow actor boundary
 
@@ -308,5 +322,5 @@ the administrator's rule-suite rejection identifying the specific check rule
 when available. Configuration states the intended restriction; a combined
 `BLOCKED` state does not isolate its cause. Keep #1172 open until the repaired
 live settings and pending, failing, missing, stale and positive evidence all
-satisfy acceptance. Queue documentation auto-merge only after its complete
-current-head checks succeed.
+satisfy acceptance. Queue documentation auto-merge only after the interim hold
+is lifted and its complete current-head checks succeed.
