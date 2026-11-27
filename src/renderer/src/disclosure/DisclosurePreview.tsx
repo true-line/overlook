@@ -10,6 +10,7 @@ import { Field } from '../settings/Field';
 import type { DisclosureClass, DisclosureDestination, DisclosureField } from '../../../shared/disclosure/policy.js';
 import type { DisclosurePreview as DisclosurePreviewData } from '../../../shared/ipc/disclosure-channels.js';
 import { classLabel, disclosureMessages, fieldLabel } from './disclosure-messages.js';
+import { SourceSidecarsPreview } from './SourceSidecarsPreview.js';
 
 import './disclosure.css';
 
@@ -84,9 +85,11 @@ export function DisclosurePreview({
           {intl.formatMessage(disclosureMessages.previewLoading)}
         </p>
       ) : rows.length === 0 ? (
-        <p className="ovl-disclosure__hint ovl-disclosure__hint--faint prose-note" data-testid="disclosure-preview-empty">
-          {intl.formatMessage(disclosureMessages.previewNothing)}
-        </p>
+        (preview.sourceSidecars?.length ?? 0) === 0 ? (
+          <p className="ovl-disclosure__hint ovl-disclosure__hint--faint prose-note" data-testid="disclosure-preview-empty">
+            {intl.formatMessage(disclosureMessages.previewNothing)}
+          </p>
+        ) : null
       ) : (
         <ul className="ovl-disclosure__rows">
           {rows.map((row) => (
@@ -128,11 +131,7 @@ export function DisclosurePreview({
       {preview === null ? null : (
         <WidenChoices fields={[...new Set([...preview.blocked, ...widen])]} widen={widen} onChange={onWidenChange} disabled={disabled} />
       )}
-      {preview !== null && preview.retainedSidecars > 0 ? (
-        <p className="ovl-disclosure__note prose-note" data-testid="disclosure-sidecars">
-          {intl.formatMessage(disclosureMessages.previewSidecars, { count: preview.retainedSidecars })}
-        </p>
-      ) : null}
+      <SourceSidecarsPreview sidecars={preview?.sourceSidecars ?? []} />
       <p className="ovl-disclosure__hint ovl-disclosure__hint--faint prose-note">{intl.formatMessage(disclosureMessages.previewDecline)}</p>
     </section>
   );

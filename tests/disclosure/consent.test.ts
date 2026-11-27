@@ -32,11 +32,12 @@ describe('main-owned disclosure consent (#1141)', () => {
     );
     const pending = f.authority.preview({ ...f.request(), confirmWidening: true });
     await assert.rejects(f.authority.preview({ ...f.request(), confirmWidening: true }), /already open/u);
+    await new Promise<void>((resolve) => setImmediate(resolve));
     answer(false);
     await pending;
     const request = { ...f.request(), disclosure: f.wire('11111111-1111-4111-8111-111111111111') };
-    assert.throws(() => f.authority.consume(request), /invalid/u);
-    assert.throws(() => authorizeDisclosure(undefined, request), /unavailable/u);
+    await assert.rejects(() => f.authority.consume(request), /invalid/u);
+    await assert.rejects(() => authorizeDisclosure(undefined, request), /unavailable/u);
   });
   test('passive previews and cancelled native confirmations mint no authority; ordinary exports need none', async (t) => {
     const f = consentFixture(t);
@@ -49,11 +50,11 @@ describe('main-owned disclosure consent (#1141)', () => {
     assert.match(detail, /location \(private, crosses\): "52.37, 4.9"/u);
     assert.match(detail, /Declining stops this export/u);
     assert.match(detail, /Export folder \(shared\)/u);
-    assert.deepEqual(authorizeDisclosure(undefined, { boundary: 'export', payload: 'baked' }), {
+    assert.deepEqual(await authorizeDisclosure(undefined, { boundary: 'export', payload: 'baked' }), {
       photoIds: undefined,
       disclosure: undefined,
     });
-    assert.throws(
+    await assert.rejects(
       () =>
         authorizeDisclosure(undefined, {
           boundary: 'export',
@@ -69,10 +70,10 @@ describe('main-owned disclosure consent (#1141)', () => {
     const preview = await f.authority.preview({ ...f.request(), confirmWidening: true });
     assert.ok(preview.consent);
     const run = { ...f.request(), disclosure: f.wire(preview.consent) };
-    const authorized = f.authority.consume(run);
+    const authorized = await f.authority.consume(run);
     assert.deepEqual(authorized.disclosure.operation, { narrow: [], widen: ['location'] });
     authorized.disclosure.assertCurrent?.();
-    assert.throws(() => f.authority.consume(run), /invalid/u);
+    await assert.rejects(() => f.authority.consume(run), /invalid/u);
     f.service.setField('title', 'private');
     assert.throws(() => authorized.disclosure.assertCurrent?.(), /no longer current/u);
   });
@@ -89,6 +90,7 @@ describe('main-owned disclosure consent (#1141)', () => {
       );
       const request = { ...f.request(), photoIds: undefined, confirmWidening: true };
       const pending = f.authority.preview(request);
+      await new Promise<void>((resolve) => setImmediate(resolve));
       switch (change) {
         case 'policy':
           f.service.setField('title', 'private');

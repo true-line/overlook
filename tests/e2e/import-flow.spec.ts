@@ -136,7 +136,7 @@ test('ACCEPTANCE (#484): sidecars import into encrypted custody — no plaintext
   const card = join(mkE2eTmpDir('overlook-e2e-sidecar-card-'), 'SDCARD');
   mkdirSync(card);
   copyFileSync(join(FIXTURES, 'exif-full.jpg'), join(card, 'exif-full.jpg'));
-  const xmp = `<x:xmpmeta xmlns:x="adobe:ns:meta/">${XMP_MARKER}</x:xmpmeta>`;
+  const xmp = `<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:subject><rdf:Bag><rdf:li>${XMP_MARKER}</rdf:li></rdf:Bag></dc:subject></rdf:Description></rdf:RDF></x:xmpmeta>`;
   writeFileSync(join(card, 'exif-full.xmp'), xmp, 'utf8');
   writeFileSync(join(card, 'stray.xmp'), xmp, 'utf8');
 
@@ -179,6 +179,8 @@ test('ACCEPTANCE (#484): sidecars import into encrypted custody — no plaintext
     await expect(page.getByTestId('disclosure-blocked')).toBeVisible();
     await page.getByTestId('disclosure-widen-location').getByRole('checkbox').click();
     await expect(page.getByTestId('disclosure-blocked')).toHaveCount(0);
+    await expect(page.getByTestId('disclosure-sidecars')).toContainText('Tags');
+    await expect(page.getByTestId('disclosure-sidecars')).toContainText(XMP_MARKER);
     await page.getByRole('button', { name: /Choose folder/u }).click();
     await confirmNativeDisclosure(app, 'Export folder');
     await page.getByRole('button', { name: 'Export 1 photo', exact: true }).click();

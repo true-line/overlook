@@ -21,6 +21,10 @@ import {
 import type { DisclosurePreview, DisclosurePreviewField, DisclosurePreviewRequest } from '../../shared/ipc/disclosure-channels.js';
 import type { PhotoRecord } from '../../shared/library/types.js';
 import { DisclosureRepository } from './disclosure-repository.js';
+import { carriesSourceSidecars, type SourceSidecarFinding } from '../../shared/disclosure/source-sidecars.js';
+import { inspectSourceSidecar, sourceSidecarFinding, type SourceSidecarReader } from './source-sidecars.js';
+
+const MAX_SOURCE_PREVIEW_BYTES = 32 * 1024 * 1024;
 
 export interface DisclosureServiceDeps {
   readonly db: BetterSqlite3.Database;
@@ -29,6 +33,7 @@ export interface DisclosureServiceDeps {
   readonly exportableIds: () => readonly string[];
   /** Retained source sidecars per photo, for the "travel unfiltered" count. */
   readonly sidecarCount?: ((photoId: string) => number) | undefined;
+  readonly sourceSidecars?: SourceSidecarReader | undefined;
   readonly activity?: (() => ActivityFacade | undefined) | undefined;
   /** Fires after any policy or override change so mounted projections (the File Provider's dates) re-enumerate. */
   readonly changed?: (() => void) | undefined;
@@ -176,6 +181,21 @@ export class DisclosureService implements DisclosurePlanner {
       .join('\n\n');
   }
 
+  /** Cheap continuation binding: content-addressed companions are immutable;
+   * the export reader also authenticates the exact bytes before copying. */
+  consentBinding(request: DisclosurePreviewRequest): string {
+    return JSON.stringify([
+      this.consentRevision(),
+      this.policy(),
+      this.consentDetail(request),
+      this.selection(request.photoIds).map((id) => [
+        id,
+        this.chainFor(id),
+        carriesSourceSidecars(request) ? (this.deps.sourceSidecars?.sidecarsFor(id) ?? []) : [],
+      ]),
+    ]);
+  }
+
   plan(
     photoId: string,
     boundary: DisclosureBoundary,
@@ -188,7 +208,7 @@ export class DisclosureService implements DisclosurePlanner {
   /** The exact preview §6 requires before a crossing: per field, how many
    * of the selection cross, a sample value, and what the originals carry
    * embedded that the plan would withhold. */
-  preview(request: DisclosurePreviewRequest): DisclosurePreview {
+  async preview(request: DisclosurePreviewRequest): Promise<DisclosurePreview> {
     const ids = request.photoIds ?? this.deps.exportableIds();
     const operation = request.operation ?? EMPTY_DISCLOSURE_OPERATION;
     const photos = ids.map((id) => this.deps.getPhoto(id)).filter((photo): photo is PhotoRecord => photo !== undefined);
@@ -200,6 +220,8 @@ export class DisclosureService implements DisclosurePlanner {
     const blocked = new Set<DisclosureField>();
     let policyVersion: number = this.repo.policy().version;
     let retainedSidecars = 0;
+    const sourceSidecars: SourceSidecarFinding[] = [];
+    let sourcePreviewBytes = 0;
     for (const photo of photos) {
       const plan = this.plan(photo.id, request.boundary, request.destination, operation);
       policyVersion = plan.policyVersion;
@@ -208,8 +230,25 @@ export class DisclosureService implements DisclosurePlanner {
         embedded.add(field);
         if (!plan.disclosed.includes(field)) blocked.add(field);
       }
-      if (request.payload === 'original' && request.metadata === 'original' && request.mode !== 'original')
-        retainedSidecars += this.deps.sidecarCount?.(photo.id) ?? 0;
+      if (carriesSourceSidecars(request)) {
+        const reader = this.deps.sourceSidecars;
+        const sidecars = reader?.sidecarsFor(photo.id) ?? [];
+        retainedSidecars += reader === undefined ? (this.deps.sidecarCount?.(photo.id) ?? 0) : sidecars.length;
+        for (const sidecar of sidecars) {
+          sourcePreviewBytes += Number.isSafeInteger(sidecar.bytes) && sidecar.bytes >= 0 ? sidecar.bytes : MAX_SOURCE_PREVIEW_BYTES;
+          const inspection =
+            sourcePreviewBytes > MAX_SOURCE_PREVIEW_BYTES
+              ? { status: 'unavailable' as const, fields: [] }
+              : await inspectSourceSidecar(sidecar, () => {
+                  if (reader === undefined) throw new Error('Source sidecar reader unavailable');
+                  return reader.sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash);
+                });
+          const finding = sourceSidecarFinding(photo.id, sidecar, inspection, plan);
+          if (sourcePreviewBytes > MAX_SOURCE_PREVIEW_BYTES) finding.reason = 'budget';
+          sourceSidecars.push(finding);
+          for (const field of finding.blocked) blocked.add(field);
+        }
+      }
       for (const decision of plan.decisions) {
         const value = fieldValue(photo, decision.field);
         const tally = tallies.get(decision.field) ?? {
@@ -257,8 +296,9 @@ export class DisclosureService implements DisclosurePlanner {
       photos: photos.length,
       fields,
       embedded: EMBEDDED_FIELDS.filter((field) => embedded.has(field)),
-      blocked: EMBEDDED_FIELDS.filter((field) => blocked.has(field)),
+      blocked: DISCLOSURE_FIELDS.filter((field) => blocked.has(field)),
       retainedSidecars,
+      sourceSidecars,
     };
   }
 

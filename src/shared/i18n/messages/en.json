@@ -816,7 +816,7 @@
     "defaultMessage": "These never cross any boundary and no setting can change that."
   },
   "disclosure.preview.blocked": {
-    "defaultMessage": "The originals cannot leave while a withheld field is embedded in them. Include it for this export, or export Baked, which strips embedded metadata."
+    "defaultMessage": "This export cannot leave while an original or retained source sidecar contains a withheld field. Include it for this export, choose Metadata: Edits or None to omit source sidecars, or export Baked."
   },
   "disclosure.preview.blocked.announce": {
     "defaultMessage": "{count, plural, one {The originals can’t leave while {fields} is withheld.} other {The originals can’t leave while {fields} are withheld.}}"
@@ -855,13 +855,37 @@
     "defaultMessage": "No classified metadata is present in this selection."
   },
   "disclosure.preview.sidecars": {
-    "defaultMessage": "{count, plural, one {# retained source sidecar travels} other {# retained source sidecars travel}} unfiltered."
+    "defaultMessage": "{count, plural, one {# retained source sidecar checked} other {# retained source sidecars checked}}."
   },
   "disclosure.preview.widen": {
     "defaultMessage": "Include {field} in this export (recorded in activity)"
   },
   "disclosure.preview.withheld": {
     "defaultMessage": "Withheld"
+  },
+  "disclosure.sidecar.budget": {
+    "defaultMessage": "This selection is too large to inspect. Select fewer photos or choose Metadata: Edits or None."
+  },
+  "disclosure.sidecar.empty": {
+    "defaultMessage": "No supported disclosure fields found."
+  },
+  "disclosure.sidecar.found": {
+    "defaultMessage": "Found: {fields}."
+  },
+  "disclosure.sidecar.malformed": {
+    "defaultMessage": "Malformed or oversized source sidecar. Choose Metadata: Edits or None to omit it."
+  },
+  "disclosure.sidecar.unavailable": {
+    "defaultMessage": "Sidecar could not be read or verified. Choose Metadata: Edits or None to omit it."
+  },
+  "disclosure.sidecar.unknown": {
+    "defaultMessage": "Unknown format. Any withheld field may be present; its values cannot be inspected."
+  },
+  "disclosure.sidecar.unsupported": {
+    "defaultMessage": "Unclassified XMP properties: {properties}. Choose Metadata: Edits or None to omit this source packet."
+  },
+  "disclosure.sidecar.withheld": {
+    "defaultMessage": "Withheld: {fields}."
   },
   "duplicates.announce.moved": {
     "defaultMessage": "Moved {name} to Trash. {groups, plural, =0 {No groups left.} one {# group left.} other {# groups left.}}"
@@ -1044,7 +1068,7 @@
     "defaultMessage": "Source"
   },
   "export.metadata.sourceHint": {
-    "defaultMessage": "Copy retained source sidecars when originals are exported."
+    "defaultMessage": "Copy retained source sidecars only when their metadata is permitted."
   },
   "export.photoKit.accessHint": {
     "defaultMessage": "Export requests add-only Photos access. It cannot read or synchronize your Photos library."
@@ -1063,6 +1087,9 @@
   },
   "export.reason.edits": {
     "defaultMessage": "Confirm the edits that won’t be exported, or choose another mode."
+  },
+  "export.reason.sidecar": {
+    "defaultMessage": "A source sidecar cannot be inspected. Choose Metadata: Edits or None."
   },
   "export.unencryptedOriginals": {
     "defaultMessage": "Unencrypted originals"

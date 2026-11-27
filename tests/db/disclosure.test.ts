@@ -184,9 +184,9 @@ describe('disclosure service (#509)', () => {
     assert.deepEqual(service.plan('P2', 'export', 'public').disclosed, [], 'nothing defaults to public');
   });
 
-  test('the preview tallies what crosses, samples a disclosed value, and names what the original bytes would carry', () => {
+  test('the preview tallies what crosses, samples a disclosed value, and names what the original bytes would carry', async () => {
     const { service } = open();
-    const preview = service.preview({ boundary: 'export', destination: 'shared', payload: 'original', metadata: 'original' });
+    const preview = await service.preview({ boundary: 'export', destination: 'shared', payload: 'original', metadata: 'original' });
     assert.equal(preview.photos, 2);
     assert.equal(preview.policyVersion, 1);
     const row = (field: string) => preview.fields.find((entry) => entry.field === field);
@@ -209,7 +209,7 @@ describe('disclosure service (#509)', () => {
       widened: false,
     });
     assert.equal(row('title')?.present, 0);
-    const mixed = service.preview({
+    const mixed = await service.preview({
       boundary: 'export',
       destination: 'shared',
       payload: 'baked',
@@ -225,7 +225,7 @@ describe('disclosure service (#509)', () => {
     assert.deepEqual(preview.blocked, ['location']);
     assert.equal(preview.retainedSidecars, 1, 'P2 keeps a source sidecar that travels unfiltered with an Original export');
 
-    const widened = service.preview({
+    const widened = await service.preview({
       boundary: 'export',
       destination: 'shared',
       payload: 'original',
@@ -238,9 +238,9 @@ describe('disclosure service (#509)', () => {
     assert.equal(widened.fields.find((entry) => entry.field === 'location')?.widened, true);
     assert.equal(widened.retainedSidecars, 0, 'without source sidecars nothing travels unfiltered');
 
-    const baked = service.preview({ boundary: 'export', destination: 'shared', payload: 'baked' });
+    const baked = await service.preview({ boundary: 'export', destination: 'shared', payload: 'baked' });
     assert.deepEqual([baked.embedded, baked.blocked], [[], []], 'a baked payload carries no embedded metadata');
-    const published = service.preview({ boundary: 'photo-kit', destination: 'public', payload: 'original' });
+    const published = await service.preview({ boundary: 'photo-kit', destination: 'public', payload: 'original' });
     assert.equal(published.fields.filter((entry) => entry.disclosed > 0).length, 0);
   });
 });

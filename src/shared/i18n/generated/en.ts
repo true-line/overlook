@@ -278,7 +278,7 @@ export const en = {
   "disclosure.hint": "What each field may leave the library as. Private never leaves; Shared may go to a named recipient (a folder you choose, Apple Photos, a keyed provider); Public may go to an unauthenticated destination. Local search and filtering never need a field to be shared.",
   "disclosure.pinned": "Always private",
   "disclosure.pinned.hint": "These never cross any boundary and no setting can change that.",
-  "disclosure.preview.blocked": "The originals cannot leave while a withheld field is embedded in them. Include it for this export, or export Baked, which strips embedded metadata.",
+  "disclosure.preview.blocked": "This export cannot leave while an original or retained source sidecar contains a withheld field. Include it for this export, choose Metadata: Edits or None to omit source sidecars, or export Baked.",
   "disclosure.preview.blocked.announce": "{count, plural, one {The originals can’t leave while {fields} is withheld.} other {The originals can’t leave while {fields} are withheld.}}",
   "disclosure.preview.crosses": "{disclosed, plural, one {# photo} other {# photos}} of {present}",
   "disclosure.preview.decline": "Cancel leaves the library unchanged; nothing has crossed yet.",
@@ -291,9 +291,17 @@ export const en = {
   "disclosure.preview.heading": "What leaves",
   "disclosure.preview.loading": "Checking what would leave…",
   "disclosure.preview.nothing": "No classified metadata is present in this selection.",
-  "disclosure.preview.sidecars": "{count, plural, one {# retained source sidecar travels} other {# retained source sidecars travel}} unfiltered.",
+  "disclosure.preview.sidecars": "{count, plural, one {# retained source sidecar checked} other {# retained source sidecars checked}}.",
   "disclosure.preview.widen": "Include {field} in this export (recorded in activity)",
   "disclosure.preview.withheld": "Withheld",
+  "disclosure.sidecar.budget": "This selection is too large to inspect. Select fewer photos or choose Metadata: Edits or None.",
+  "disclosure.sidecar.empty": "No supported disclosure fields found.",
+  "disclosure.sidecar.found": "Found: {fields}.",
+  "disclosure.sidecar.malformed": "Malformed or oversized source sidecar. Choose Metadata: Edits or None to omit it.",
+  "disclosure.sidecar.unavailable": "Sidecar could not be read or verified. Choose Metadata: Edits or None to omit it.",
+  "disclosure.sidecar.unknown": "Unknown format. Any withheld field may be present; its values cannot be inspected.",
+  "disclosure.sidecar.unsupported": "Unclassified XMP properties: {properties}. Choose Metadata: Edits or None to omit this source packet.",
+  "disclosure.sidecar.withheld": "Withheld: {fields}.",
   "duplicates.announce.moved": "Moved {name} to Trash. {groups, plural, =0 {No groups left.} one {# group left.} other {# groups left.}}",
   "duplicates.deferred": "{deferred, plural, one {# photo has no preview to compare yet} other {# photos have no preview to compare yet}}",
   "duplicates.empty.clean": "No possible duplicates found.",
@@ -354,13 +362,14 @@ export const en = {
   "export.metadata.none": "None",
   "export.metadata.noneHint": "Write no metadata sidecars.",
   "export.metadata.source": "Source",
-  "export.metadata.sourceHint": "Copy retained source sidecars when originals are exported.",
+  "export.metadata.sourceHint": "Copy retained source sidecars only when their metadata is permitted.",
   "export.photoKit.accessHint": "Export requests add-only Photos access. It cannot read or synchronize your Photos library.",
   "export.photoKit.decryptHint": "Apple Photos receives plain originals and may retain them after Overlook locks. Only this reviewed selection is sent.",
   "export.photoKit.done": "{count} {count, plural, one {photo} other {photos}} exported and decrypted to Apple Photos.",
   "export.photoKit.metadataHint": "The original bytes, embedded metadata, creation date, and location are preserved where PhotoKit supports them.",
   "export.reason.blocked": "Include the withheld field, or export Baked.",
   "export.reason.edits": "Confirm the edits that won’t be exported, or choose another mode.",
+  "export.reason.sidecar": "A source sidecar cannot be inspected. Choose Metadata: Edits or None.",
   "export.unencryptedOriginals": "Unencrypted originals",
   "facets.additive": "Add to selection",
   "facets.additive.hint": "Shift-click also adds a value",
@@ -1339,6 +1348,9 @@ interface InterpolatedMessageArguments {
   "disclosure.preview.embedded": { "fields": MessageValue };
   "disclosure.preview.sidecars": { "count": number };
   "disclosure.preview.widen": { "field": MessageValue };
+  "disclosure.sidecar.found": { "fields": MessageValue };
+  "disclosure.sidecar.unsupported": { "properties": MessageValue };
+  "disclosure.sidecar.withheld": { "fields": MessageValue };
   "duplicates.announce.moved": { "groups": number; "name": MessageValue };
   "duplicates.deferred": { "deferred": number };
   "duplicates.evidence.distance": { "bits": MessageValue; "distance": MessageValue };

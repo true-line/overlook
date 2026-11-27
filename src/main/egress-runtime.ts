@@ -142,7 +142,12 @@ export class EgressRuntime {
    * Fails closed: with no open library there is no policy and no crossing. */
   disclosure(): DisclosureService {
     const parts = this.options.parts();
-    this.disclosureService ??= createDisclosureService({ db: parts.db, activity: this.options.activity });
+    this.disclosureService ??= createDisclosureService({
+      db: parts.db,
+      activity: this.options.activity,
+      blobStore: parts.blobStore,
+      resolveKey: parts.keyStore.resolver(),
+    });
     return this.disclosureService;
   }
 

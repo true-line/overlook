@@ -26,7 +26,11 @@ disclosure. Fields that travel inside the original bytes (capture time,
 camera, lens, location) cannot be filtered per field: an Original export or
 a Send to Apple Photos that would carry a withheld embedded field is refused
 until the field is included for that one operation (recorded in Activity by
-field name) or the export is Baked. Backup is not a disclosure boundary.
+field name) or the export is Baked. Retained source XMP is inspected separately:
+its title, description, keywords, GPS, capture time, camera and lens use the
+same plan, including when absent from the photo record. Withheld source fields
+refuse the batch before output. Stored companions remain byte-identical.
+Backup is not a disclosure boundary.
 Policy changes and per-operation widening reach Activity by field name and
 class only — never a value.
 
@@ -34,7 +38,11 @@ Automated coverage: `tests/e2e/disclosure.spec.ts`,
 `tests/e2e/import-flow.spec.ts`, `tests/e2e/photokit.spec.ts` (native affirmative
 consent simulated in main),
 `tests/disclosure/policy.test.ts` (defaults, scope resolution, the plan,
-boundaries that carry nothing), `tests/disclosure/consent.test.ts`,
+boundaries that carry nothing), `tests/disclosure/source-xmp.test.ts`,
+`tests/disclosure/source-consent.test.ts`,
+`tests/dom/source-sidecar-preview.test.tsx` (bounded XML, actual sidecar findings,
+source-only GPS, unknown/malformed refusal, consent/content bindings and Edits/None),
+`tests/disclosure/consent.test.ts`,
 `tests/disclosure/export-consent.test.ts` and
 `tests/photo-kit/photo-kit-ipc.test.ts` (main-owned consent, direct widening
 refusal, one-time use, replay/concurrent reuse, binding mismatches and lifecycle
@@ -70,6 +78,31 @@ capture time`, `DisclosureSettings.stories.tsx › Defaults / Preview`.
    reader hears "The originals can’t leave while Capture time is withheld."
    (politely, not as an alert), and **Export 1 photo** is unavailable with
    "Include the withheld field, or export Baked." under the footer.
+   With **Original + XMP** and **Metadata: Source**, the retained-sidecar section
+   names each file, the fields actually found and permitted values, and which
+   fields are withheld. It does not promise that companions travel unfiltered.
+   Separately import a JPEG without GPS alongside an XMP containing
+   `exif:GPSLatitude`/`GPSLongitude`: with Precise location Private, Source export
+   is blocked even though the original carries no GPS, and no destination file
+   is written. Include Precise location and affirm main's native consent prompt:
+   the exact source sidecar exports once, and its encrypted stored copy is
+   unchanged. A sidecar containing only permitted title/keywords does not require
+   location widening merely because location is Private.
+   Unknown formats are named as uninspectable and may contain any withheld
+   export field; all such fields must be allowed before they cross, with
+   explicit main-owned consent for operation widening of unknown values.
+   Malformed, unreadable, unverified or oversized (over 5 MiB) companions refuse
+   Source export even after widening. **Metadata: Edits/None**, **Original only**
+   and **Baked** omit retained source companions; their preview has no source
+   findings and omitted companions cannot block them.
+   Preview inspection also has a 32 MiB aggregate budget; excess companions are
+   marked unavailable with a request to select fewer photos or omit source
+   metadata. This limit cannot be bypassed by widening.
+   A valid XMP with unclassified metadata (for example `xmp:Rating`,
+   `exif:UserComment` or MWG face regions) names those properties and refuses
+   Source even when every supported export field is allowed. Widening those
+   fields cannot authorize outside-boundary metadata. Choose **Edits/None** to
+   omit richer source packets; stored source remains unchanged.
 5. Tick **Include Capture time in this export**. **Expected:** the warning
    clears, the row reads "1 photo of 1", the button enables after choosing a
    folder. Passive previews do not prompt or authorize widening. Click Export.

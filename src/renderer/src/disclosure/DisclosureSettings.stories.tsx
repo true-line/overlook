@@ -81,6 +81,16 @@ const PREVIEW: DisclosurePreviewData = {
   embedded: ['captureTime', 'location'],
   blocked: ['location'],
   retainedSidecars: 1,
+  sourceSidecars: [
+    {
+      photoId: 'P1',
+      fileName: 'IMG_0001.xmp',
+      status: 'inspected',
+      fields: [{ field: 'location', values: ['GPSLatitude: 52.37N'] }],
+      blocked: ['location'],
+      refused: true,
+    },
+  ],
 };
 
 function PreviewHarness(): ReactElement {
@@ -90,6 +100,11 @@ function PreviewHarness(): ReactElement {
     ...PREVIEW,
     destination,
     blocked: widen.includes('location') ? [] : PREVIEW.blocked,
+    sourceSidecars: PREVIEW.sourceSidecars?.map((sidecar) => ({
+      ...sidecar,
+      blocked: widen.includes('location') ? [] : ['location'],
+      refused: !widen.includes('location'),
+    })),
     fields: PREVIEW.fields.map((field) =>
       field.field === 'location' && widen.includes('location') ? { ...field, disclosed: 1, withheld: 0, widened: true } : field,
     ),
@@ -141,6 +156,8 @@ export const Preview: StoryObj = {
       await expect(canvas.queryByTestId('disclosure-blocked')).toBeNull();
     });
     await expect(canvas.getByTestId('disclosure-row-location')).toHaveAttribute('data-disclosed', '1');
-    await expect(canvas.getByTestId('disclosure-sidecars')).toHaveTextContent('1 retained source sidecar travels unfiltered.');
+    await expect(canvas.getByTestId('disclosure-sidecars')).toHaveTextContent('1 retained source sidecar checked.');
+    await expect(canvas.getByTestId('disclosure-sidecars')).toHaveTextContent('IMG_0001.xmp');
+    await expect(canvas.getByTestId('disclosure-sidecars')).toHaveTextContent('GPSLatitude: 52.37N');
   },
 };

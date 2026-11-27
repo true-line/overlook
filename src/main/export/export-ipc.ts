@@ -33,7 +33,7 @@ export function registerExportHandlersWith(
 ): void {
   registrar.handle(channels.exportRun.name, (event, request: unknown) =>
     wrapHandler(channels.exportRun, async ({ photoIds, authorization, format, metadata, mode, quality, disclosure }) => {
-      const authorized = authorizeDisclosure(consent, {
+      const authorized = await authorizeDisclosure(consent, {
         photoIds,
         boundary: 'export',
         payload: (mode ?? (format === 'jpeg' ? 'baked' : 'original-sidecars')) === 'baked' ? 'baked' : 'original',
@@ -72,7 +72,7 @@ export function registerExportHandlersWith(
   );
   registrar.handle(channels.exportRunAll.name, (event, request: unknown) =>
     wrapHandler(channels.exportRunAll, async ({ authorization, metadata, mode, quality, disclosure }) => {
-      const authorized = authorizeDisclosure(consent, {
+      const authorized = await authorizeDisclosure(consent, {
         boundary: 'export',
         payload: mode === 'baked' ? 'baked' : 'original',
         mode: mode ?? 'original-sidecars',

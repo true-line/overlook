@@ -55,7 +55,7 @@ export function registerPhotoKitHandlersWith(
       channels.photoKitExportRun,
       async ({ photoIds, disclosure }) => {
         admit();
-        const authorized = authorizeDisclosure(consent, {
+        const authorized = await authorizeDisclosure(consent, {
           photoIds,
           boundary: 'photo-kit',
           payload: 'original',

@@ -139,6 +139,7 @@ describe('filesystem export consent adapters (#1141)', () => {
       assert.ok(preview.consent);
       const request = { ...input, disclosure: f.wire(preview.consent) };
       const first = invoke(channel, request);
+      await new Promise<void>((resolve) => setImmediate(resolve));
       assert.equal(received.length, 1);
       assert.deepEqual(received[0]?.ids, ['P1']);
       assert.deepEqual(received[0]?.disclosure?.operation.widen, ['location']);
@@ -264,7 +265,7 @@ describe('filesystem export consent adapters (#1141)', () => {
         assert.deepEqual(await invokeExport(handlers, all ? channels.exportRunAll.name : channels.exportRun.name, input), FAILED);
         assert.equal(calls, 0);
         // Even a failed request burns the capability.
-        assert.throws(() => f.authority.consume({ ...f.request(), disclosure: f.wire(preview.consent) }), /invalid/u);
+        await assert.rejects(() => f.authority.consume({ ...f.request(), disclosure: f.wire(preview.consent) }), /invalid/u);
       });
     }
   }
