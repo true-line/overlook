@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
 
-const ipc = readFileSync(join(process.cwd(), 'src/main/ipc.ts'), 'utf8');
+const ipc =
+  readFileSync(join(process.cwd(), 'src/main/ipc.ts'), 'utf8') + readFileSync(join(process.cwd(), 'src/main/export/export-ipc.ts'), 'utf8');
 const exportChannels = readFileSync(join(process.cwd(), 'src/shared/ipc/export-channels.ts'), 'utf8');
 const channels = readFileSync(join(process.cwd(), 'src/shared/ipc/channels.ts'), 'utf8');
 

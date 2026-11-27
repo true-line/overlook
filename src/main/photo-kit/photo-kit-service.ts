@@ -1,6 +1,6 @@
 import { createWriteStream } from 'node:fs';
 import { discloses, permissivePlan } from '../../shared/disclosure/policy.js';
-import type { ExportDisclosureIntentWire } from '../../shared/ipc/export-channels.js';
+import type { ExportDisclosureIntent } from '../export/export-engine.js';
 import { embeddedFieldsOf, type DisclosurePlanner } from '../disclosure/disclosure-service.js';
 import { lstat, realpath, rm } from 'node:fs/promises';
 import path from 'node:path';
@@ -182,8 +182,9 @@ export class PhotoKitService {
     });
   }
 
-  runExport(photoIds: readonly string[], disclosure?: ExportDisclosureIntentWire): Promise<PhotoKitExportResult> {
+  runExport(photoIds: readonly string[], disclosure?: ExportDisclosureIntent): Promise<PhotoKitExportResult> {
     return this.start(async (signal) => {
+      disclosure?.assertCurrent?.();
       const authorization = await this.deps.bridge.requestAuthorization('add-only');
       if (!allowed(authorization) || !this.deps.admit()) {
         return {
@@ -200,6 +201,7 @@ export class PhotoKitService {
       let cancelled = 0;
       try {
         for (const [index, photoId] of photoIds.entries()) {
+          disclosure?.assertCurrent?.();
           if (signal.aborted || !this.deps.admit()) {
             cancelled = photoIds.length - index;
             break;
@@ -251,6 +253,7 @@ export class PhotoKitService {
           this.deps.progress({ operation: 'export', phase: 'preparing', done: index + 1, total: photoIds.length });
         }
         if (staged.length > 0 && !signal.aborted && this.deps.admit()) {
+          disclosure?.assertCurrent?.();
           this.deps.progress({ operation: 'export', phase: 'transferring', done: 0, total: staged.length });
           try {
             await this.deps.bridge.exportAssets(staged);

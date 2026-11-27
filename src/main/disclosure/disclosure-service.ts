@@ -79,6 +79,7 @@ export function embeddedFieldsOf(photo: PhotoRecord): readonly DisclosureField[]
  * name and class only. */
 export class DisclosureService implements DisclosurePlanner {
   private readonly repo: DisclosureRepository;
+  private revision = 0;
 
   constructor(private readonly deps: DisclosureServiceDeps) {
     this.repo = new DisclosureRepository(deps.db);
@@ -86,6 +87,11 @@ export class DisclosureService implements DisclosurePlanner {
 
   policy(): DisclosurePolicy {
     return this.repo.policy();
+  }
+
+  /** Monotonic consent revision, separate from the policy format version. */
+  consentRevision(): number {
+    return this.revision;
   }
 
   pinned(): readonly string[] {
@@ -97,6 +103,7 @@ export class DisclosureService implements DisclosurePlanner {
     const from = current.fields[field];
     if (from === cls) return current;
     const stored = this.repo.writePolicy({ ...current, fields: { ...current.fields, [field]: cls } }, this.deps.now);
+    this.revision += 1;
     this.deps.audit(`DISCLOSURE-POLICY scope=library field=${field} from=${from} to=${cls} version=${String(stored.version)}`);
     this.deps.activity?.()?.record({
       eventType: 'disclosure.policy-changed',
@@ -125,6 +132,7 @@ export class DisclosureService implements DisclosurePlanner {
     if (cls === null) this.repo.clearOverride(scope, id, field);
     else this.repo.setOverride(scope, id, field, cls, isWider(cls, inherited), this.deps.now);
     if (before !== cls) {
+      this.revision += 1;
       this.deps.audit(`DISCLOSURE-POLICY scope=${scope} field=${field} from=${before ?? 'inherit'} to=${cls ?? 'inherit'}`);
       this.deps.activity?.()?.record({
         eventType: 'disclosure.policy-changed',
@@ -145,6 +153,27 @@ export class DisclosureService implements DisclosurePlanner {
       collections: collectionIds.map((collectionId) => byCollection.get(collectionId) ?? []),
       photo: this.repo.overrides('photo', photoId),
     };
+  }
+
+  /** Resolve Export all now, never later after consent has been consumed. */
+  selection(photoIds?: readonly string[]): string[] {
+    return [...new Set(photoIds ?? this.deps.exportableIds())].sort();
+  }
+
+  /** Main-owned exact values for the native ceremony; never audit this text. */
+  consentDetail(request: DisclosurePreviewRequest): string {
+    return this.selection(request.photoIds)
+      .map((id) => {
+        const photo = this.deps.getPhoto(id);
+        if (photo === undefined) throw new Error('Disclosure selection is no longer available');
+        const plan = this.plan(id, request.boundary, request.destination, request.operation);
+        const rows = plan.decisions.map(
+          (decision) =>
+            `${decision.field} (${decision.class}, ${decision.disclosed ? 'crosses' : 'withheld'}): ${JSON.stringify(fieldValue(photo, decision.field))}`,
+        );
+        return `${JSON.stringify(photo.fileName)} [${id}]\n${rows.join('\n')}`;
+      })
+      .join('\n\n');
   }
 
   plan(
@@ -179,7 +208,8 @@ export class DisclosureService implements DisclosurePlanner {
         embedded.add(field);
         if (!plan.disclosed.includes(field)) blocked.add(field);
       }
-      if (request.payload === 'original' && request.metadata === 'original') retainedSidecars += this.deps.sidecarCount?.(photo.id) ?? 0;
+      if (request.payload === 'original' && request.metadata === 'original' && request.mode !== 'original')
+        retainedSidecars += this.deps.sidecarCount?.(photo.id) ?? 0;
       for (const decision of plan.decisions) {
         const value = fieldValue(photo, decision.field);
         const tally = tallies.get(decision.field) ?? {

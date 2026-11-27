@@ -644,6 +644,10 @@
           "path": "tests/e2e/disclosure.spec.ts"
         },
         {
+          "type": "playwright-e2e",
+          "paths": ["tests/e2e/import-flow.spec.ts", "tests/e2e/photokit.spec.ts"]
+        },
+        {
           "type": "storybook",
           "path": "src/renderer/src/disclosure/DisclosureSettings.stories.tsx"
         },
@@ -651,6 +655,10 @@
           "type": "unit-dom",
           "paths": [
             "tests/disclosure/policy.test.ts",
+            "tests/disclosure/consent.test.ts",
+            "tests/dom/disclosure-export-consent.test.tsx",
+            "tests/disclosure/export-consent.test.ts",
+            "tests/photo-kit/photo-kit-ipc.test.ts",
             "tests/db/disclosure.test.ts",
             "tests/export/export-engine.test.ts",
             "tests/photo-kit/photo-kit-service.test.ts",
@@ -659,7 +667,7 @@
         },
         {
           "type": "manual",
-          "reason": "Follow docs/acceptance/Acceptance-Test-Disclosure-Policy.md for the Send to Apple Photos refusal over the real bridge, the File Provider date in Finder, and the relaunch persistence of a changed class. Check the Destination choice (Named recipient · Public) with its hint and the neutral class badges in dark, light and high contrast, and that a screen reader hears the blocked notice politely, not as an alert (#1308). Consent copy in the preview reads at --text-sm body; only the loading, empty and decline notes are faint (#1309)."
+          "reason": "Follow docs/acceptance/Acceptance-Test-Disclosure-Policy.md for the main-owned native consent prompt on folder and PhotoKit export (including Cancel, affirmative consent, lock/switch invalidation and Export all selection changes; #1141), the Send to Apple Photos refusal over the real bridge, the File Provider date in Finder, and the relaunch persistence of a changed class. Check the Destination choice (Named recipient · Public) with its hint and the neutral class badges in dark, light and high contrast, and that a screen reader hears the blocked notice politely, not as an alert (#1308). Consent copy in the preview reads at --text-sm body; only the loading, empty and decline notes are faint (#1309)."
         }
       ]
     },

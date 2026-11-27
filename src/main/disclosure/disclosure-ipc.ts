@@ -3,6 +3,7 @@ import electron from 'electron';
 import { channels } from '../../shared/ipc/channels.js';
 import { wrapHandler, type IpcHandlerRegistrar } from '../../shared/ipc/registry.js';
 import type { DisclosureService } from './disclosure-service.js';
+import type { DisclosureConsentAuthority } from './disclosure-consent.js';
 
 // Disclosure classes over IPC (#509). Every channel admits through the
 // app-lock gate first; the renderer only ever sends intent (a field and a
@@ -11,6 +12,7 @@ export function registerDisclosureHandlersWith(
   getService: () => DisclosureService,
   admit: () => void,
   registrar: IpcHandlerRegistrar,
+  consent?: DisclosureConsentAuthority,
 ): void {
   const reportError = ({ channelName, code, error }: { channelName: string; code: string; error: unknown }): void =>
     console.error(`[overlook] ${code} on ${channelName}`, error);
@@ -61,13 +63,17 @@ export function registerDisclosureHandlersWith(
       channels.disclosurePreview,
       (preview) => {
         admit();
-        return getService().preview(preview);
+        return consent === undefined ? getService().preview(preview) : consent.preview(preview);
       },
       options,
     )(request),
   );
 }
 
-export function registerDisclosureHandlers(getService: () => DisclosureService, admit: () => void): void {
-  registerDisclosureHandlersWith(getService, admit, electron.ipcMain);
+export function registerDisclosureHandlers(
+  getService: () => DisclosureService,
+  admit: () => void,
+  consent?: DisclosureConsentAuthority,
+): void {
+  registerDisclosureHandlersWith(getService, admit, electron.ipcMain, consent);
 }

@@ -4,6 +4,7 @@ import { channels } from '../../shared/ipc/channels.js';
 import { wrapHandler } from '../../shared/ipc/registry.js';
 import type { ActivityFacade } from '../activity/activity-publication.js';
 import type { PhotoKitService } from './photo-kit-service.js';
+import { authorizeDisclosure, type DisclosureConsentAuthority } from '../disclosure/disclosure-consent.js';
 
 type IpcHandler = (event: unknown, request: unknown) => unknown;
 
@@ -17,6 +18,7 @@ export function registerPhotoKitHandlersWith(
   registrar: PhotoKitIpcHandlerRegistrar,
   onImported?: () => void,
   getActivity?: () => ActivityFacade,
+  consent?: DisclosureConsentAuthority,
 ): void {
   registrar.handle(channels.photoKitStatus.name, (_event, request: unknown) =>
     wrapHandler(channels.photoKitStatus, () => getService().status())(request),
@@ -49,27 +51,40 @@ export function registerPhotoKitHandlersWith(
     })(request),
   );
   registrar.handle(channels.photoKitExportRun.name, (_event, request: unknown) =>
-    wrapHandler(channels.photoKitExportRun, async ({ photoIds, disclosure }) => {
-      admit();
-      const result = await getService().runExport(photoIds, disclosure);
-      getActivity?.().record({
-        eventType: 'photo.exported',
-        entityIds: photoIds,
-        outcome: result.failed > 0 || result.cancelled > 0 ? 'partial' : 'succeeded',
-        payload: {
-          destination: 'apple-photos',
-          format: 'original',
-          metadata: 'embedded-supported',
-          disclosureDestination: disclosure?.destination ?? 'shared',
-          disclosureWidened: disclosure?.operation.widen.join(',') ?? '',
-          disclosureNarrowed: disclosure?.operation.narrow.join(',') ?? '',
-          exported: result.exported,
-          failed: result.failed,
-          cancelled: result.cancelled,
-        },
-      });
-      return { ...result, failures: [...result.failures] };
-    })(request),
+    wrapHandler(
+      channels.photoKitExportRun,
+      async ({ photoIds, disclosure }) => {
+        admit();
+        const authorized = authorizeDisclosure(consent, {
+          photoIds,
+          boundary: 'photo-kit',
+          payload: 'original',
+          metadata: 'original',
+          disclosure,
+        });
+        const result = await getService().runExport(photoIds, authorized.disclosure);
+        getActivity?.().record({
+          eventType: 'photo.exported',
+          entityIds: photoIds,
+          outcome: result.failed > 0 || result.cancelled > 0 ? 'partial' : 'succeeded',
+          payload: {
+            recipientKind: 'apple-photos',
+            format: 'original',
+            metadata: 'embedded-supported',
+            disclosureClass: disclosure?.destination ?? 'shared',
+            disclosureWidened: authorized.disclosure?.operation.widen.join(',') ?? '',
+            disclosureNarrowed: authorized.disclosure?.operation.narrow.join(',') ?? '',
+            exported: result.exported,
+            failed: result.failed,
+            cancelled: result.cancelled,
+          },
+        });
+        return { ...result, failures: [...result.failures] };
+      },
+      {
+        reportError: ({ channelName, code, error }) => console.error(`[overlook] ${code} on ${channelName}`, error),
+      },
+    )(request),
   );
   registrar.handle(channels.photoKitCancel.name, (_event, request: unknown) =>
     wrapHandler(channels.photoKitCancel, () => {
@@ -84,6 +99,7 @@ export function registerPhotoKitHandlers(
   admit: () => void,
   onImported?: () => void,
   getActivity?: () => ActivityFacade,
+  consent?: DisclosureConsentAuthority,
 ): void {
-  registerPhotoKitHandlersWith(getService, admit, electron.ipcMain, onImported, getActivity);
+  registerPhotoKitHandlersWith(getService, admit, electron.ipcMain, onImported, getActivity, consent);
 }

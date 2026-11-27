@@ -34,6 +34,8 @@ import type { SemanticEmbeddingFacade } from './library/semantic-search.js';
 import type { ProtectedLibraryService } from './library/protected-library-service.js';
 import type { ProtectedExportFacade } from './export/protected-export-runtime.js';
 import { ExportDestinationAuthority } from './export/export-destination-authority.js';
+import type { DisclosureConsentAuthority } from './disclosure/disclosure-consent.js';
+import { registerExportHandlersWith } from './export/export-ipc.js';
 import type { ProtectedWorkflowService } from './library/protected-workflow-service.js';
 import type { OffloadPreflight, OffloadSummary, RestoreOriginalsSummary } from './backup/offload.js';
 import type {
@@ -985,120 +987,13 @@ export interface ExportRunResult {
   readonly failures: { photoId: string; fileName: string; reason: string }[];
 }
 
-/** ADR-0032 §6: consent at operation scope is recorded by field NAME only. */
-export function disclosurePayload(disclosure: ExportDisclosureIntentWire | undefined): {
-  readonly disclosureDestination: string;
-  readonly disclosureWidened: string;
-  readonly disclosureNarrowed: string;
-} {
-  return {
-    disclosureDestination: disclosure?.destination ?? 'shared',
-    disclosureWidened: disclosure?.operation.widen.join(',') ?? '',
-    disclosureNarrowed: disclosure?.operation.narrow.join(',') ?? '',
-  };
-}
-
 export function registerExportHandlers(
   getFacade: () => ExportFacade,
   getActivity?: () => ActivityFacade,
   destinationAuthority = new ExportDestinationAuthority(),
+  consent?: DisclosureConsentAuthority,
 ): void {
-  ipcMain.handle(channels.exportRun.name, (event, request: unknown) =>
-    wrapHandler(channels.exportRun, async ({ photoIds, authorization, format, metadata, mode, quality, disclosure }) => {
-      const destination = destinationAuthority.consume(
-        event.sender.id,
-        { operation: 'selected', photoIds, format, metadata, mode, quality, disclosure },
-        authorization,
-      );
-      const result = await getFacade().run(photoIds, destination, format, metadata, { mode, quality }, disclosure);
-      const { failures: _failures, ...summary } = result;
-      getActivity?.().record({
-        eventType: 'photo.exported',
-        entityIds: photoIds,
-        outcome: result.failed > 0 || result.cancelled > 0 ? 'partial' : 'succeeded',
-        payload: {
-          format: format ?? 'original',
-          metadata: metadata ?? 'original',
-          mode: mode ?? null,
-          ...disclosurePayload(disclosure),
-          ...summary,
-        },
-      });
-      return result;
-    })(request),
-  );
-  ipcMain.handle(channels.exportRunAll.name, (event, request: unknown) =>
-    wrapHandler(channels.exportRunAll, async ({ authorization, metadata, mode, quality, disclosure }) => {
-      const destination = destinationAuthority.consume(
-        event.sender.id,
-        { operation: 'all', metadata, mode, quality, disclosure },
-        authorization,
-      );
-      const result = await getFacade().runAll(destination, metadata, { mode, quality }, disclosure);
-      const { failures: _failures, ...summary } = result;
-      getActivity?.().record({
-        eventType: 'photo.exported',
-        entityIds: [],
-        outcome: result.failed > 0 || result.cancelled > 0 ? 'partial' : 'succeeded',
-        payload: {
-          format: mode === 'baked' ? 'jpeg' : 'original',
-          metadata: metadata ?? 'original',
-          mode: mode ?? null,
-          scope: 'all',
-          ...disclosurePayload(disclosure),
-          ...summary,
-        },
-      });
-      return result;
-    })(request),
-  );
-  ipcMain.handle(channels.exportRunBoard.name, (event, request: unknown) =>
-    wrapHandler(channels.exportRunBoard, async ({ authorization, ...input }) => {
-      const destination = destinationAuthority.consume(event.sender.id, { operation: 'board', request: input }, authorization);
-      const result = await getFacade().runBoard({ ...input, destination });
-      getActivity?.().record({
-        eventType: 'photo.exported',
-        entityIds: input.board.placements.map((placement) => placement.photoId),
-        outcome: result.cancelled || result.skipped > 0 ? 'partial' : 'succeeded',
-        payload: {
-          scope: 'moodboard',
-          boardId: input.board.id,
-          colorSpace: input.colorSpace,
-          width: input.output.width,
-          height: input.output.height,
-          rendered: result.rendered,
-          skipped: result.skipped,
-        },
-      });
-      return result;
-    })(request),
-  );
-  ipcMain.handle(channels.exportCancel.name, (_event, request: unknown) =>
-    wrapHandler(channels.exportCancel, () => {
-      getFacade().cancel();
-      return {};
-    })(request),
-  );
-  ipcMain.handle(channels.exportPreflight.name, (_event, request: unknown) =>
-    wrapHandler(channels.exportPreflight, async ({ photoIds, mode }) => {
-      const report = await getFacade().preflight(photoIds ?? null, mode);
-      return { edited: report.edited, losses: [...report.losses] };
-    })(request),
-  );
-  ipcMain.handle(channels.exportPickDestination.name, (event, request: unknown) =>
-    wrapHandler(channels.exportPickDestination, async ({ intent }) => {
-      const path = await getFacade().pickDestination();
-      return {
-        path,
-        authorization: path === null ? null : destinationAuthority.issue(event.sender.id, intent, path),
-      };
-    })(request),
-  );
-  ipcMain.handle(channels.exportRevokeDestination.name, (event, request: unknown) =>
-    wrapHandler(channels.exportRevokeDestination, ({ authorization }) => ({
-      revoked: destinationAuthority.revoke(event.sender.id, authorization),
-    }))(request),
-  );
+  registerExportHandlersWith(getFacade, getActivity, destinationAuthority, consent, ipcMain, wrapHandler);
 }
 
 export interface BackupFacade {

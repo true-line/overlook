@@ -24,8 +24,8 @@ function defineChannel<TRequest extends z.ZodType, TResponse extends z.ZodType>(
 // policy, changes one field's class, reads and sets scope overrides, and
 // asks for the PREVIEW of one crossing — field names, sample values,
 // counts, what the originals carry embedded, what would need widening. The
-// export and Apple Photos channels carry the same operation intent; main
-// recompiles the plan from it and never accepts a field list.
+// export and Apple Photos channels carry narrowing and a main-issued consent
+// capability; main recovers any widening from the capability's bound proposal.
 
 export const disclosurePreviewFieldSchema = z.object({
   field: disclosureFieldSchema,
@@ -53,6 +53,8 @@ export const disclosurePreviewSchema = z.object({
   blocked: z.array(disclosureFieldSchema),
   /** Retained source sidecars that would travel unfiltered (Source metadata mode). */
   retainedSidecars: z.number().int().nonnegative(),
+  /** Only present after main-owned affirmative confirmation of widening. */
+  consent: z.string().uuid().optional(),
 });
 
 export const disclosurePreviewRequestSchema = z.object({
@@ -62,8 +64,11 @@ export const disclosurePreviewRequestSchema = z.object({
   photoIds: z.array(z.string().min(1)).max(10_000).optional(),
   /** Whether original bytes leave (embedded fields travel) — Baked strips them. */
   payload: z.enum(['original', 'baked']),
+  mode: z.enum(['original', 'original-sidecars', 'baked']).optional(),
   metadata: z.enum(['original', 'overlook', 'none']).optional(),
   operation: disclosureOperationSchema.optional(),
+  /** Requests main's native consent ceremony; passive previews mint nothing. */
+  confirmWidening: z.boolean().optional(),
 });
 
 export const disclosureChannels = {

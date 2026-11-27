@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { expect, test, type LaunchedApp, type LaunchSpec } from './support/app.js';
 import { mkE2eTmpDir } from './support/tmp-dir.js';
+import { confirmNativeDisclosure } from './support/disclosure-consent.js';
 
 // #90 exit criteria: the whole import path proven in CI — fixture folder in,
 // encrypted library out. The OVERLOOK_IMPORT_SOURCE harness hook is the
@@ -140,7 +141,7 @@ test('ACCEPTANCE (#484): sidecars import into encrypted custody — no plaintext
   writeFileSync(join(card, 'stray.xmp'), xmp, 'utf8');
 
   const destination = mkE2eTmpDir('overlook-e2e-sidecar-export-');
-  const { page, userData, close } = await launchOverlook({
+  const { app, page, userData, close } = await launchOverlook({
     prefix: 'overlook-e2e-sidecar-',
     readyTestId: null,
     env: {
@@ -179,6 +180,7 @@ test('ACCEPTANCE (#484): sidecars import into encrypted custody — no plaintext
     await page.getByTestId('disclosure-widen-location').getByRole('checkbox').click();
     await expect(page.getByTestId('disclosure-blocked')).toHaveCount(0);
     await page.getByRole('button', { name: /Choose folder/u }).click();
+    await confirmNativeDisclosure(app, 'Export folder');
     await page.getByRole('button', { name: 'Export 1 photo', exact: true }).click();
     await expect(page.getByText('1 photo exported and decrypted.')).toBeVisible({ timeout: 20_000 });
 

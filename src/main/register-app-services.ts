@@ -81,6 +81,8 @@ import { registerCoverageHandlers } from './backup/coverage-ipc.js';
 import { registerKeyringHandlers } from './crypto/keyring-ipc.js';
 import { registerDisclosureHandlers } from './disclosure/disclosure-ipc.js';
 import type { DisclosureService } from './disclosure/disclosure-service.js';
+import { DisclosureConsentAuthority } from './disclosure/disclosure-consent.js';
+import { confirmDisclosureWidening } from './disclosure/disclosure-confirmation.js';
 import type { KeyringService } from './crypto/keyring-service.js';
 import type { CoverageService } from './backup/coverage-service.js';
 import type { DuplicateIndexService } from './library/duplicate-index-service.js';
@@ -289,9 +291,16 @@ export function registerAppServices(options: AppServicesOptions): void {
     (source, parent) => confirmImportMove(options, source, parent),
   );
   registerEmbeddingHandlers(options.getEmbedding, options.requireContentAccess);
-  registerExportHandlers(options.getExport, options.getActivity, exportDestinationAuthority);
+  const disclosureConsent = new DisclosureConsentAuthority({
+    getService: options.getDisclosure,
+    admit: options.requireContentAccess,
+    libraryId: options.activeLibraryId,
+    authorizationEpoch: options.authorizationEpoch,
+    confirm: confirmDisclosureWidening,
+  });
+  registerExportHandlers(options.getExport, options.getActivity, exportDestinationAuthority, disclosureConsent);
   registerNativeDragHandlers(options.getNativeDrag, options.requireContentAccess);
-  registerPhotoKitHandlers(options.getPhotoKit, options.requireContentAccess, options.onImported, options.getActivity);
+  registerPhotoKitHandlers(options.getPhotoKit, options.requireContentAccess, options.onImported, options.getActivity, disclosureConsent);
   registerFileProviderHandlers(options.getFileProvider, options.requireContentAccess);
   registerKeysHandlers(() =>
     createRecoveryKeyFacade({
@@ -336,7 +345,7 @@ export function registerAppServices(options: AppServicesOptions): void {
   getSettingsStore().subscribe((settings) => emitSettingsChanged({ settings }));
   registerBackupHandlers(() => createBackupFacade(options.backup));
   registerKeyringHandlers(options.getKeyring, options.requireContentAccess);
-  registerDisclosureHandlers(options.getDisclosure, options.requireContentAccess);
+  registerDisclosureHandlers(options.getDisclosure, options.requireContentAccess, disclosureConsent);
   registerCoverageHandlers(options.getCoverage, options.requireContentAccess, async (operation) => {
     options.backup.workChanged(1);
     try {

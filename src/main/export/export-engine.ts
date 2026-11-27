@@ -48,6 +48,8 @@ export type ExportMetadataMode = 'original' | 'overlook' | 'none';
 export interface ExportDisclosureIntent {
   readonly destination: DisclosureDestination;
   readonly operation: DisclosureOperation;
+  /** Main-only continuation guard; never crosses IPC. */
+  readonly assertCurrent?: () => void;
 }
 
 export const DEFAULT_EXPORT_DISCLOSURE: ExportDisclosureIntent = { destination: 'shared', operation: EMPTY_DISCLOSURE_OPERATION };
@@ -278,6 +280,7 @@ export class ExportEngine {
     edits: ExportEditOptions = {},
     disclosure: ExportDisclosureIntent = DEFAULT_EXPORT_DISCLOSURE,
   ): Promise<ExportSummary> {
+    disclosure.assertCurrent?.();
     const mode = resolvePayloadMode(format, edits);
     const photos = photoIds.map((id) => this.deps.repo.get(id));
     // Refuse the batch before any unlocked member can cross the boundary.
@@ -369,6 +372,7 @@ export class ExportEngine {
     let failed = 0;
     let cancelled = 0;
     for (const [index, id] of photoIds.entries()) {
+      disclosure.assertCurrent?.();
       if (signal?.aborted === true) {
         // Cancel finishes the file in flight (we only check between files)
         // and keeps everything completed.
@@ -406,6 +410,7 @@ export class ExportEngine {
           fromPreview = capped;
         }
         const fileName = await this.resolveCollision(destination, targetName);
+        disclosure.assertCurrent?.();
         await this.deps.writeFile(this.containedPath(destination, fileName), plaintext);
         const editsTravel = mode === 'original-sidecars' && !isIdentityTransform(transform);
         // The generated packet owns the canonical stem (`IMG.xmp`): sidecar
