@@ -1,10 +1,13 @@
-import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { expect, test } from './support/app.js';
+import { decodePhotoDrag, PHOTO_DRAG_TYPE } from '../../src/shared/library/photo-drag.js';
 
-test('selected photos enter the bounded native drag materializer (#796)', async ({ launchOverlook }) => {
+test('selected photos enter the bounded materializer; this does not exercise a signed native session (#796/#1028)', async ({
+  launchOverlook,
+}) => {
   const destination = mkdtempSync(join(tmpdir(), 'overlook-e2e-native-drag-'));
   const running = await launchOverlook({
     prefix: 'overlook-e2e-native-drag-profile-',
@@ -33,5 +36,31 @@ test('selected photos enter the bounded native drag materializer (#796)', async 
     ]);
   expect(readFileSync(join(destination, 'IMG_4021.RAF')).length).toBeGreaterThan(0);
   expect(readFileSync(join(destination, 'IMG_4028.JPG')).length).toBeGreaterThan(0);
+  await transfer.dispose();
+});
+
+test('private GPS refuses original materialization and retains the internal drag payload (#1137)', async ({ launchOverlook }) => {
+  const source = mkdtempSync(join(tmpdir(), 'overlook-native-gps-source-'));
+  const destination = mkdtempSync(join(tmpdir(), 'overlook-native-gps-receiver-'));
+  copyFileSync(join(import.meta.dirname, '../fixtures/exif/exif-full.jpg'), join(source, 'native-gps.jpg'));
+  const { page } = await launchOverlook({
+    prefix: 'overlook-native-gps-profile-',
+    env: { OVERLOOK_SEED: '1', OVERLOOK_IMPORT_SOURCE: source, OVERLOOK_NATIVE_DRAG_DESTINATION: destination },
+  });
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await page.getByRole('button', { name: 'Import 1 photo', exact: true }).click();
+  await page.getByRole('button', { name: 'Show in library' }).click();
+  await page.getByRole('button', { name: 'Select native-gps.jpg' }).click();
+  const transfer = await page.evaluateHandle(
+    () => new (globalThis as unknown as { DataTransfer: new () => { getData(type: string): string } }).DataTransfer(),
+  );
+  await page.getByRole('button', { name: 'Open native-gps.jpg', exact: true }).dispatchEvent('dragstart', { dataTransfer: transfer });
+  await expect(page.getByRole('group', { name: 'Notification' })).toContainText(
+    'Original drag blocked. Withheld: Precise location. Use Export → Baked.',
+  );
+  expect(readdirSync(destination)).toEqual([]);
+  const payload = decodePhotoDrag(await transfer.evaluate((value, mime) => value.getData(mime), PHOTO_DRAG_TYPE));
+  expect(payload?.photoIds).toHaveLength(1);
+  expect(payload?.sourceAlbumId).toBeNull();
   await transfer.dispose();
 });

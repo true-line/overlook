@@ -658,6 +658,7 @@ export const en = {
   "libmove.review.start.one": "Move library…",
   "libmove.title.many": "Move {count} libraries",
   "libmove.title.one": "Move library",
+  "library.nativeDrag.withheld": "Original drag blocked. Withheld: {fields}. Use Export → Baked.",
   "library.photo.locked": "Locked — this device lacks its encryption key",
   "library.photo.moreActions": "More actions for {photo}",
   "library.photo.unknownDimensions": "Dimensions unknown",
@@ -1427,6 +1428,7 @@ interface InterpolatedMessageArguments {
   "libmove.review.spaceDetail": { "free": MessageValue; "needed": MessageValue };
   "libmove.review.start.many": { "count": MessageValue };
   "libmove.title.many": { "count": MessageValue };
+  "library.nativeDrag.withheld": { "fields": MessageValue };
   "library.photo.moreActions": { "photo": MessageValue };
   "library.photo.video.durationTitle": { "duration": MessageValue };
   "library.quickActions.actionLabel": { "action": MessageValue; "target": MessageValue };

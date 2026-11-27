@@ -3023,7 +3023,7 @@
     {
       "id": "796-native-drag-out",
       "wiki": "Acceptance-Test-Native-Drag-Out",
-      "$note": "The signed production bridge reports disabled after native AppKit session startup was found to crash at in-window drag initiation (#1027). The harness retains bounded materialization coverage for a future safe redesign.",
+      "$note": "The signed production bridge remains disabled (#1027). Main's export planner refuses withheld original metadata in the materializer (#1137); no native Baked payload or widening is supported. Harness evidence does not satisfy #1028's signed initiation-design gate or close #1137's signed receiver acceptance.",
       "coverage": [
         {
           "type": "playwright-e2e",
@@ -3031,11 +3031,15 @@
         },
         {
           "type": "unit-dom",
-          "paths": ["tests/native-drag/native-drag-service.test.ts", "tests/native-drag/native-drag-bridge.test.ts"]
+          "paths": [
+            "tests/native-drag/native-drag-service.test.ts",
+            "tests/native-drag/native-drag-bridge.test.ts",
+            "tests/native-drag/native-drag-disclosure.test.ts"
+          ]
         },
         {
           "type": "manual",
-          "reason": "The signed packaged check proves repeated in-window and outbound drag starts remain responsive with the native bridge disabled, internal album drag still works, and independent Finder/recovery-key inbound drops remain responsive."
+          "reason": "Follow Acceptance-Test-Native-Drag-Out.md: signed packaged checks keep native capability disabled and prove stable internal album drag and independent Finder/recovery-key drops. #1028 must first land signed initiation-design evidence before redesign/re-enablement; then signed receiver evidence must prove #1137's disclosure refusal/preview and lock/custody behavior. TestNativeDragBridge proves materialization only and cannot satisfy those signed gates."
         }
       ]
     },

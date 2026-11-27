@@ -1955,6 +1955,9 @@
   "libmove.title.one": {
     "defaultMessage": "Move library"
   },
+  "library.nativeDrag.withheld": {
+    "defaultMessage": "Original drag blocked. Withheld: {fields}. Use Export → Baked."
+  },
   "library.photo.locked": {
     "defaultMessage": "Locked — this device lacks its encryption key"
   },

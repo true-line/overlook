@@ -5,6 +5,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type { DragEvent, ReactElement } from 'react';
 import { useIntl } from 'react-intl';
 import { libraryGridMessages as messages } from './library-grid-messages.js';
+import { fieldLabel } from '../disclosure/disclosure-messages.js';
 
 import type { AlbumSummary, PhotoRecord } from '../../../shared/library/types.js';
 import { useFormats } from '../i18n/use-formats.js';
@@ -407,9 +408,20 @@ export function LibraryGridView({
             if (nativeDragAvailable && payload.photoIds.length <= 100) {
               void window.overlook.nativeDrag
                 .start({ photoIds: payload.photoIds, sourceAlbumId: payload.sourceAlbumId })
-                .then(({ started }) => {
+                .then(({ started, withheld }) => {
                   if (started) endPhotoDrag();
-                });
+                  else if (withheld !== undefined && withheld.length > 0)
+                    dispatch({
+                      type: 'toast/shown',
+                      toast: {
+                        title: intl.formatMessage(messages.nativeDragWithheld, {
+                          fields: intl.formatList(withheld.map((field) => fieldLabel(intl, field))),
+                        }),
+                        tone: 'neutral',
+                      },
+                    });
+                })
+                .catch(() => undefined);
             }
           };
     const onDragEnd = onDragStart === undefined ? undefined : endPhotoDrag;
