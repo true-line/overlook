@@ -37,6 +37,8 @@ const NODE_MODULES_PATH = path.join(ROOT, 'node_modules');
 // happened to fail.
 const PACKAGES_WITHOUT_LICENSE_TEXT = new Set([
   'onnxruntime-common',
+  // saxes@6.0.0 tarball contains JS, typings, README and package.json, no license file.
+  'saxes',
   'sqlite-vec',
   'standardwebhooks',
   'webworkify-webpack',

@@ -192,6 +192,7 @@ describe('PhotoKit operation disclosure consent (#1141)', () => {
     assert.ok(preview.consent);
     const input = { photoIds: ['P1'], disclosure: f.wire(preview.consent) };
     const first = invoke(input);
+    await new Promise<void>((resolve) => setImmediate(resolve));
     assert.deepEqual(received[0]?.operation.widen, ['location']);
     assert.deepEqual(await invoke(input), failed);
     finish();
@@ -279,7 +280,7 @@ describe('PhotoKit operation disclosure consent (#1141)', () => {
       }
       assert.deepEqual(await handlers.get(channels.photoKitExportRun.name)!({}, input), failed);
       assert.equal(calls, 0);
-      assert.throws(() => f.authority.consume({ ...f.request('photo-kit'), disclosure: f.wire(preview.consent) }), /invalid/u);
+      await assert.rejects(() => f.authority.consume({ ...f.request('photo-kit'), disclosure: f.wire(preview.consent) }), /invalid/u);
     });
   }
 });

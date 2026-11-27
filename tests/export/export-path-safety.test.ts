@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { access, statfs } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -76,7 +76,7 @@ function makeExportDeps(
     sidecarsFor: () => [
       {
         fileName: 'IMG.xmp/../../escaped-sidecar',
-        contentHash: 'a'.repeat(64),
+        contentHash: createHash('sha256').update(sidecarPayload).digest('hex'),
         keyId: key.id,
         bytes: sidecarPayload.length,
       },

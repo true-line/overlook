@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import type { ChannelDefinition } from './channels.js';
+import { sourceSidecarFindingSchema } from '../disclosure/source-sidecars.js';
 import {
   disclosureBoundarySchema,
   disclosureClassSchema,
@@ -51,8 +52,10 @@ export const disclosurePreviewSchema = z.object({
   embedded: z.array(disclosureFieldSchema),
   /** Embedded fields the plan withholds for at least one photo — the crossing is refused until widened or the payload is Baked. */
   blocked: z.array(disclosureFieldSchema),
-  /** Retained source sidecars that would travel unfiltered (Source metadata mode). */
+  /** Retained source companion count (Source metadata mode); findings below govern whether they may cross. */
   retainedSidecars: z.number().int().nonnegative(),
+  /** Actual inspected source companions; absent on older preview fixtures. */
+  sourceSidecars: z.array(sourceSidecarFindingSchema).optional(),
   /** Only present after main-owned affirmative confirmation of widening. */
   consent: z.string().uuid().optional(),
 });

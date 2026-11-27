@@ -70,6 +70,7 @@ components; their full license texts ship inside the Electron distribution at
 | `onnxruntime-common` | 1.31.1 | MIT |
 | `onnxruntime-node` | 1.31.1 | MIT |
 | `openai` | 7.63.0 | Apache-2.0 |
+| `saxes` | 6.0.0 | ISC |
 | `semver` | 7.8.5 | ISC |
 | `serialize-error` | 8.1.0 | MIT |
 | `sharp` | 0.35.5 | Apache-2.0 |
@@ -85,6 +86,7 @@ components; their full license texts ship inside the Electron distribution at
 | `type-fest` | 0.20.2 | (MIT OR CC0-1.0) |
 | `undici` | 6.29.1 | MIT |
 | `ws` | 8.21.1 | MIT |
+| `xmlchars` | 2.2.0 | MIT |
 | `zod` | 4.6.7 | MIT |
 
 ---
@@ -2110,6 +2112,14 @@ Apache License
 
 ---
 
+## saxes 6.0.0
+
+License: ISC
+
+_No license text file was found in the published package._
+
+---
+
 ## semver 7.8.5
 
 License: ISC
@@ -2515,6 +2525,33 @@ License: MIT
 Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
 Copyright (c) 2013 Arnout Kazemier and contributors
 Copyright (c) 2016 Luigi Pinca and contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+---
+
+## xmlchars 2.2.0
+
+License: MIT
+
+```
+Copyright Louis-Dominique Dubeau and contributors to xmlchars
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in

@@ -8,11 +8,12 @@ import { openLibraryDatabase } from '../../src/main/db/database.js';
 import { PhotosRepository } from '../../src/main/db/photos-repository.js';
 import { run } from '../../src/main/db/sql.js';
 import { DisclosureConsentAuthority } from '../../src/main/disclosure/disclosure-consent.js';
+import type { SourceSidecarReader } from '../../src/main/disclosure/source-sidecars.js';
 import { DisclosureService } from '../../src/main/disclosure/disclosure-service.js';
 import type { DisclosurePreviewRequest } from '../../src/shared/ipc/disclosure-channels.js';
 import type { ExportDisclosureIntentWire } from '../../src/shared/ipc/export-channels.js';
 
-export function consentFixture(t: TestContext) {
+export function consentFixture(t: TestContext, sourceSidecars?: SourceSidecarReader) {
   const directory = mkdtempSync(join(tmpdir(), 'overlook-consent-'));
   const db = openLibraryDatabase({ path: join(directory, 'library.db'), dbKey: randomBytes(32) });
   t.after(() => {
@@ -46,7 +47,13 @@ export function consentFixture(t: TestContext) {
       keyId: 1,
     });
   let ids = ['P1'];
-  const service = new DisclosureService({ db, getPhoto: (id) => photos.get(id), exportableIds: () => ids, audit: () => undefined });
+  const service = new DisclosureService({
+    sourceSidecars,
+    db,
+    getPhoto: (id) => photos.get(id),
+    exportableIds: () => ids,
+    audit: () => undefined,
+  });
   const state = { epoch: 0, library: 'library-1', allowed: true, now: 0, confirmed: true };
   const prompts: string[] = [];
   let confirm: (detail: string) => Promise<boolean> = () => Promise.resolve(state.confirmed);
@@ -79,6 +86,7 @@ export function consentFixture(t: TestContext) {
   });
   return {
     db,
+    photos,
     service,
     authority,
     state,

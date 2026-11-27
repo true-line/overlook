@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { access, statfs } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -249,7 +249,7 @@ describe('export engine (#97)', () => {
   test('missing companion key refuses the entire batch before writing; importing it permits retry', async () => {
     const world = await seededWorld(2);
     const companionKey = { id: 2, key: randomBytes(32) };
-    const bytes = Buffer.from('encrypted companion');
+    const bytes = Buffer.from('<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description/></rdf:RDF>');
     const ref = await world.store.putSidecar(Readable.from([bytes]), companionKey, 'PHOTO1');
     let imported = false;
     const resolveKey = (id: number): Buffer | undefined => (id === 1 ? world.key.key : imported ? companionKey.key : undefined);
@@ -529,24 +529,26 @@ describe('edited export (#497, ADR-0031 §6)', () => {
   });
 
   test('the generated packet keeps the canonical stem; a retained XMP companion is preserved under the suffix', async () => {
+    const source = Buffer.from('<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description/></rdf:RDF>');
+    const hash = createHash('sha256').update(source).digest('hex');
     const world = await seededWorld(1);
     const engine = new ExportEngine({
       ...world.deps,
       editHead: () => head(ROTATED),
-      sidecarsFor: () => [{ fileName: 'IMG_4021.xmp', contentHash: 'a'.repeat(64), keyId: 1, bytes: 14 }],
-      sidecarStream: () => Readable.from(['source sidecar']),
+      sidecarsFor: () => [{ fileName: 'IMG_4021.xmp', contentHash: hash, keyId: 1, bytes: source.length }],
+      sidecarStream: () => Readable.from([source]),
     });
     const summary = await engine.exportPhotos(['PHOTO0'], world.destination, undefined, 'original', 'original', {
       mode: 'original-sidecars',
     });
     assert.deepEqual(summary.files[0]?.sidecarNames, ['IMG_4021.xmp', 'IMG_4021 (1).xmp']);
     assert.deepEqual(parseEditsXmp(readFileSync(join(world.destination, 'IMG_4021.xmp'), 'utf8')), ROTATED, 'the stem carries the edits');
-    assert.equal(readFileSync(join(world.destination, 'IMG_4021 (1).xmp'), 'utf8'), 'source sidecar', 'the companion is not lost');
+    assert.equal(readFileSync(join(world.destination, 'IMG_4021 (1).xmp'), 'utf8'), source.toString('utf8'), 'the companion is not lost');
     // Without edits to carry, the companion keeps the stem as before.
     const plain = new ExportEngine({
       ...world.deps,
-      sidecarsFor: () => [{ fileName: 'IMG_4021.xmp', contentHash: 'a'.repeat(64), keyId: 1, bytes: 14 }],
-      sidecarStream: () => Readable.from(['source sidecar']),
+      sidecarsFor: () => [{ fileName: 'IMG_4021.xmp', contentHash: hash, keyId: 1, bytes: source.length }],
+      sidecarStream: () => Readable.from([source]),
     });
     const other = await seededWorld(1);
     const untouched = await plain.exportPhotos(['PHOTO0'], other.destination, undefined, 'original', 'original', {
@@ -618,6 +620,49 @@ describe('disclosure classes at the export boundary (#509, ADR-0032 §6)', () =>
       destination: intent.destination,
       chain: { library: DEFAULT_DISCLOSURE_POLICY },
       operation: intent.operation,
+    });
+
+  async function sourceWorld() {
+    const world = await seededWorld(1);
+    const bytes = Buffer.from(
+      '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:exif="http://ns.adobe.com/exif/1.0/"><rdf:Description exif:GPSLatitude="52.37N" exif:GPSLongitude="4.9E"/></rdf:RDF>',
+    );
+    const ref = await world.store.putSidecar(Readable.from([bytes]), world.key, 'PHOTO0');
+    const engine = new ExportEngine({
+      ...world.deps,
+      disclosure: planner,
+      sidecarsFor: () => [{ fileName: 'source.xmp', ...ref }],
+      sidecarStream: (owner, hash) => world.store.getSidecarStream(owner, hash, () => world.key.key),
+    });
+    return { ...world, engine, bytes, ref };
+  }
+
+  test('source-only private GPS refuses Original + Source before any output (#1142)', async () => {
+    const world = await sourceWorld();
+    assert.equal(world.rows.get('PHOTO0')?.gpsLat, null);
+    await assert.rejects(world.engine.exportPhotos(['PHOTO0'], world.destination), /Source sidecar "source.xmp".*location/u);
+    assert.deepEqual(readdirSync(world.destination), []);
+  });
+
+  test('main-authorized widening permits the source GPS without altering retained custody (#1142)', async () => {
+    const world = await sourceWorld();
+    const result = await world.engine.exportPhotos(['PHOTO0'], world.destination, undefined, 'original', 'original', undefined, {
+      destination: 'shared',
+      operation: { narrow: [], widen: ['location'] },
+    });
+    assert.equal(result.exported, 1);
+    assert.deepEqual(readFileSync(join(world.destination, 'IMG_4021.xmp')), world.bytes);
+    assert.equal(await world.store.verifySidecar('PHOTO0', world.ref.contentHash, () => world.key.key), true);
+  });
+
+  for (const metadata of ['overlook', 'none'] as const)
+    test(`Metadata: ${metadata} never reads or copies retained source GPS (#1142)`, async () => {
+      const world = await sourceWorld();
+      const result = await world.engine.exportPhotos(['PHOTO0'], world.destination, undefined, 'original', metadata);
+      assert.equal(result.exported, 1);
+      assert.ok(
+        !readdirSync(world.destination).some((name) => readFileSync(join(world.destination, name), 'utf8').includes('GPSLatitude')),
+      );
     });
 
   async function worldWithLocation() {

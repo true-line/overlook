@@ -23,6 +23,7 @@ interface Snapshot {
   readonly preview: DisclosurePreview;
   readonly detail: string;
   readonly revision: number;
+  readonly binding: string;
 }
 
 interface Grant {
@@ -49,16 +50,25 @@ export class DisclosureConsentAuthority {
 
   async preview(request: DisclosurePreviewRequest): Promise<DisclosurePreview> {
     this.deps.admit();
-    if (!request.confirmWidening || (request.operation?.widen.length ?? 0) === 0) return this.deps.getService().preview(request);
-    const snapshot = this.snapshot(request);
+    if (!request.confirmWidening || (request.operation?.widen.length ?? 0) === 0) {
+      const service = this.deps.getService();
+      const context = this.context();
+      const preview = await service.preview(request);
+      this.deps.admit();
+      if (service !== this.deps.getService() || context !== this.context()) throw new Error('Disclosure preview changed; review it again');
+      return preview;
+    }
     if (this.confirming) throw new Error('Disclosure confirmation already open');
-    // Never truncate consent values: ask for a smaller selection instead.
-    if (snapshot.detail.length > 60_000) throw new Error('Select fewer photos to confirm disclosure');
     this.confirming = true;
     try {
+      const snapshot = await this.snapshot(request);
+      if (snapshot.preview.sourceSidecars?.some((sidecar) => sidecar.status === 'malformed' || sidecar.status === 'unavailable')) {
+        throw new Error('Source sidecars cannot be inspected. Use Metadata: Edits/None.');
+      }
+      if (snapshot.detail.length > 60_000) throw new Error('Select fewer photos to confirm disclosure');
       const confirmed = await this.deps.confirm(snapshot.detail);
       this.deps.admit();
-      const current = this.snapshot(request);
+      const current = await this.snapshot(request);
       if (!this.same(snapshot, current)) throw new Error('Disclosure preview changed; review it again');
       if (!confirmed) return current.preview;
       this.prune();
@@ -71,7 +81,7 @@ export class DisclosureConsentAuthority {
     }
   }
 
-  consume(request: DisclosureRunRequest): { photoIds: readonly string[]; disclosure: ExportDisclosureIntent } {
+  async consume(request: DisclosureRunRequest): Promise<{ photoIds: readonly string[]; disclosure: ExportDisclosureIntent }> {
     const token = request.disclosure?.consent ?? '';
     const grant = this.grants.get(token);
     this.grants.delete(token);
@@ -80,7 +90,7 @@ export class DisclosureConsentAuthority {
     this.deps.admit();
     if (grant === undefined || grant.expires <= this.now()) throw new Error('Disclosure consent is invalid or expired');
     const stored = grant.snapshot.request;
-    const current = this.snapshot({
+    const current = await this.snapshot({
       boundary: request.boundary,
       destination: request.disclosure?.destination ?? 'shared',
       ...(request.photoIds === undefined ? {} : { photoIds: [...request.photoIds] }),
@@ -92,7 +102,8 @@ export class DisclosureConsentAuthority {
         widen: stored.operation?.widen ?? [],
       },
     });
-    if (!this.same(grant.snapshot, current)) throw new Error('Disclosure consent does not match this request');
+    if (grant.expires <= this.now() || !this.same(grant.snapshot, current))
+      throw new Error('Disclosure consent does not match this request');
     return {
       photoIds: [...(stored.photoIds ?? [])],
       disclosure: {
@@ -100,13 +111,18 @@ export class DisclosureConsentAuthority {
         operation: structuredClone(stored.operation ?? EMPTY_DISCLOSURE_OPERATION),
         assertCurrent: () => {
           this.deps.admit();
-          if (!this.same(grant.snapshot, this.snapshot(stored))) throw new Error('Disclosure consent is no longer current');
+          if (
+            grant.snapshot.service !== this.deps.getService() ||
+            grant.snapshot.context !== this.context() ||
+            grant.snapshot.binding !== this.deps.getService().consentBinding(stored)
+          )
+            throw new Error('Disclosure consent is no longer current');
         },
       },
     };
   }
 
-  private snapshot(input: DisclosurePreviewRequest): Snapshot {
+  private async snapshot(input: DisclosurePreviewRequest): Promise<Snapshot> {
     const service = this.deps.getService();
     const request: DisclosurePreviewRequest = {
       boundary: input.boundary,
@@ -120,13 +136,28 @@ export class DisclosureConsentAuthority {
         widen: [...new Set(input.operation?.widen ?? [])].sort(),
       },
     };
-    const preview = service.preview(request);
+    const context = this.context();
+    const binding = service.consentBinding(request);
+    const preview = await service.preview(request);
+    this.deps.admit();
+    if (
+      service !== this.deps.getService() ||
+      context !== this.context() ||
+      binding !== service.consentBinding(request) ||
+      JSON.stringify(request.photoIds) !== JSON.stringify(service.selection(input.photoIds))
+    )
+      throw new Error('Disclosure preview changed; review it again');
     const detail = [
       `Destination: ${request.boundary === 'photo-kit' ? 'Apple Photos' : 'Export folder'} (${request.destination})`,
       `Payload: ${request.mode ?? request.payload}; metadata: ${request.metadata ?? 'original'}`,
       `Include for this export: ${request.operation?.widen.join(', ') ?? ''}`,
       service.consentDetail(request),
-      `Source sidecars travelling unfiltered: ${String(preview.retainedSidecars)}`,
+      ...(preview.sourceSidecars ?? []).map(
+        (sidecar) =>
+          `Source sidecar ${JSON.stringify(sidecar.fileName)}: ${sidecar.status}` +
+          (sidecar.status === 'unknown' ? '; field values unknown; any withheld export field may be present' : '') +
+          `\n${JSON.stringify(sidecar.fields)}\nWithheld: ${sidecar.blocked.join(', ')}`,
+      ),
       'Declining stops this export. Remove the widening or choose Baked to keep these fields private.',
     ].join('\n\n');
     return {
@@ -135,9 +166,14 @@ export class DisclosureConsentAuthority {
       preview,
       detail,
       revision: service.consentRevision(),
-      context: JSON.stringify([this.deps.libraryId(), this.deps.authorizationEpoch()]),
-      fingerprint: JSON.stringify([request, preview, detail, service.consentRevision()]),
+      context,
+      binding,
+      fingerprint: JSON.stringify([request, preview, detail, binding]),
     };
+  }
+
+  private context(): string {
+    return JSON.stringify([this.deps.libraryId(), this.deps.authorizationEpoch()]);
   }
 
   private same(a: Snapshot, b: Snapshot): boolean {
@@ -171,16 +207,16 @@ function refuseRawWidening(disclosure: ExportDisclosureIntentWire | undefined): 
 }
 
 /** Fail closed even in adapters without a configured authority. */
-export function authorizeDisclosure(
+export async function authorizeDisclosure(
   authority: DisclosureConsentAuthority | undefined,
   request: DisclosureRunRequest,
-): {
+): Promise<{
   photoIds: readonly string[] | undefined;
   disclosure: ExportDisclosureIntent | undefined;
-} {
+}> {
   if (request.disclosure?.consent !== undefined) {
     if (authority === undefined) throw new Error('Disclosure consent is unavailable');
-    return authority.consume(request);
+    return await authority.consume(request);
   }
   refuseRawWidening(request.disclosure);
   return { photoIds: request.photoIds, disclosure: request.disclosure };

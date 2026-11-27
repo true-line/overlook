@@ -22,6 +22,8 @@ import {
   type DisclosurePlan,
 } from '../../shared/disclosure/policy.js';
 import { embeddedFieldsOf } from '../disclosure/disclosure-service.js';
+import { inspectSourceSidecar, readSourceSidecar, sourceSidecarFinding, sourceSidecarRefusal } from '../disclosure/source-sidecars.js';
+import { inspectSourceXmp } from '../disclosure/source-xmp.js';
 
 // Export engine (#97): the decrypt counterpart to import — selected photos
 // become real files in a chosen folder. Streaming decrypt straight to the
@@ -328,6 +330,20 @@ export class ExportEngine {
       }
     }
     const projected = (photo: PhotoRecord): PhotoRecord => projectForDisclosure(photo, plans.get(photo.id) ?? permissivePlan('export'));
+    if (mode === 'original-sidecars' && metadata === 'original') {
+      for (const photo of photos) {
+        if (photo === undefined) continue;
+        for (const sidecar of this.deps.sidecarsFor?.(photo.id) ?? []) {
+          const inspection = await inspectSourceSidecar(sidecar, () => {
+            if (this.deps.sidecarStream === undefined) throw new Error('Source sidecar reader unavailable');
+            return this.deps.sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash);
+          });
+          const finding = sourceSidecarFinding(photo.id, sidecar, inspection, plans.get(photo.id) ?? permissivePlan('export'));
+          if (finding.refused) throw new ExportPreflightError(sourceSidecarRefusal(finding));
+        }
+      }
+      disclosure.assertCurrent?.();
+    }
     const transforms = new Map(
       photos.flatMap((photo) => {
         if (photo === undefined) return [];
@@ -429,7 +445,9 @@ export class ExportEngine {
                   destination,
                   fileName,
                 )),
-                ...(mode === 'original-sidecars' && metadata === 'original' ? await this.exportSidecars(photo, destination, fileName) : []),
+                ...(mode === 'original-sidecars' && metadata === 'original'
+                  ? await this.exportSidecars(photo, destination, fileName, disclosure)
+                  : []),
               ];
         files.push({
           photoId: photo.id,
@@ -472,19 +490,27 @@ export class ExportEngine {
   /** Writes each companion beside the exported original, named from the
    * original's RESOLVED stem so a suffixed export keeps its group together
    * (`IMG (2).RAF` → `IMG (2).xmp`), with per-file collision fallback. */
-  private async exportSidecars(photo: PhotoRecord, destination: string, resolvedName: string): Promise<readonly string[]> {
+  private async exportSidecars(
+    photo: PhotoRecord,
+    destination: string,
+    resolvedName: string,
+    disclosure: ExportDisclosureIntent,
+  ): Promise<readonly string[]> {
     const sidecars = this.deps.sidecarsFor?.(photo.id) ?? [];
-    if (sidecars.length === 0 || this.deps.sidecarStream === undefined) return [];
+    const sidecarStream = this.deps.sidecarStream;
+    if (sidecars.length === 0 || sidecarStream === undefined) return [];
     const dot = resolvedName.lastIndexOf('.');
     const stem = dot <= 0 ? resolvedName : resolvedName.slice(0, dot);
     const written: string[] = [];
     for (const sidecar of sidecars) {
+      const bytes = await readSourceSidecar(sidecar, () => sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash));
+      disclosure.assertCurrent?.();
+      const plan = this.deps.disclosure?.(photo.id, disclosure) ?? permissivePlan('export', disclosure.destination);
+      const finding = sourceSidecarFinding(photo.id, sidecar, inspectSourceXmp(sidecar.fileName, bytes), plan);
+      if (finding.refused) throw new ExportPreflightError(sourceSidecarRefusal(finding));
       const extension = sanitizeSidecarExtension(sidecar.fileName);
       const target = await this.resolveCollision(destination, `${stem}${extension}`);
-      await this.deps.writeFile(
-        this.containedPath(destination, target),
-        this.deps.sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash),
-      );
+      await this.deps.writeFile(this.containedPath(destination, target), Readable.from([bytes]));
       written.push(target);
     }
     return written;
