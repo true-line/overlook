@@ -263,9 +263,15 @@ jobs, calls the pinned reusable Docs governance workflow, and calls
 
 ### Owner repair procedure
 
-The Agent-Bot installation used for this audit has no `administration`
-permission. Its policy API is GET-only, raw tokens are withheld, and the settings
-browser fallback was unavailable. No administrative write was made.
+The `trueline-codex-agent` App is configured with `administration: write`, as
+confirmed by [live App metadata](https://api.github.com/apps/trueline-codex-agent).
+The current Agent-Bot credential request returns a narrower permission map that
+omits administration and withholds the raw token. Its exposed policy API is
+GET-only, the workspace has no local Agent-Bot daemon/gh shim, and the settings
+browser fallback was unavailable. These access-path limitations do not establish
+that the App or installation lacks administration permission; the installation's
+full grant was not verified. No administrative write was made, and no App
+permission change is requested.
 
 An administrator must perform this focused repair:
 
