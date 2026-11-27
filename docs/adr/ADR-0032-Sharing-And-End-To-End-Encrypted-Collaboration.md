@@ -426,3 +426,30 @@ renderer-supplied widening list. Failed binding checks also burn the capability.
 Policy or override changes, lock, library switch and use invalidate it. No
 capability is needed when no operation widening is requested. Neither token nor
 preview values enter Activity; widening is recorded only by field name.
+
+## Amendment — retained source companions (#1142)
+
+Source metadata is part of the export disclosure boundary. Before any output is
+written, main inspects retained XMP for the supported export fields and applies
+the same per-photo plan to its actual contents. A withheld field refuses the
+batch; stored companions remain immutable. Metadata: Edits/None and payloads
+that omit source companions require no inspection of those omitted bytes.
+
+For XMP, previews and consent include the discovered fields and values, even
+when they differ from the photo record. Malformed, oversized or unreadable XMP
+is refused rather than treated as empty. Inspection must not resolve external
+entities or access a network resource.
+
+Unknown companion formats have no trustworthy field/value projection. Their
+preview names the file and this uncertainty, and treats every withheld export
+field as potentially present. They may cross only when the compiled plan
+allows every export field; operation widening uses the main-owned ceremony to
+explicitly authorize those named fields with unknown values. This exception
+does not reclassify pinned-private data or authorize fields outside the export
+boundary. A malformed known format does not qualify for this exception.
+
+Consent binds immutable companion identities and the inspected findings.
+Asynchronous inspection may follow synchronous, single-use capability
+consumption; no export starts until validation succeeds. Main rechecks policy,
+authorization and content identities across inspection, and verifies the exact
+companion bytes it copies. No inspection rewrites the retained source.
