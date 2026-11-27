@@ -88,7 +88,7 @@ describe('source companion consent and preview (#1142)', () => {
     const result = await f.engine.exportPhotos(['P1'], '/chosen', undefined, 'original', 'original', undefined, authorized.disclosure);
     assert.equal(result.failed, 1);
     assert.match(result.failures[0]?.reason ?? '', /no longer current/u);
-    assert.equal(f.written.has('/chosen/P1.xmp'), false);
+    assert.equal(f.written.has(join('/chosen', 'P1.xmp')), false);
   });
   test('unclassified XMP metadata refuses preview consent and engine output even after supported widening', async (t) => {
     const xml =
@@ -149,7 +149,7 @@ describe('source companion consent and preview (#1142)', () => {
     const authorized = await f.authority.consume(run);
     const result = await f.engine.exportPhotos(['P1'], '/chosen', undefined, 'original', 'original', undefined, authorized.disclosure);
     assert.equal(result.exported, 1);
-    assert.deepEqual(f.written.get('/chosen/P1.xmp'), f.bytes());
+    assert.deepEqual(f.written.get(join('/chosen', 'P1.xmp')), f.bytes());
     await assert.rejects(f.authority.consume(run), /invalid/u);
   });
 
