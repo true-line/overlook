@@ -68,11 +68,11 @@ test('private GPS refuses original materialization and retains the internal drag
   await page.getByRole('button', { name: 'Import 1 photos', exact: true }).click();
   await page.getByRole('button', { name: 'Show in library' }).click();
   await allowHarnessFields(page, false);
-  await page.getByRole('button', { name: /^(?:Select|Deselect) native-gps\.jpg$/u }).click();
+  await page.getByRole('button', { name: /^(?:Select|Deselect) native-gps\.jpg(?:,|$)/u }).click();
   const transfer = await page.evaluateHandle(
     () => new (globalThis as unknown as { DataTransfer: new () => { getData(type: string): string } }).DataTransfer(),
   );
-  await page.getByRole('button', { name: 'Open native-gps.jpg', exact: true }).dispatchEvent('dragstart', { dataTransfer: transfer });
+  await page.getByRole('button', { name: /^Open native-gps\.jpg(?:,|$)/u }).dispatchEvent('dragstart', { dataTransfer: transfer });
   await expect(page.getByRole('group', { name: 'Notification' })).toContainText(
     'Original drag blocked. Withheld: Precise location. Use Export → Baked.',
   );
