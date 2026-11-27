@@ -26,7 +26,7 @@ import type { PhotoInsert, PhotoRecord } from '../../src/shared/library/types.js
 
 const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0xff, 0xd9]);
 const XMP_BYTES = Buffer.from(
-  '<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject><rdf:Bag><rdf:li>aurora</rdf:li></rdf:Bag></dc:subject></x:xmpmeta>',
+  '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:subject><rdf:Bag><rdf:li>aurora</rdf:li></rdf:Bag></dc:subject></rdf:Description></rdf:RDF></x:xmpmeta>',
   'utf8',
 );
 const AAE_BYTES = Buffer.from('<?xml version="1.0"?><plist><dict><key>adjustmentData</key></dict></plist>', 'utf8');

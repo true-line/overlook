@@ -32,7 +32,10 @@ import type { PhotoInsert } from '../../src/shared/library/types.js';
 // companions, and reconciliation re-uploads a locally held companion the
 // selected provider is missing instead of owing a manifest forever.
 
-const XMP = Buffer.from('<x:xmpmeta>backup-test</x:xmpmeta>', 'utf8');
+const XMP = Buffer.from(
+  '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description dc:title="backup-test"/></rdf:RDF></x:xmpmeta>',
+  'utf8',
+);
 
 function photoInsert(id: string, contentHash: string, bytes: number): PhotoInsert {
   return {
