@@ -1,5 +1,12 @@
 # photos
 
+## 0.76.44
+
+### Patch Changes
+
+- 23c605e: Require main-owned consent and a single-use capability before operation-scope metadata widening in folder and Apple Photos exports.
+- ce75591: Inspect retained source sidecars before export and enforce metadata disclosure policy without modifying the stored companions. Preview actual fields and require main-owned consent for widening; refuse malformed, unclassified or unverifiable source metadata.
+
 ## 0.76.43
 
 ### Patch Changes
