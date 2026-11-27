@@ -82,6 +82,10 @@ export const disclosureMessages = defineMessages({
     id: 'disclosure.sidecar.malformed',
     defaultMessage: 'Malformed or oversized source sidecar. Choose Metadata: Edits or None to omit it.',
   },
+  sidecarUnsupported: {
+    id: 'disclosure.sidecar.unsupported',
+    defaultMessage: 'Unclassified XMP properties: {properties}. Choose Metadata: Edits or None to omit this source packet.',
+  },
   sidecarUnavailable: {
     id: 'disclosure.sidecar.unavailable',
     defaultMessage: 'Sidecar could not be read or verified. Choose Metadata: Edits or None to omit it.',

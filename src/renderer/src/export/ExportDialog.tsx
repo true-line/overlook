@@ -19,6 +19,7 @@ import { useExportPreflight } from './use-export-preflight.js';
 import { DisclosurePreview } from '../disclosure/DisclosurePreview';
 import { useDisclosurePreview } from '../disclosure/use-disclosure-preview.js';
 import type { DisclosureDestination, DisclosureField } from '../../../shared/disclosure/policy.js';
+import { requiresSourceOmission } from '../../../shared/disclosure/source-sidecars.js';
 
 import './export.css';
 
@@ -149,8 +150,7 @@ export function ExportDialog({ open, photoIds, allPhotos = false, onClose }: Exp
     operation: { narrow: [], widen: [...widen] },
   };
   const disclosurePreview = useDisclosurePreview(open && phase === 'options' ? previewRequest : null);
-  const sourceSidecarInvalid =
-    disclosurePreview?.sourceSidecars?.some((sidecar) => sidecar.status === 'malformed' || sidecar.status === 'unavailable') ?? false;
+  const sourceSidecarInvalid = disclosurePreview?.sourceSidecars?.some((sidecar) => requiresSourceOmission(sidecar.status)) ?? false;
   const disclosureBlocked = disclosurePreview === null || disclosurePreview.blocked.length > 0 || sourceSidecarInvalid;
 
   useEffect(() => {

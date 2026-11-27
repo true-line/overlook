@@ -300,6 +300,7 @@ export const en = {
   "disclosure.sidecar.malformed": "Malformed or oversized source sidecar. Choose Metadata: Edits or None to omit it.",
   "disclosure.sidecar.unavailable": "Sidecar could not be read or verified. Choose Metadata: Edits or None to omit it.",
   "disclosure.sidecar.unknown": "Unknown format. Any withheld field may be present; its values cannot be inspected.",
+  "disclosure.sidecar.unsupported": "Unclassified XMP properties: {properties}. Choose Metadata: Edits or None to omit this source packet.",
   "disclosure.sidecar.withheld": "Withheld: {fields}.",
   "duplicates.announce.moved": "Moved {name} to Trash. {groups, plural, =0 {No groups left.} one {# group left.} other {# groups left.}}",
   "duplicates.deferred": "{deferred, plural, one {# photo has no preview to compare yet} other {# photos have no preview to compare yet}}",
@@ -1348,6 +1349,7 @@ interface InterpolatedMessageArguments {
   "disclosure.preview.sidecars": { "count": number };
   "disclosure.preview.widen": { "field": MessageValue };
   "disclosure.sidecar.found": { "fields": MessageValue };
+  "disclosure.sidecar.unsupported": { "properties": MessageValue };
   "disclosure.sidecar.withheld": { "fields": MessageValue };
   "duplicates.announce.moved": { "groups": number; "name": MessageValue };
   "duplicates.deferred": { "deferred": number };

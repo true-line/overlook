@@ -510,6 +510,7 @@ export class ExportEngine {
       if (finding.refused) throw new ExportPreflightError(sourceSidecarRefusal(finding));
       const extension = sanitizeSidecarExtension(sidecar.fileName);
       const target = await this.resolveCollision(destination, `${stem}${extension}`);
+      disclosure.assertCurrent?.();
       await this.deps.writeFile(this.containedPath(destination, target), Readable.from([bytes]));
       written.push(target);
     }

@@ -881,6 +881,9 @@
   "disclosure.sidecar.unknown": {
     "defaultMessage": "Unknown format. Any withheld field may be present; its values cannot be inspected."
   },
+  "disclosure.sidecar.unsupported": {
+    "defaultMessage": "Unclassified XMP properties: {properties}. Choose Metadata: Edits or None to omit this source packet."
+  },
   "disclosure.sidecar.withheld": {
     "defaultMessage": "Withheld: {fields}."
   },

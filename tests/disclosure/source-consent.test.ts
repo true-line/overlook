@@ -25,6 +25,7 @@ function sourceWorld(t: TestContext, text = GPS, fileName = 'P1.xmp') {
   let sidecar = descriptor();
   let stream = () => Readable.from([bytes]);
   let reads = 0;
+  let exists: (path: string) => Promise<boolean> = () => Promise.resolve(false);
   const reader = {
     sidecarsFor: () => [sidecar],
     sidecarStream: () => {
@@ -44,7 +45,7 @@ function sourceWorld(t: TestContext, text = GPS, fileName = 'P1.xmp') {
     writeFile: async (path, input) => {
       written.set(path, await buffer(input));
     },
-    exists: () => Promise.resolve(false),
+    exists: (path) => exists(path),
     freeBytes: () => Promise.resolve(Number.MAX_SAFE_INTEGER),
     joinPath: join,
     transcodeJpeg: (input) => Promise.resolve({ jpeg: input, fromPreview: false }),
@@ -58,6 +59,9 @@ function sourceWorld(t: TestContext, text = GPS, fileName = 'P1.xmp') {
     request,
     written,
     reads: () => reads,
+    setExists: (next: typeof exists) => {
+      exists = next;
+    },
     bytes: () => bytes,
     replace: (text: string) => {
       bytes = Buffer.from(text);
@@ -73,6 +77,42 @@ function sourceWorld(t: TestContext, text = GPS, fileName = 'P1.xmp') {
 }
 
 describe('source companion consent and preview (#1142)', () => {
+  test('authorization revoked while resolving a source filename prevents that sidecar write', async (t) => {
+    const f = sourceWorld(t);
+    const issued = await f.authority.preview({ ...f.request, confirmWidening: true });
+    const authorized = await f.authority.consume({ ...f.request, disclosure: f.wire(issued.consent) });
+    f.setExists((path) => {
+      if (path.endsWith('.xmp')) f.state.epoch++;
+      return Promise.resolve(false);
+    });
+    const result = await f.engine.exportPhotos(['P1'], '/chosen', undefined, 'original', 'original', undefined, authorized.disclosure);
+    assert.equal(result.failed, 1);
+    assert.match(result.failures[0]?.reason ?? '', /no longer current/u);
+    assert.equal(f.written.has('/chosen/P1.xmp'), false);
+  });
+  test('unclassified XMP metadata refuses preview consent and engine output even after supported widening', async (t) => {
+    const xml =
+      '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:x="http://ns.adobe.com/xap/1.0/"><rdf:Description x:Rating="5"/></rdf:RDF>';
+    const f = sourceWorld(t, xml);
+    const preview = await f.service.preview(f.request);
+    assert.equal(preview.blocked.length, 0);
+    assert.equal(preview.sourceSidecars?.[0]?.status, 'unsupported');
+    assert.deepEqual(preview.sourceSidecars?.[0]?.unclassified, ['{http://ns.adobe.com/xap/1.0/}Rating']);
+    await assert.rejects(f.authority.preview({ ...f.request, confirmWidening: true }), /cannot be inspected/u);
+    assert.equal(f.prompts.length, 0);
+    await assert.rejects(
+      f.engine.exportPhotos(['P1'], '/chosen', undefined, 'original', 'original', undefined, {
+        destination: 'shared',
+        operation: { narrow: [], widen: ['location'] },
+      }),
+      /Source sidecar.*unsupported/u,
+    );
+    assert.equal(f.written.size, 0);
+    for (const metadata of ['overlook', 'none'] as const) {
+      assert.equal((await f.engine.exportPhotos(['P1'], '/chosen', undefined, 'original', metadata)).exported, 1);
+    }
+    assert.ok(![...f.written.values()].some((bytes) => bytes.toString().includes('Rating')));
+  });
   test('preview bounds aggregate inspection and refuses companions it cannot establish within the budget', async (t) => {
     let opens = 0;
     const f = consentFixture(t, {

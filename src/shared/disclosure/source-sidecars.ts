@@ -5,13 +5,18 @@ import { disclosureFieldSchema } from './policy.js';
 export const sourceSidecarFindingSchema = z.object({
   photoId: z.string(),
   fileName: z.string(),
-  status: z.enum(['inspected', 'unknown', 'malformed', 'unavailable']),
+  status: z.enum(['inspected', 'unknown', 'unsupported', 'malformed', 'unavailable']),
   fields: z.array(z.object({ field: disclosureFieldSchema, values: z.array(z.string()) })),
   blocked: z.array(disclosureFieldSchema),
   refused: z.boolean(),
   reason: z.literal('budget').optional(),
+  unclassified: z.array(z.string()).optional(),
 });
 export type SourceSidecarFinding = z.output<typeof sourceSidecarFindingSchema>;
+
+export function requiresSourceOmission(status: SourceSidecarFinding['status']): boolean {
+  return status === 'unsupported' || status === 'malformed' || status === 'unavailable';
+}
 
 export function carriesSourceSidecars(request: {
   readonly boundary: string;

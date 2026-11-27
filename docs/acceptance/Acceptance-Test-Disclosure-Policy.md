@@ -98,6 +98,11 @@ capture time`, `DisclosureSettings.stories.tsx › Defaults / Preview`.
    Preview inspection also has a 32 MiB aggregate budget; excess companions are
    marked unavailable with a request to select fewer photos or omit source
    metadata. This limit cannot be bypassed by widening.
+   A valid XMP with unclassified metadata (for example `xmp:Rating`,
+   `exif:UserComment` or MWG face regions) names those properties and refuses
+   Source even when every supported export field is allowed. Widening those
+   fields cannot authorize outside-boundary metadata. Choose **Edits/None** to
+   omit richer source packets; stored source remains unchanged.
 5. Tick **Include Capture time in this export**. **Expected:** the warning
    clears, the row reads "1 photo of 1", the button enables after choosing a
    folder. Passive previews do not prompt or authorize widening. Click Export.

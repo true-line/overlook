@@ -61,6 +61,39 @@ describe('retained source XMP inspection (#1142)', () => {
     assert.equal(inspectSourceXmp('photo.xmp', dtd).status, 'malformed');
   });
 
+  for (const property of [
+    '<x:Rating xmlns:x="http://ns.adobe.com/xap/1.0/">5</x:Rating>',
+    '<e:UserComment xmlns:e="http://ns.adobe.com/exif/1.0/">private note</e:UserComment>',
+    '<m:Regions xmlns:m="http://www.metadataworkinggroup.com/schemas/regions/"><rdf:Bag><rdf:li>private face</rdf:li></rdf:Bag></m:Regions>',
+    '<rdf:Description xmlns:custom="urn:private" custom:secret="private value"/>',
+    '<rdf:value>unclassified literal</rdf:value>',
+  ])
+    test(`refuses unclassified metadata despite valid XML: ${property.slice(0, 30)}`, () => {
+      const result = inspectSourceXmp('source.xmp', Buffer.from(`<rdf:RDF xmlns:rdf="${RDF}">${property}</rdf:RDF>`));
+      assert.equal(result.status, 'unsupported');
+      assert.ok((result.unclassified?.length ?? 0) > 0);
+      const plan = compileDisclosurePlan({
+        boundary: 'export',
+        destination: 'shared',
+        chain: { library: DEFAULT_DISCLOSURE_POLICY },
+        operation: { narrow: [], widen: ['location'] },
+      });
+      assert.equal(plan.withheld.length, 0);
+      assert.equal(sourceSidecarFinding('P', { fileName: 'source.xmp', bytes: 0, keyId: 1, contentHash: '' }, result, plan).refused, true);
+    });
+
+  test('accepts structural wrappers and projects resource-valued and qualified supported properties', () => {
+    const xml = `<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="${RDF}" xmlns:dc="http://purl.org/dc/elements/1.1/">
+      <rdf:Description rdf:about=""><dc:title rdf:resource="A"/><dc:description rdf:parseType="Resource"><rdf:value xml:lang="en">B</rdf:value></dc:description></rdf:Description>
+      </rdf:RDF></x:xmpmeta>`;
+    const result = inspectSourceXmp('source.xmp', Buffer.from(xml));
+    assert.equal(result.status, 'inspected');
+    assert.deepEqual(result.fields, [
+      { field: 'title', values: ['title: A'] },
+      { field: 'description', values: ['description: B'] },
+    ]);
+  });
+
   test('bounded reads authenticate content identities and close their stream on failure', async () => {
     const bytes = Buffer.from(XMP);
     const sidecar = { fileName: 'photo.xmp', bytes: bytes.length, keyId: 1, contentHash: createHash('sha256').update(bytes).digest('hex') };

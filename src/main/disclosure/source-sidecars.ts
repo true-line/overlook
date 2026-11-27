@@ -3,6 +3,7 @@ import type { Readable } from 'node:stream';
 
 import type { DisclosurePlan } from '../../shared/disclosure/policy.js';
 import type { SourceSidecarFinding } from '../../shared/disclosure/source-sidecars.js';
+import { requiresSourceOmission } from '../../shared/disclosure/source-sidecars.js';
 import { inspectSourceXmp, MAX_SOURCE_SIDECAR_BYTES, type SourceInspection } from './source-xmp.js';
 
 export interface SourceSidecar {
@@ -67,7 +68,7 @@ export function sourceSidecarFinding(
     fileName: sidecar.fileName,
     ...inspection,
     blocked,
-    refused: blocked.length > 0 || inspection.status === 'malformed' || inspection.status === 'unavailable',
+    refused: blocked.length > 0 || requiresSourceOmission(inspection.status),
   };
 }
 

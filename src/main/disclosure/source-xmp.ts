@@ -11,8 +11,11 @@ const TIFF = 'http://ns.adobe.com/tiff/1.0/';
 const XMP = 'http://ns.adobe.com/xap/1.0/';
 const EXIF_EX = 'http://cipa.jp/exif/1.0/';
 const AUX = 'http://ns.adobe.com/exif/1.0/aux/';
+const XML = 'http://www.w3.org/XML/1998/namespace';
+const XMLNS = 'http://www.w3.org/2000/xmlns/';
+const RDF_STRUCTURE = new Set(['RDF', 'Description', 'Bag', 'Seq', 'Alt', 'li', 'value']);
 
-export type SourceInspection = Pick<SourceSidecarFinding, 'status' | 'fields'>;
+export type SourceInspection = Pick<SourceSidecarFinding, 'status' | 'fields' | 'unclassified'>;
 
 function fieldOf(uri: string, local: string): DisclosureField | undefined {
   if (uri === DC) {
@@ -41,6 +44,11 @@ export function inspectSourceXmp(fileName: string, bytes: Buffer): SourceInspect
   if (!fileName.toLowerCase().endsWith('.xmp')) return { status: 'unknown', fields: [] };
   if (bytes.length === 0 || bytes.length > MAX_SOURCE_SIDECAR_BYTES) return { status: 'malformed', fields: [] };
   const fields = new Map<DisclosureField, Set<string>>();
+  const unclassified = new Set<string>();
+  const unsupported = (uri: string, local: string): void => {
+    // Bound reporting independently of repeated, attacker-chosen namespace URIs.
+    if (unclassified.size < 16) unclassified.add(`{${uri.slice(0, 160)}}${local.slice(0, 160)}`);
+  };
   const stack: Frame[] = [];
   let rdf = false;
   let nodes = 0;
@@ -60,15 +68,28 @@ export function inspectSourceXmp(fileName: string, bytes: Buffer): SourceInspect
     if (++nodes > 100_000 || stack.length >= 64 || Object.keys(tag.attributes).length > 512) throw new Error('XMP complexity limit');
     if (tag.uri === RDF && tag.local === 'RDF') rdf = true;
     const field = fieldOf(tag.uri, tag.local);
+    if (
+      field === undefined &&
+      !(tag.uri === RDF && RDF_STRUCTURE.has(tag.local)) &&
+      !(tag.uri === 'adobe:ns:meta/' && tag.local === 'xmpmeta')
+    )
+      unsupported(tag.uri, tag.local);
     if (field !== undefined && !fields.has(field)) fields.set(field, new Set());
     stack.push({ field, local: tag.local, uri: tag.uri, text: '' });
     for (const attribute of Object.values(tag.attributes)) {
       const attributeField = fieldOf(attribute.uri, attribute.local);
       if (attributeField !== undefined) add(attributeField, attribute.local, attribute.value);
+      const owner = [...stack].reverse().find((frame) => frame.field !== undefined);
       if (attribute.uri === RDF && ['resource', 'value'].includes(attribute.local)) {
-        const owner = [...stack].reverse().find((frame) => frame.field !== undefined);
         if (owner?.field !== undefined) add(owner.field, owner.local, attribute.value);
       }
+      const structural =
+        attribute.uri === XMLNS ||
+        (attribute.uri === XML && ['lang', 'space'].includes(attribute.local)) ||
+        (attribute.uri === RDF && attribute.local === 'about' && attribute.value === '') ||
+        (attribute.uri === RDF && attribute.local === 'parseType' && ['Resource', 'Collection', 'Literal'].includes(attribute.value)) ||
+        (attribute.uri === RDF && ['resource', 'value'].includes(attribute.local) && owner?.field !== undefined);
+      if (attributeField === undefined && !structural) unsupported(attribute.uri, attribute.local);
     }
   });
   const text = (value: string): void => {
@@ -82,12 +103,17 @@ export function inspectSourceXmp(fileName: string, bytes: Buffer): SourceInspect
     if (frame === undefined || frame.text.trim() === '') return;
     const owner = frame.field !== undefined ? frame : [...stack].reverse().find((entry) => entry.field !== undefined);
     if (owner?.field !== undefined) add(owner.field, owner.local, frame.text);
+    else unsupported(frame.uri, frame.local);
   });
   try {
     const encoding = bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf-16le' : bytes[0] === 0xfe && bytes[1] === 0xff ? 'utf-16be' : 'utf-8';
     parser.write(new TextDecoder(encoding, { fatal: true }).decode(bytes)).close();
     if (!rdf) return { status: 'malformed', fields: [] };
-    return { status: 'inspected', fields: [...fields].map(([field, values]) => ({ field, values: [...values] })) };
+    return {
+      status: unclassified.size === 0 ? 'inspected' : 'unsupported',
+      fields: [...fields].map(([field, values]) => ({ field, values: [...values] })),
+      ...(unclassified.size === 0 ? {} : { unclassified: [...unclassified] }),
+    };
   } catch {
     return { status: 'malformed', fields: [] };
   }

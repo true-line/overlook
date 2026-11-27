@@ -27,9 +27,12 @@ export function SourceSidecarsPreview({ sidecars }: { readonly sidecars: readonl
                       ? disclosureMessages.sidecarBudget
                       : sidecar.status === 'unknown'
                         ? disclosureMessages.sidecarUnknown
-                        : sidecar.status === 'malformed'
-                          ? disclosureMessages.sidecarMalformed
-                          : disclosureMessages.sidecarUnavailable,
+                        : sidecar.status === 'unsupported'
+                          ? disclosureMessages.sidecarUnsupported
+                          : sidecar.status === 'malformed'
+                            ? disclosureMessages.sidecarMalformed
+                            : disclosureMessages.sidecarUnavailable,
+                    { properties: intl.formatList(sidecar.unclassified ?? []) },
                   )}
             </p>
             {sidecar.blocked.length === 0 ? null : (

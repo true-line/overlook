@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { EMPTY_DISCLOSURE_OPERATION } from '../../shared/disclosure/policy.js';
+import { requiresSourceOmission } from '../../shared/disclosure/source-sidecars.js';
 import type { DisclosurePreview, DisclosurePreviewRequest } from '../../shared/ipc/disclosure-channels.js';
 import type { ExportDisclosureIntentWire } from '../../shared/ipc/export-channels.js';
 import type { ExportDisclosureIntent } from '../export/export-engine.js';
@@ -62,7 +63,7 @@ export class DisclosureConsentAuthority {
     this.confirming = true;
     try {
       const snapshot = await this.snapshot(request);
-      if (snapshot.preview.sourceSidecars?.some((sidecar) => sidecar.status === 'malformed' || sidecar.status === 'unavailable')) {
+      if (snapshot.preview.sourceSidecars?.some((sidecar) => requiresSourceOmission(sidecar.status))) {
         throw new Error('Source sidecars cannot be inspected. Use Metadata: Edits/None.');
       }
       if (snapshot.detail.length > 60_000) throw new Error('Select fewer photos to confirm disclosure');

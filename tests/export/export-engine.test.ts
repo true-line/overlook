@@ -622,11 +622,11 @@ describe('disclosure classes at the export boundary (#509, ADR-0032 §6)', () =>
       operation: intent.operation,
     });
 
-  async function sourceWorld() {
+  async function sourceWorld(
+    xml = '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:exif="http://ns.adobe.com/exif/1.0/"><rdf:Description exif:GPSLatitude="52.37N" exif:GPSLongitude="4.9E"/></rdf:RDF>',
+  ) {
     const world = await seededWorld(1);
-    const bytes = Buffer.from(
-      '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:exif="http://ns.adobe.com/exif/1.0/"><rdf:Description exif:GPSLatitude="52.37N" exif:GPSLongitude="4.9E"/></rdf:RDF>',
-    );
+    const bytes = Buffer.from(xml);
     const ref = await world.store.putSidecar(Readable.from([bytes]), world.key, 'PHOTO0');
     const engine = new ExportEngine({
       ...world.deps,
@@ -641,6 +641,20 @@ describe('disclosure classes at the export boundary (#509, ADR-0032 §6)', () =>
     const world = await sourceWorld();
     assert.equal(world.rows.get('PHOTO0')?.gpsLat, null);
     await assert.rejects(world.engine.exportPhotos(['PHOTO0'], world.destination), /Source sidecar "source.xmp".*location/u);
+    assert.deepEqual(readdirSync(world.destination), []);
+  });
+
+  test('valid XMP with unclassified private metadata refuses even a fully widened export plan (#1142)', async () => {
+    const world = await sourceWorld(
+      '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:x="http://ns.adobe.com/xap/1.0/"><rdf:Description x:Rating="5"/></rdf:RDF>',
+    );
+    await assert.rejects(
+      world.engine.exportPhotos(['PHOTO0'], world.destination, undefined, 'original', 'original', undefined, {
+        destination: 'shared',
+        operation: { narrow: [], widen: ['location'] },
+      }),
+      /Source sidecar.*unsupported/u,
+    );
     assert.deepEqual(readdirSync(world.destination), []);
   });
 
