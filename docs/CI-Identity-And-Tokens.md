@@ -193,3 +193,120 @@ governed branch updater, version/tag automation, and release publication; do not
 keep repository-level copies of `CHORES_DUMB_CLIENT_ID` or
 `CHORES_DUMB_PRIVATE_KEY`, and `RELEASE_TOKEN` is not consumed by those
 privileged writes.
+
+## Main protection audit — 2026-11-27 (#1172)
+
+This is an observed settings record, not a replacement for the merge contract
+above. [Issue #1172](https://github.com/true-line/overlook/issues/1172) remains
+open: administrative repair and complete negative enforcement evidence are
+outstanding. Re-read live policy before acting; the September issue comments
+describe settings that have since changed.
+
+### Observed policy and publishers
+
+At `main` commit `b63382e5527fd3606f40b3d0d58615ef983a5fab`, GET
+`/repos/true-line/overlook/rules/branches/main`, the ruleset list with
+`includes_parents=true`, and both branch ruleset details showed:
+
+- Repository ruleset `18825119` (`default-branch-ruleset`) is active on the
+  default branch. Its required-check rule has strict freshness **disabled** and
+  requires the four Actions contexts below; `CodeQL` is missing.
+- Organization ruleset `22156011` (`protect-default-branch`) also applies to the
+  default branch. Its additional required-check rule has an empty list and
+  strict freshness disabled; it does not repair the repository gap.
+- Both branch rulesets require one approval, CODEOWNERS review, resolved review
+  threads, signed commits, deletion protection and non-fast-forward protection.
+  Both currently leave stale-review dismissal and last-push approval disabled.
+  The repository also requires code quality at `errors` and CodeQL scanning at
+  `high_or_higher` security / `errors`; the organization requires secret-scanning
+  alert resolution. Organization ruleset `26777468` governs repository transfer.
+- Classic `branches/main/protection` returns 404. The effective ruleset rules
+  remain active; that response does not mean `main` is unprotected.
+- `.github/CODEOWNERS` assigns `*` and explicit governance paths to `@qwts`.
+  CODEOWNERS review is already enabled; do not disable it or replace it with an
+  ordinary bot approval. The available policy reads report
+  `current_user_can_bypass: never` but omit `bypass_actors`; the current bypass
+  list is **unknown**, not empty. Historical owner bypass entries are not
+  authorization for an agent to bypass.
+
+All five exact contexts succeeded on PR #1497 head
+`ae469b554ce1f7793cbf7c2c690fee13f4b7571b`. The check-run API supplies the App
+identities below. The Advanced CodeQL analysis jobs run under Actions, but the
+stable `CodeQL` result is published by Advanced Security.
+
+| Required context             | Publishing App / integration ID      | Observed required |
+| ---------------------------- | ------------------------------------ | ----------------- |
+| `CI`                         | `github-actions` / `15368`           | Yes               |
+| `E2E gate`                   | `github-actions` / `15368`           | Yes               |
+| `Docs governance / docs-gov` | `github-actions` / `15368`           | Yes               |
+| `CodeQL`                     | `github-advanced-security` / `57789` | **No**            |
+| `zizmor / unpinned-uses`     | `github-actions` / `15368`           | Yes               |
+
+`ci.yml` names the aggregate `CI`, `E2E gate`, and `zizmor / unpinned-uses`
+jobs, calls the pinned reusable Docs governance workflow, and calls
+`codeql.yml` for Advanced analysis. Do not substitute `E2E`, `zizmor`, or an
+`Advanced CodeQL / Analyze (...)` job for the contexts in this table.
+
+### Owner repair procedure
+
+The Agent-Bot installation used for this audit has no `administration`
+permission. Its policy API is GET-only, raw tokens are withheld, and the settings
+browser fallback was unavailable. No administrative write was made.
+
+An administrator must perform this focused repair:
+
+1. Save fresh administrative GET responses for `rules/branches/main`,
+   `rulesets?includes_parents=true`, `rulesets/18825119`, and
+   `rulesets/22156011`, including conditions, enforcement and bypass actors.
+   Check for concurrent owner changes. Confirm the table's exact names and App
+   IDs still have successful check runs on a current complete-suite head.
+2. Open [repository ruleset 18825119](https://github.com/true-line/overlook/settings/rules/18825119).
+   In **Require status checks to pass**, retain the four existing App-bound
+   entries, add `CodeQL` with source **GitHub Advanced Security** (`57789`), and
+   enable **Require branches to be up to date before merging**
+   (`strict_required_status_checks_policy: true`). Leave the rule active on the
+   default branch and retain `do_not_enforce_on_create: false`.
+3. Preserve every other rule, approval count, CODEOWNERS requirement, thread
+   requirement, signature rule, scanning rule, condition, allowed merge method,
+   and existing bypass setting. Do not add or use a bypass. Do not change
+   stale-review dismissal as a side effect of this repair. Confirm `@qwts` is a
+   valid CODEOWNER with repository write access and GitHub reports no CODEOWNERS
+   errors. Retain auto-merge, merge commits and the governed branch updater.
+4. Independently re-read the ruleset and effective rules. Verify all five
+   `(context, integration_id)` pairs and strict freshness; compare the saved
+   before/after snapshots to ensure no unrelated protection changed. An empty
+   organization check list does not cancel the repository's stronger rule.
+5. Record the actual after snapshot and the evidence below on #1172 and update
+   this audit. A documentation PR cannot apply repository settings.
+
+### Enforcement evidence and remaining acceptance
+
+Use read-only observations and real checks on legitimate PRs. Record the PR,
+head and base SHAs, observation time, check App IDs, mergeability, reviews,
+threads, auto-merge state and any rule-suite evaluation available to the owner.
+Never merge a deliberately failing change, synthesize success, bypass a rule,
+or count an older head's checks as current evidence.
+
+| Condition          | Evidence observed                                                                                                                                                                                            | Remaining proof                                                                                                                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Missing / pending  | September #1209 was `BLOCKED / REVIEW_REQUIRED` with required checks absent or pending; the issue comments preserve that observation.                                                                        | Review was also missing. Obtain current normal-path denial with review/threads satisfied and identify the absent or pending required context.                                                                                          |
+| Failing            | PR #1497 heads `9bcf7e51b392fd9d18001edbd41ec8e0d36b7858` and `6c59304a6fcdf22dd4a540052205bf494532fcdd` have failed `CI` and `E2E gate`; neither head merged.                                               | Check failures and non-merging alone do not prove isolated enforcement. Capture a current blocked normal lifecycle or failed rule evaluation with other gates satisfied.                                                               |
+| Stale              | Current strict freshness is false.                                                                                                                                                                           | After repair, observe a previously green, approved PR fall behind `main` and become blocked until the governed updater supplies current-base checks. Record old/new head and base SHAs. Do not manually update a merely-behind branch. |
+| Valid current head | PR #1497 final head `ae469b554ce1f7793cbf7c2c690fee13f4b7571b` had all five contexts successful before its normal auto-merge at `2026-11-27T08:36:27Z`. September comments also record a passing rule suite. | Repeat or verify the intended normal lifecycle under the repaired policy; success under the weaker current rule does not prove strict freshness.                                                                                       |
+
+The failed runs are [45961495533](https://github.com/true-line/overlook/actions/runs/45961495533)
+and [45963563364](https://github.com/true-line/overlook/actions/runs/45963563364).
+The successful exact-head run is
+[45965520093](https://github.com/true-line/overlook/actions/runs/45965520093);
+`CI` completed at `08:36:21Z` and `E2E gate` at `08:35:39Z`, before merge.
+`CodeQL` completed at `08:26:01Z`, Docs governance at `08:25:44Z`, and
+`zizmor / unpinned-uses` at `08:25:41Z` on the same date and head.
+
+For each negative case, an approved PR remaining open with auto-merge enabled
+is useful lifecycle evidence, but explain any other blocking conditions. Prefer
+the administrator's rule-suite rejection identifying the specific check rule
+when available. Configuration states the intended restriction; a combined
+`BLOCKED` state does not isolate its cause. Keep #1172 open until the repaired
+live settings and pending, failing, missing, stale and positive evidence all
+satisfy acceptance. Queue documentation auto-merge only after its complete
+current-head checks succeed.
