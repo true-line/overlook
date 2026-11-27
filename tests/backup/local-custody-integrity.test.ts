@@ -239,6 +239,7 @@ test('cancellation and key revocation destroy active streams without committing 
       const stream = Readable.from(
         (async function* () {
           yield bytes.subarray(0, 18);
+          await new Promise<void>((resolve) => setImmediate(resolve));
           if (revoke) run(w.db, 'UPDATE keys SET material_present = 0 WHERE id = 1');
           else controller.abort();
           yield bytes.subarray(18);

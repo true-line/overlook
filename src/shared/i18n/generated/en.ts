@@ -225,6 +225,7 @@ export const en = {
   "coverage.reason.deleted": "in Trash",
   "coverage.reason.disconnected": "cloud copy exists but the provider is not connected",
   "coverage.reason.inFlight": "uploading right now",
+  "coverage.reason.localCorrupt": "the local original failed verification",
   "coverage.reason.localMissing": "no original on this device",
   "coverage.reason.notFound": "no longer in the library",
   "coverage.reason.restoreFailed": "the cloud-only original could not be downloaded",

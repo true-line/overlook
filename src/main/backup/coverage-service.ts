@@ -26,7 +26,8 @@ export type CoverageSkipReason =
   | 'in-flight'
   | 'provider-disconnected'
   | 'restore-failed'
-  | 'local-missing';
+  | 'local-missing'
+  | 'local-corrupt';
 
 export interface CoveragePreflightItem {
   readonly photoId: string;
@@ -301,6 +302,11 @@ export class CoverageService {
       } else if (row.coverage === 'excluding') {
         // The removal is still owed; re-enabling would race it (§6).
         results.push({ photoId, outcome: 'skipped', reason: 'in-flight' });
+      } else if (row.localCustodyFailure != null) {
+        // A known failed original cannot become an upload merely because its
+        // file exists. Keep the exclusion until an authenticated recheck heals it.
+        this.deps.audit(`COVERAGE-INCLUDE-FAILED photo=${photoId} reason=${row.localCustodyFailure}`);
+        results.push({ photoId, outcome: 'failed', reason: row.localCustodyFailure });
       } else if (!this.deps.hasLocalOriginal(row.contentHash)) {
         // §5 fail closed: without a local original there is nothing to
         // upload, and the row must not pretend otherwise.

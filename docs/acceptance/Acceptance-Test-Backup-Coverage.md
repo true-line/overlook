@@ -68,6 +68,9 @@ written.
    upload ledger remain unchanged. For a missing original, **Recover original…**
    also accepts the matching plaintext original through the existing verified
    recovery path; this explicit recovery does not re-include the exclusion.
+   **Back up again** refuses a known missing/corrupt original until verified
+   local recovery/recheck clears the finding; it must not upload failed bytes
+   or discard the exclusion merely because a file exists.
 5. Repeat with shared variants, including after the import-owner row is
    purged. Verification uses the surviving asset-owner AAD, not the variant ID.
    A missing original counts once in bytes and once per affected photo in the

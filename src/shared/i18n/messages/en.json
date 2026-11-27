@@ -656,6 +656,9 @@
   "coverage.reason.inFlight": {
     "defaultMessage": "uploading right now"
   },
+  "coverage.reason.localCorrupt": {
+    "defaultMessage": "the local original failed verification"
+  },
   "coverage.reason.localMissing": {
     "defaultMessage": "no original on this device"
   },

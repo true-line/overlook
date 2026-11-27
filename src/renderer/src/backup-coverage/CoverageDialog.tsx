@@ -57,6 +57,7 @@ const messages = defineMessages({
   reasonDisconnected: { id: 'coverage.reason.disconnected', defaultMessage: 'cloud copy exists but the provider is not connected' },
   reasonRestoreFailed: { id: 'coverage.reason.restoreFailed', defaultMessage: 'the cloud-only original could not be downloaded' },
   reasonLocalMissing: { id: 'coverage.reason.localMissing', defaultMessage: 'no original on this device' },
+  reasonLocalCorrupt: { id: 'coverage.reason.localCorrupt', defaultMessage: 'the local original failed verification' },
   cancel: { id: 'coverage.dialog.cancel', defaultMessage: 'Cancel' },
   confirmKeep: { id: 'coverage.dialog.confirm.keep', defaultMessage: 'Keep on this device only' },
   confirmRemove: { id: 'coverage.dialog.confirm.remove', defaultMessage: 'Remove cloud copy permanently' },
@@ -77,6 +78,7 @@ const REASON_MESSAGES = {
   'provider-disconnected': 'reasonDisconnected',
   'restore-failed': 'reasonRestoreFailed',
   'local-missing': 'reasonLocalMissing',
+  'local-corrupt': 'reasonLocalCorrupt',
 } as const satisfies Record<SkipReason, keyof typeof messages>;
 
 export interface CoverageDialogProps {

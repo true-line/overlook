@@ -161,6 +161,7 @@ async function world(spec: readonly { readonly id: string; readonly sample: numb
     sleep: () => Promise.resolve(),
   });
   return {
+    db,
     repo,
     store,
     ledger,
@@ -346,6 +347,24 @@ describe('backup coverage service (#506, ADR-0033)', () => {
     assert.deepEqual(ok.results, [{ photoId: 'P0', outcome: 'excluded', reason: null }]);
     assert.equal(w.store.hasOriginal(w.hashOf('P0')), true, 'local custody was proven before the provider copy went');
     assert.equal(remoteBlobs(w.rootDir).length, 0);
+  });
+
+  test('known local-custody failures refuse re-inclusion and never upload the failed original (#1135)', async () => {
+    const w = await world([{ id: 'P0', sample: 0 }]);
+    await w.engine.run();
+    await w.service.exclude(['P0'], REMOVE_CLOUD_COPY_AUTHORIZATION);
+    for (const failure of ['local-missing', 'local-corrupt']) {
+      run(w.db, 'UPDATE photos SET local_custody_failure = ? WHERE id = ?', failure, 'P0');
+      const before = w.ledger.coverage('P0');
+      const result = await w.service.include(['P0']);
+      assert.deepEqual(result.results, [{ photoId: 'P0', outcome: 'failed', reason: failure }]);
+      assert.deepEqual(w.ledger.coverage('P0'), before);
+      assert.equal(w.ledger.isDirty('P0'), false);
+      assert.equal(w.ledger.status('P0'), 'local');
+      assert.equal(w.ledger.requiresRemoteCustody('P0'), false, 'a failed local original must never borrow remote custody');
+      await w.engine.run();
+      assert.equal(remoteBlobs(w.rootDir).length, 0);
+    }
   });
 
   test('§5: Back up again is an ordinary dirty row that the next run uploads and verifies; it fails closed without a local original', async () => {
