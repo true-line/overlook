@@ -2,13 +2,18 @@ import { open as openFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
-import type { Readable } from 'node:stream';
+import { Readable } from 'node:stream';
 
 import { encodePhotoDrag, type PhotoDragPayload } from '../../shared/library/photo-drag.js';
 import type { PhotoRecord } from '../../shared/library/types.js';
+import { assetOwnerOf } from '../../shared/library/asset-owner.js';
+import type { DisclosureField, DisclosurePlan } from '../../shared/disclosure/policy.js';
+import type { DisclosurePlanner } from '../disclosure/disclosure-service.js';
+import type { ActivityFacade } from '../activity/activity-publication.js';
+import { NativeDragDisclosureError, nativeDragActivity, nativeOriginalFields } from './native-drag-disclosure.js';
 import type { NativeDragBridge, NativeDragUnavailableReason, NativePromiseItem } from './native-drag-bridge.js';
 
-export type NativeDragStartReason = NativeDragUnavailableReason | 'content-unavailable';
+export type NativeDragStartReason = NativeDragUnavailableReason | 'content-unavailable' | 'disclosure-withheld';
 
 interface OpenedOriginal {
   readonly stream: Readable;
@@ -16,12 +21,22 @@ interface OpenedOriginal {
 }
 
 export interface NativeDragOutDeps {
+  readonly disclosure: DisclosurePlanner;
+  readonly activity?: (() => ActivityFacade | undefined) | undefined;
   readonly bridge: NativeDragBridge;
   readonly getPhoto: (photoId: string) => PhotoRecord | undefined;
   readonly openOriginal: (photo: PhotoRecord, signal: AbortSignal) => Promise<OpenedOriginal>;
   readonly isMigrating?: ((photoId: string) => boolean) | undefined;
   readonly admit: () => boolean;
   readonly writeFile?: ((destinationPath: string, stream: Readable, signal: AbortSignal) => Promise<void>) | undefined;
+}
+
+async function* checkedChunks(stream: Readable, check: () => void): AsyncGenerator<unknown> {
+  const chunks: AsyncIterable<unknown> = stream;
+  for await (const chunk of chunks) {
+    check();
+    yield chunk;
+  }
 }
 
 interface PromiseRecord {
@@ -133,7 +148,7 @@ export class NativeDragOutService {
   start(
     windowHandle: Buffer,
     input: Omit<PhotoDragPayload, 'version'>,
-  ): { readonly started: boolean; readonly reason: NativeDragStartReason | null } {
+  ): { readonly started: boolean; readonly reason: NativeDragStartReason | null; readonly withheld?: readonly DisclosureField[] } {
     const status = this.status();
     if (!status.available) return { started: false, reason: status.reason };
     if (this.closed || !this.deps.admit()) return { started: false, reason: 'content-unavailable' };
@@ -144,6 +159,13 @@ export class NativeDragOutService {
       return { started: false, reason: 'content-unavailable' };
     }
     const available = photos.filter((photo): photo is PhotoRecord => photo !== undefined);
+    try {
+      for (const photo of available) this.current(photo);
+    } catch (error) {
+      return error instanceof NativeDragDisclosureError
+        ? { started: false, reason: 'disclosure-withheld', withheld: error.fields }
+        : { started: false, reason: 'content-unavailable' };
+    }
     const names = uniquePromiseNames(available.map((photo) => photo.fileName));
     const records = new Map<string, PromiseRecord>();
     for (const [index, photo] of available.entries()) {
@@ -191,6 +213,24 @@ export class NativeDragOutService {
     while (this.activeTasks.size > 0) await Promise.allSettled([...this.activeTasks]);
   }
 
+  private current(original: PhotoRecord, signal?: AbortSignal): { photo: PhotoRecord; plan: DisclosurePlan } {
+    if (this.closed || signal?.aborted === true || !this.deps.admit()) throw new Error('drag content unavailable');
+    const photo = this.deps.getPhoto(original.id);
+    if (
+      photo === undefined ||
+      photo.deletedAt !== null ||
+      photo.locked ||
+      this.deps.isMigrating?.(photo.id) === true ||
+      photo.contentHash !== original.contentHash ||
+      photo.fileKind !== original.fileKind ||
+      assetOwnerOf(photo) !== assetOwnerOf(original)
+    )
+      throw new Error('drag content unavailable');
+    const plan = this.deps.disclosure.plan(photo.id, 'export', 'shared');
+    nativeOriginalFields(photo, plan);
+    return { photo, plan };
+  }
+
   private async materialize(
     records: ReadonlyMap<string, PromiseRecord>,
     token: string,
@@ -202,15 +242,30 @@ export class NativeDragOutService {
     if (!path.isAbsolute(destinationPath)) {
       throw new Error('invalid drag destination');
     }
-    const opened = await awaitOpenedOriginal(this.deps.openOriginal(record.photo, signal), signal);
+    const current = this.current(record.photo, signal);
+    const opened = await awaitOpenedOriginal(this.deps.openOriginal(current.photo, signal), signal);
+    let checked: Readable | undefined;
     try {
-      if (signal.aborted || !this.deps.admit()) throw new Error('drag content unavailable');
-      await (this.deps.writeFile ?? writeReceiverFile)(destinationPath, opened.stream, signal);
-      if (signal.aborted || !this.deps.admit()) {
+      this.current(record.photo, signal);
+      checked = Readable.from(
+        checkedChunks(opened.stream, () => {
+          this.current(record.photo, signal);
+        }),
+        { objectMode: false, signal },
+      );
+      // An aborted receiver can stop consuming before this stream emits its error.
+      checked.on('error', () => undefined);
+      await (this.deps.writeFile ?? writeReceiverFile)(destinationPath, checked, signal);
+      let completed: ReturnType<NativeDragOutService['current']>;
+      try {
+        completed = this.current(record.photo, signal);
+      } catch (error) {
         await rm(destinationPath, { force: true });
-        throw new Error('drag content unavailable');
+        throw error;
       }
+      this.deps.activity?.()?.record(nativeDragActivity(completed.photo, completed.plan));
     } finally {
+      checked?.destroy();
       await discardOpenedOriginal(opened);
     }
   }

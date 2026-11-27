@@ -5,78 +5,9 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { describe, test } from 'node:test';
 
-import type { PhotoRecord } from '../../src/shared/library/types.js';
-import type { NativeDragBridge, NativeDragStartInput } from '../../src/main/native-drag/native-drag-bridge.js';
 import { NativeDragOutService, uniquePromiseNames } from '../../src/main/native-drag/native-drag-service.js';
 import { decodePhotoDrag } from '../../src/shared/library/photo-drag.js';
-
-function photo(id: string, fileName = `${id}.JPG`): PhotoRecord {
-  return {
-    id,
-    fileName,
-    fileKind: 'jpeg',
-    width: 1,
-    height: 1,
-    bytes: 5,
-    contentHash: id.padEnd(64, '0'),
-    derivativeKey: id.padEnd(64, '0'),
-    variantSourceId: null,
-    assetOwnerId: null,
-    camera: null,
-    lens: null,
-    iso: null,
-    aperture: null,
-    shutter: null,
-    focalLength: null,
-    takenAt: null,
-    gpsLat: null,
-    gpsLon: null,
-    place: null,
-    title: null,
-    description: null,
-    tags: [],
-    userTags: [],
-    importedKeywords: [],
-    suppressedKeywords: [],
-    metadataVersion: 1,
-    importedAt: '2026-01-01T00:00:00.000Z',
-    importSource: '/source',
-    favorite: false,
-    isOriginal: false,
-    keyId: 1,
-    deletedAt: null,
-    previewFailure: null,
-    dimensionStatus: 'verified',
-    mediaInfo: null,
-    syncState: 'local',
-    coverage: 'included',
-    locked: false,
-  };
-}
-
-class FakeBridge implements NativeDragBridge {
-  input: NativeDragStartInput | null = null;
-  available = true;
-  cancels = 0;
-  closes = 0;
-
-  status() {
-    return this.available ? ({ available: true, reason: null } as const) : ({ available: false, reason: 'native-unavailable' } as const);
-  }
-
-  start(input: NativeDragStartInput): boolean {
-    this.input = input;
-    return this.available;
-  }
-
-  cancelAll(): void {
-    this.cancels += 1;
-  }
-
-  close(): void {
-    this.closes += 1;
-  }
-}
+import { photo, FakeBridge, defaultPlanner } from './native-drag-fixture.js';
 
 describe('native drag-out materialization (#796)', () => {
   test('creates deterministic case-insensitive multi-selection names', () => {
@@ -93,6 +24,7 @@ describe('native drag-out materialization (#796)', () => {
     let opens = 0;
     let releases = 0;
     const service = new NativeDragOutService({
+      disclosure: defaultPlanner,
       bridge,
       getPhoto: (id) => rows.get(id),
       openOriginal: () => {
@@ -143,6 +75,7 @@ describe('native drag-out materialization (#796)', () => {
       ['DELETED', deleted],
     ]);
     const service = new NativeDragOutService({
+      disclosure: defaultPlanner,
       bridge,
       getPhoto: (id) => rows.get(id),
       openOriginal: () => {
@@ -175,6 +108,7 @@ describe('native drag-out materialization (#796)', () => {
   test('rejects photos in protected migration before advertising native promises (#796 review)', () => {
     const bridge = new FakeBridge();
     const service = new NativeDragOutService({
+      disclosure: defaultPlanner,
       bridge,
       getPhoto: () => photo('P1'),
       isMigrating: (photoId) => photoId === 'P1',
@@ -192,6 +126,7 @@ describe('native drag-out materialization (#796)', () => {
   test('does not delete a receiver-owned destination when exclusive creation fails (#796 review)', async () => {
     const bridge = new FakeBridge();
     const service = new NativeDragOutService({
+      disclosure: defaultPlanner,
       bridge,
       getPhoto: () => photo('P1'),
       openOriginal: () => Promise.resolve({ stream: Readable.from(['new bytes']) }),
@@ -212,6 +147,7 @@ describe('native drag-out materialization (#796)', () => {
     let resolveOpen: ((opened: { stream: Readable; release: () => Promise<void> }) => void) | undefined;
     let releases = 0;
     const service = new NativeDragOutService({
+      disclosure: defaultPlanner,
       bridge,
       getPhoto: () => ({ ...photo('P1'), syncState: 'offloaded' }),
       openOriginal: () =>
@@ -245,6 +181,7 @@ describe('native drag-out materialization (#796)', () => {
     let release = 0;
     let rejectWrite: ((error: Error) => void) | undefined;
     const service = new NativeDragOutService({
+      disclosure: defaultPlanner,
       bridge,
       getPhoto: () => ({ ...photo('P1'), syncState: 'offloaded' }),
       openOriginal: () =>
