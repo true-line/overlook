@@ -24,6 +24,72 @@ verified-only projection), `tests/db/backup-coverage.test.ts` (migration 35,
 the coverage machine, backup reads), `CoverageDialog.stories.tsx ›
 RemovesCloudCopy / KeepsOnThisDevice`.
 
+## Excluded local-custody verification (#1135)
+
+Local custody is verified independently of the remote-presence scrub and of
+provider connection/backup success. An unlocked library starts a rolling pass
+when maintenance opens and schedules another pass 60 seconds after completion.
+Each pass admits at most 50 ordinary excluded rows and a soft 64 MiB budget of
+full ciphertext reads. One oversized original may finish a pass; the next
+original remains at the durable cursor, so large files do not starve. Stream
+memory is bounded, reads cannot grow beyond the observed envelope size, and
+lock/library switch aborts active streams and drains before DB/key teardown.
+
+Every visited row gets a stat and envelope-header check. A first observation,
+changed file identity/size/nanosecond timestamps, prior failure, or a full hash
+at least 24 hours old requires every chunk to authenticate and the plaintext
+SHA-256 to match its content address and recorded size. An unchanged header is
+not a new cryptographic proof and cannot clear a failure. The daily age is
+checked when the bounded walk reaches a row; a large library can take multiple
+passes. This avoids rereading all unchanged originals every minute while still
+detecting ordinary external edits on the next visit. No plaintext file is
+written.
+
+1. Exclude an ordinary photo, disconnect the provider, and reopen the library.
+   Let the local pass visit it. The Inspector still describes the backup
+   exclusion, local-missing/corrupt counts are zero, and no upload is queued.
+2. Save its encrypted envelope from
+   `blobs/<first-two-hash-characters>/<next-two>/<content-hash>` for the test,
+   then remove the durable original outside Overlook. On the next visit the
+   glyph and Inspector say **Local original missing**; the Inspector retains
+   **backup remains excluded by choice**. The coverage/statistics surfaces
+   disclose missing originals, including while disconnected. Missing bytes
+   leave the on-disk total and count once for a shared asset. The exclusion
+   count/bytes remain policy totals; they do not turn into pending uploads.
+3. Repeat with an invalid header, a truncated final chunk and a changed payload
+   byte. Each must become **Local original corrupt**, with a separate corrupt
+   count. Corrupt bytes still occupy disk. No provider object is uploaded,
+   deleted or borrowed as proof of local custody, and the source envelope is
+   not modified. IO permission failures defer the check, not claim corruption
+   or recovery.
+4. Restore the saved encrypted envelope and let the pass recheck it. Only a
+   complete successful authenticated hash clears the finding, red glyph,
+   Unavailable membership and error counts. Coverage/origin/since and the
+   upload ledger remain unchanged. For a missing original, **Recover original…**
+   also accepts the matching plaintext original through the existing verified
+   recovery path; this explicit recovery does not re-include the exclusion.
+5. Repeat with shared variants, including after the import-owner row is
+   purged. Verification uses the surviving asset-owner AAD, not the variant ID.
+   A missing original counts once in bytes and once per affected photo in the
+   finding counts. A large batch resumes from its saved cursor after restart.
+6. Lock or switch libraries during a full read. No late healthy/corrupt result
+   may be committed after revocation. An absent original or retained key is
+   skipped rather than diagnosed as corrupt. Protect a selected row during a
+   check: it must disappear from the ordinary pass before any finding commits.
+   Protected coverage expansion (#1127) and provider capability classification
+   (#1126) are separate decision work, not prerequisites for this slice.
+7. Restore an excluded placeholder from backup. It has no promised local
+   original and must not become a new local-missing/corrupt finding. Included
+   offloaded rows retain the existing remote-custody verification path.
+
+Migration 50 stores findings and verification stamps locally. They survive
+reopen but never enter the backup manifest. Excluded rows remain excluded from
+the remote-presence query. Automated regression coverage:
+`tests/backup/local-custody-integrity.test.ts`,
+`tests/library/original-recovery.test.ts`,
+`tests/dom/local-custody-state.test.tsx`, and Inspector stories
+`LocalOnlyHealthy / LocalOriginalMissing / LocalOriginalCorrupt`.
+
 ## Steps
 
 1. Start a new library with the mock provider, import four photos and press

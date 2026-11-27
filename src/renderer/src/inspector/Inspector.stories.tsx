@@ -164,6 +164,31 @@ const meta: Meta<typeof Inspector> = {
 export default meta;
 type Story = StoryObj<typeof Inspector>;
 
+export const LocalOnlyHealthy: Story = {
+  args: { photo: { ...PHOTO, coverage: 'excluded', syncState: 'local', localCustodyFailure: null } },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText('On this device only — not backed up by choice')).toBeVisible();
+  },
+};
+
+export const LocalOriginalMissing: Story = {
+  args: { photo: { ...PHOTO, coverage: 'excluded', syncState: 'local', localCustodyFailure: 'local-missing' } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Local original missing — backup remains excluded by choice')).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Recover original…' })).toBeVisible();
+  },
+};
+
+export const LocalOriginalCorrupt: Story = {
+  args: { photo: { ...PHOTO, coverage: 'excluded', syncState: 'local', localCustodyFailure: 'local-corrupt' } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Local original corrupt — backup remains excluded by choice')).toBeVisible();
+    await expect(canvas.queryByText('On this device only — not backed up by choice')).not.toBeInTheDocument();
+  },
+};
+
 export const RafFavorite: Story = {
   args: { photo: PHOTO, providerLabel: 'Local mock' },
   play: async ({ canvasElement }) => {

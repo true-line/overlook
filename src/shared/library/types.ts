@@ -264,8 +264,8 @@ export interface LibraryStats {
   /** Excluded rows whose provider copy still awaits removal (ADR-0033 §6). */
   readonly pendingRemovals: number;
   /** Ordinary excluded rows with a verified local-custody problem. */
-  readonly localMissingCount?: number;
-  readonly localCorruptCount?: number;
+  readonly localMissingCount?: number | undefined;
+  readonly localCorruptCount?: number | undefined;
   /** Missing original bytes, deduplicated by asset. Corrupt bytes still occupy disk. */
-  readonly localMissingBytes?: number;
+  readonly localMissingBytes?: number | undefined;
 }

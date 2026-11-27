@@ -55,6 +55,14 @@ const messages = defineMessages({
     id: 'inspector.custody.locked',
     defaultMessage: 'Locked — KEY #{id} is not on this device',
   },
+  localMissing: {
+    id: 'inspector.custody.localMissing',
+    defaultMessage: 'Local original missing — backup remains excluded by choice',
+  },
+  localCorrupt: {
+    id: 'inspector.custody.localCorrupt',
+    defaultMessage: 'Local original corrupt — backup remains excluded by choice',
+  },
 });
 
 function Section({ title, children }: { readonly title: string; readonly children: ReactElement | (ReactElement | null)[] }): ReactElement {
@@ -92,7 +100,10 @@ export function Inspector({
   const thumbnailUrl = usePhotoThumbnailUrl(photo?.id ?? null);
   const { announce } = useAnnouncer();
   const { formatBytes, formatCalendarDate } = useFormats();
-  const custodyStatus = usePhotoCustodyStatus(photo?.id ?? '', photo?.syncState === 'offloaded' || photo?.syncState === 'error');
+  const custodyStatus = usePhotoCustodyStatus(
+    photo?.id ?? '',
+    photo?.coverage === 'included' && (photo.syncState === 'offloaded' || photo.syncState === 'error'),
+  );
   const custody =
     custodyStatus === null || (photo?.syncState === 'error' && custodyStatus.state === 'available')
       ? null
@@ -137,6 +148,7 @@ export function Inspector({
   // and an owed provider removal reads as pending, never as backed up.
   const coverageText =
     photo.coverage === 'excluding' ? 'On this device only — cloud copy removal pending' : 'On this device only — not backed up by choice';
+  const localProblem = photo.coverage === 'excluded' ? photo.localCustodyFailure : null;
   return (
     <div className="ovl-inspector" data-testid="inspector">
       <h2 className="ovl-sr-only">{intl.formatMessage(messages.title)}</h2>
@@ -248,9 +260,21 @@ export function Inspector({
       <Section title="Backup">
         <MetadataRow
           label="State"
-          value={photo.coverage === 'included' ? (custody?.text ?? statusText[photo.syncState]) : coverageText}
+          value={
+            localProblem != null
+              ? intl.formatMessage(localProblem === 'local-missing' ? messages.localMissing : messages.localCorrupt)
+              : photo.coverage === 'included'
+                ? (custody?.text ?? statusText[photo.syncState])
+                : coverageText
+          }
           mono={false}
-          tone={photo.coverage === 'included' ? (custody?.tone ?? STATUS_TONE[photo.syncState]) : STATUS_TONE.offloaded}
+          tone={
+            localProblem != null
+              ? STATUS_TONE.error
+              : photo.coverage === 'included'
+                ? (custody?.tone ?? STATUS_TONE[photo.syncState])
+                : STATUS_TONE.offloaded
+          }
         />
         <MetadataRow
           label="Cipher"

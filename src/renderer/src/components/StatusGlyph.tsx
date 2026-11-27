@@ -4,7 +4,7 @@ import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import './feedback.css';
 import { Icon, type IconName, type IconSize } from './Icon';
 
-export type SyncState = 'local' | 'synced' | 'syncing' | 'offloaded' | 'error' | 'excluded';
+export type SyncState = 'local' | 'synced' | 'syncing' | 'offloaded' | 'error' | 'excluded' | 'local-missing' | 'local-corrupt';
 
 const messages = defineMessages({
   local: { id: 'statusGlyph.local', defaultMessage: 'Local only' },
@@ -13,6 +13,8 @@ const messages = defineMessages({
   offloaded: { id: 'statusGlyph.offloaded', defaultMessage: 'Offloaded to cloud' },
   error: { id: 'statusGlyph.error', defaultMessage: 'Sync failed' },
   excluded: { id: 'statusGlyph.excluded', defaultMessage: 'On this device only' },
+  localMissing: { id: 'statusGlyph.localMissing', defaultMessage: 'Local original missing' },
+  localCorrupt: { id: 'statusGlyph.localCorrupt', defaultMessage: 'Local original corrupt' },
 });
 
 // The design's STATES map (media/StatusGlyph.jsx) paired with catalog descriptors.
@@ -25,6 +27,8 @@ export const SYNC_STATES: Record<SyncState, { icon: IconName; color: string; lab
   // Backup coverage (#506, ADR-0033): local-only by choice, distinct from
   // 'local' (not backed up yet) so the tile says so.
   excluded: { icon: 'hard-drive', color: 'var(--accent-amber)', label: 'On this device only', message: messages.excluded },
+  'local-missing': { icon: 'hard-drive', color: 'var(--accent-red)', label: 'Local original missing', message: messages.localMissing },
+  'local-corrupt': { icon: 'hard-drive', color: 'var(--accent-red)', label: 'Local original corrupt', message: messages.localCorrupt },
 };
 
 /** The glyph a record shows: coverage wins over the upload state, since an
@@ -32,7 +36,9 @@ export const SYNC_STATES: Record<SyncState, { icon: IconName; color: string; lab
 export function glyphStateOf(photo: {
   readonly syncState: SyncState | 'local';
   readonly coverage: 'included' | 'excluding' | 'excluded';
+  readonly localCustodyFailure?: 'local-missing' | 'local-corrupt' | null | undefined;
 }): SyncState {
+  if (photo.coverage === 'excluded' && photo.localCustodyFailure != null) return photo.localCustodyFailure;
   return photo.coverage === 'included' ? photo.syncState : 'excluded';
 }
 

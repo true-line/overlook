@@ -29,6 +29,11 @@ const messages = defineMessages({
     id: 'statusbar.sync.backedUpExceptLocalOnly',
     defaultMessage: 'Backed up except {count, plural, one {# local-only photo} other {# local-only photos}}',
   },
+  localCustodyProblems: {
+    id: 'statusbar.coverage.localProblems',
+    defaultMessage:
+      '{missing, plural, one {# local original missing} other {# local originals missing}} · {corrupt, plural, one {# local original corrupt} other {# local originals corrupt}}',
+  },
 });
 
 // The 26px mono strip (#81) per the design's StatusBar.jsx — always tells
@@ -63,14 +68,22 @@ export function StatusBar({
   const syncing = state.pendingCount > 0;
   const provider = state.providerLabel;
   const restoreLabel = restore === null ? null : restoreChipLabel(restore);
+  const localMissing = stats?.localMissingCount ?? 0;
+  const localCorrupt = stats?.localCorruptCount ?? 0;
+  const localProblemLabel =
+    localMissing + localCorrupt > 0
+      ? intl.formatMessage(messages.localCustodyProblems, { missing: localMissing, corrupt: localCorrupt })
+      : null;
   const announcement =
     restoreLabel !== null
       ? restoreLabel
-      : !state.providerConnected
-        ? `${provider} not connected`
-        : syncing
-          ? `Encrypting ${formatCount(state.pendingCount)} to ${provider}`
-          : `All backed up. ${state.lastBackupLabel}`;
+      : localProblemLabel !== null
+        ? localProblemLabel
+        : !state.providerConnected
+          ? `${provider} not connected`
+          : syncing
+            ? `Encrypting ${formatCount(state.pendingCount)} to ${provider}`
+            : `All backed up. ${state.lastBackupLabel}`;
   const previousAnnouncement = useRef(announcement);
   useEffect(() => {
     if (previousAnnouncement.current === announcement) return;
@@ -122,6 +135,11 @@ export function StatusBar({
           </span>
           {restoreLabel}
         </button>
+      ) : localProblemLabel !== null ? (
+        <span className="ovl-statusbar__item" style={{ color: 'var(--accent-red)' }} data-testid="sync-state">
+          <Icon name="hard-drive" size={12} strokeWidth={2} />
+          {localProblemLabel}
+        </span>
       ) : !state.providerConnected ? (
         // Disconnected (#239): a faint statement of fact, never a fabricated
         // backed-up state.
