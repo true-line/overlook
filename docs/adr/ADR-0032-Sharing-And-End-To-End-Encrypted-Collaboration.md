@@ -459,3 +459,21 @@ the supported export projection (for example ratings, comments or face regions)
 refuses Source export even when every supported export field is widened. RDF
 and XMP structural wrappers are not metadata properties. Preview identifies
 unclassified properties; Edits/None remains the way to omit that source packet.
+
+## Amendment — native drag materialization (#1137)
+
+Original-only native promises use the export plan for a shared destination,
+recomputed in main without operation widening. Their embedded field set matches
+Original-only export; no separate boundary is needed. A withheld embedded field
+refuses the whole selection before promises are advertised, with the field
+names returned for a refusal notice. Policy and custody are checked again when
+the receiver requests bytes and across asynchronous materialization. Activity
+records crossings by field name and approved class only, never field values,
+paths, blob addresses or custody details.
+
+No Baked native payload or drag-specific consent ceremony is introduced. The
+ordinary Export dialog's Baked payload is the compliant alternative. Production
+native dragging remains disabled by #1027. Materialization-only enforcement and
+automated evidence do not satisfy #1028's signed initiation-design gate, do not
+authorize a new native session path, and do not establish signed receiver or
+preview acceptance for #1137.
