@@ -103,9 +103,34 @@ separately. These are isolated diagnostic measurements, not IPC acceptance.
 
 The connection now permits a 256 MiB page cache, allocated on demand and
 released on connection close. This is the smallest measured beneficial size;
-it does not raise the existing main-RSS ceiling or any other ratchet. Native
+it does not raise the existing main-RSS ceiling or any other ratchet. Vector
 retrieval, concurrent work, cold start, import, scroll and memory must still
 qualify together in a complete unprofiled exact-head application run.
+
+## Complete application qualification (#1221)
+
+Unprofiled hosted [run 46104416223](https://github.com/true-line/overlook/actions/runs/46104416223)
+at `39af9b806c042caead8c069979aa93e13ee7c94d` passed both the original 200K
+application scenario and the collection scenario (`2 passed`). Every required
+assertion executed successfully. Selected report values were:
+
+| Metric                    | Result         |
+| ------------------------- | -------------- |
+| Cold start                | 3,655 ms       |
+| Keyword search            | 38.4 ms        |
+| Vector / composed search  | 798 / 838 ms   |
+| Full-pipeline import      | 4.376 photos/s |
+| Main-process RSS          | 989.98 MiB     |
+| Zoom-96 median drop share | 0.1755         |
+
+Artifact `15247180370` contains both `perf-report.json` and
+`collections-perf-report.json`; ZIP SHA-256:
+`895e60439d70b14a2879c6cbcac00139289dac16f92d01188337dfc3df7ae43c`.
+Preserve both reports in the issue discussion beyond artifact expiration.
+The accompanying CI run exposed an existing cache-policy test still expecting
+64 MiB; its assertion now pins the measured 256 MiB setting. Final closure
+requires complete unprofiled qualification and required checks on the resulting
+PR head, including this test/documentation follow-up.
 
 ## Perf budgets (#123 — RATCHETS: tighten, never loosen)
 
