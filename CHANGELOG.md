@@ -1,5 +1,17 @@
 # photos
 
+## 0.76.44
+
+### Patch Changes
+
+- c356d40: Avoid repeated full-library sorting during background duplicate fingerprint indexing.
+- b6b4f1e: Avoid wide photo-row reads during semantic search eligibility and index counts.
+- 23c605e: Require main-owned consent and a single-use capability before operation-scope metadata widening in folder and Apple Photos exports.
+- 726dc0a: Apply main's disclosure policy to dormant native drag promises, refusing originals with withheld embedded metadata and keeping Activity records free of metadata values. Production native dragging remains disabled pending the signed initiation redesign.
+- dca6f0e: Verify excluded photos' local originals independently of cloud backup, and report missing or corrupt local custody without changing their backup exclusion.
+- ce75591: Inspect retained source sidecars before export and enforce metadata disclosure policy without modifying the stored companions. Preview actual fields and require main-owned consent for widening; refuse malformed, unclassified or unverifiable source metadata.
+- 39af9b8: Reduce repeated SQLCipher page decryption for large libraries with a measured, bounded page cache.
+
 ## 0.76.43
 
 ### Patch Changes
