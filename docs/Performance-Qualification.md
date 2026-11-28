@@ -120,6 +120,17 @@ not cancel or shorten the measured operation.
 Profiling is off by default. Profiled runs remain subject to every assertion,
 but their timings are diagnostic only and must not establish a baseline.
 
+With `profile=true`, an additional hosted-only SQL scenario seeds a separate
+200K encrypted fixture and compares point versus scan vector joins, covering
+versus original eligibility reads, and 64/128/256/512 MiB page caches. It asserts
+identical cosine results and records every sample/query plan in
+`sql-diagnostics-perf-report.json`, retained by the existing artifact glob.
+Seeding and database-open costs are separate from the SQL samples. Each variant
+requests SQLite page-cache release; filesystem-cache warmth is not controlled.
+CPU model, parallelism and Node version are retained. This isolates SQL costs from concurrent maintenance and IPC; it is
+not application acceptance. The existing complete scenarios and every ratchet
+assertion still run in both modes. Do not run this heavy probe locally.
+
 Scroll measurements run three visible native-BrowserWindow trials at every
 zoom. The report retains each trial's frames, drops, drop rate, and worst frame;
 the drop-rate budget gates the median trial and the worst-frame budget gates the
