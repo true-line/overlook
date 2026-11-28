@@ -51,6 +51,8 @@ Automated coverage: `tests/e2e/export-edits.spec.ts`, `tests/export/edit-xmp.tes
    entry honestly ("edit stack has an operation this build cannot render");
    the batch continues.
 8. Cancel a multi-photo baked export mid-way. **Expected:** completed files
-   stay, the file in flight finishes, and no partial plaintext remains.
+   stay; the unfinished entry is cancelled and cleaned up. Follow
+   [export cancellation acceptance](./Acceptance-Test-Export-Cancellation.md)
+   for active IO, late completion and physical-retirement bounds.
 9. Export all (library-wide). **Expected:** the same _Edits_ control applies;
    the preflight counts every exportable photo.

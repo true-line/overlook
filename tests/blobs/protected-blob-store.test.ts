@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, ReadStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -23,6 +23,51 @@ async function files(root: string): Promise<string[]> {
 }
 
 describe('ProtectedBlobStore', () => {
+  test('cancelling a protected decrypt stream closes its upstream file descriptor (#1217)', async (t) => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'overlook-protected-read-cancel-'));
+    const store = new ProtectedBlobStore(dataDir);
+    await store.init();
+    const albumKey = randomBytes(32);
+    const plaintext = Buffer.alloc(2 * 1024 * 1024);
+    const contentHash = createHash('sha256').update(plaintext).digest('hex');
+    const blobRef = await store.putOriginal({ albumId: 'album-a', albumKey, contentHash, plaintext: Readable.from(plaintext) });
+    let reported = false;
+    let entered: ((stream: ReadStream) => void) | undefined;
+    let closed: (() => void) | undefined;
+    const started = new Promise<ReadStream>((resolve) => {
+      entered = resolve;
+    });
+    const finished = new Promise<void>((resolve) => {
+      closed = resolve;
+    });
+    const read = Reflect.get<ReadStream, '_read'>(ReadStream.prototype, '_read');
+    t.mock.method(ReadStream.prototype, '_read', function (this: ReadStream, size: number) {
+      if (!reported && typeof this.path === 'string' && this.path.startsWith(dataDir)) {
+        reported = true;
+        this.once('close', () => closed?.());
+        entered?.(this);
+      }
+      read.call(this, size);
+    });
+    const stream = store.getStream('album-a', blobRef, 'original', albumKey);
+    const source = await started;
+    stream.destroy();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        finished,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error('decrypt cancellation left an upstream descriptor open')), 1_000);
+        }),
+      ]);
+      assert.equal(source?.destroyed, true);
+    } finally {
+      clearTimeout(timer);
+      source?.destroy();
+      stream.destroy();
+    }
+  });
+
   test('stores originals and both derivatives outside ordinary consistency scans', async () => {
     const dataDir = mkdtempSync(join(tmpdir(), 'overlook-protected-blobs-'));
     const ordinary = new BlobStore({ dataDir });

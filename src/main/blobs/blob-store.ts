@@ -196,12 +196,12 @@ export class BlobStore {
   }
 
   /** Decrypting read stream for one companion. */
-  getSidecarStream(photoId: string, contentHash: string, resolveKey: KeyResolver): Readable {
+  getSidecarStream(photoId: string, contentHash: string, resolveKey: KeyResolver, signal?: AbortSignal): Readable {
     assertHash(contentHash);
     const path = this.sidecarPath(photoId, contentHash);
     if (!existsSync(path)) throw new BlobStoreError(`sidecar ${contentHash} of ${photoId} is not in the store`);
     return composeStreams(
-      createReadStream(path),
+      createReadStream(path, { signal }),
       createDecryptStream(resolveKey, { photoId: BlobStore.sidecarContext(photoId) }),
       () => undefined,
     );
@@ -442,7 +442,7 @@ export class BlobStore {
     assertHash(contentHash);
     const path = join(this.viewCacheDir, contentHash);
     if (!existsSync(path)) throw new BlobStoreError(`ephemeral blob ${contentHash} is not available`);
-    return createReadStream(path).pipe(createDecryptStream(resolveKey, { photoId }));
+    return composeStreams(createReadStream(path), createDecryptStream(resolveKey, { photoId }), () => undefined);
   }
 
   /** Atomically adds an already verified ephemeral envelope to durable
@@ -478,7 +478,7 @@ export class BlobStore {
   }
 
   /** Decrypting read stream for an original. */
-  getStream(contentHash: string, resolveKey: KeyResolver, photoId: string): Readable {
+  getStream(contentHash: string, resolveKey: KeyResolver, photoId: string, signal?: AbortSignal): Readable {
     assertHash(contentHash);
     const path = this.originalPath(contentHash);
     if (!existsSync(path)) {
@@ -487,7 +487,7 @@ export class BlobStore {
     // Composed with pipeline, not pipe: a consumer that stops early (a bounded
     // provenance read, an aborted restore) destroys the file stream too, so
     // no descriptor lingers until GC, and a read error reaches the consumer.
-    return composeStreams(createReadStream(path), createDecryptStream(resolveKey, { photoId }), () => undefined);
+    return composeStreams(createReadStream(path, { signal }), createDecryptStream(resolveKey, { photoId }), () => undefined);
   }
 
   getThumbStream(originalHash: string, size: ThumbSize, resolveKey: KeyResolver, photoId: string): Readable {

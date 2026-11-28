@@ -3,6 +3,7 @@ import { createReadStream, createWriteStream, existsSync } from 'node:fs';
 import { link, mkdir, readdir, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { Readable } from 'node:stream';
+import { pipeline as composeStreams } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 import { createDecryptStream, createEncryptStream } from '../crypto/envelope.js';
@@ -134,10 +135,12 @@ export class ProtectedBlobStore {
     assertAlbumKey(albumKey);
     const path = this.path(albumId, blobRef, kind);
     if (!existsSync(path)) throw new ProtectedBlobStoreError(`protected ${kind} is not in the store`);
-    return createReadStream(path).pipe(
+    return composeStreams(
+      createReadStream(path),
       createDecryptStream((keyId) => (keyId === PROTECTED_ENVELOPE_KEY_ID ? albumKey : undefined), {
         photoId: this.envelopeContext(albumId, blobRef, kind),
       }),
+      () => undefined,
     );
   }
 

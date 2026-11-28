@@ -148,6 +148,7 @@ async function world(
     syncUpdates,
     work,
     getCalls: () => getCalls,
+    removePhoto: (photoId: string) => photos.delete(photoId),
     storageChanges: () => storageChanges,
     permanentRestores: () => permanentRestores,
     setPolicy: (next: boolean) => (policy = next),
@@ -226,6 +227,73 @@ describe('ephemeral originals (#306)', () => {
 
     assert.equal((await w.service.open('P0', 'view')).custody, 'durable');
     assert.equal(w.permanentRestores(), 1);
+  });
+
+  test('an export abandoned during shared acquisition releases only its own reference (#1217)', async () => {
+    let finish: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    let started: (() => void) | undefined;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const w = await world({ stageGate: gate, stageStarted: started });
+    const controller = new AbortController();
+    const abandoned = w.service.open('P0', 'export', controller.signal);
+    const viewer = w.service.open('P1', 'view');
+    const otherExport = w.service.open('P0', 'export');
+    await entered;
+    controller.abort();
+    const rejected = assert.rejects(abandoned, { name: 'AbortError' });
+    finish?.();
+    await rejected;
+    const retained = await Promise.all([viewer, otherExport]);
+    for (const opened of retained) opened.stream.destroy();
+    assert.equal(w.ephemeral.has(HASH_A), true);
+    await w.service.release('P1', 'view');
+    assert.equal(w.ephemeral.has(HASH_A), true, 'the other export still owns the shared ciphertext');
+    await w.service.release('P0', 'export');
+    assert.equal(w.ephemeral.has(HASH_A), false, 'the abandoned export left no phantom reference');
+    assert.equal(w.getCalls(), 1);
+  });
+
+  test('late export cancellation releases captured custody after the photo row disappears (#1217)', async () => {
+    let finish: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    let started: (() => void) | undefined;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const w = await world({ stageGate: gate, stageStarted: started });
+    const controller = new AbortController();
+    const opening = w.service.open('P2', 'export', controller.signal);
+    await entered;
+    controller.abort();
+    w.removePhoto('P2');
+    const rejected = assert.rejects(opening, { name: 'AbortError' });
+    finish?.();
+    await rejected;
+    assert.equal(w.ephemeral.has(HASH_B), false);
+    assert.deepEqual(w.service.stats(), { cachedBytes: 0, entries: 0, inFlight: 0 });
+  });
+
+  test('opened export references release once even after row deletion (#1217)', async () => {
+    const w = await world();
+    const [first, second] = await Promise.all([w.service.open('P0', 'export'), w.service.open('P0', 'export')]);
+    first.stream.destroy();
+    second.stream.destroy();
+    w.removePhoto('P0');
+    assert.ok(first.release);
+    assert.ok(second.release);
+    await first.release();
+    await first.release();
+    assert.equal(w.ephemeral.has(HASH_A), true, 'repeating one handle cannot release the other owner');
+    await second.release();
+    assert.equal(w.ephemeral.has(HASH_A), false, 'release does not depend on a surviving repository row');
+    assert.deepEqual(w.service.stats(), { cachedBytes: 0, entries: 0, inFlight: 0 });
   });
 
   test('temporary prefetch remains LRU-bounded', async () => {

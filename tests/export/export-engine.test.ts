@@ -189,7 +189,7 @@ describe('export engine (#97)', () => {
     assert.equal(readFileSync(join(world.destination, row?.fileName ?? '')).toString(), 'already here');
   });
 
-  test('EXIT CRITERIA: cancellation finishes the current file and keeps completed only', async () => {
+  test('between-file cancellation keeps completed entries', async () => {
     const world = await seededWorld(4);
     const controller = new AbortController();
     const deps: ExportEngineDeps = {

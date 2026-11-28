@@ -1,6 +1,6 @@
 import { access, statfs } from 'node:fs/promises';
 import path from 'node:path';
-import type { Readable } from 'node:stream';
+import { addAbortSignal, type Readable } from 'node:stream';
 import { buffer } from 'node:stream/consumers';
 
 import type { KeyResolver } from '../crypto/envelope.js';
@@ -27,11 +27,14 @@ export interface ExportRuntimeOptions {
     readonly get: (id: string) => PhotoRecord | undefined;
     readonly exportableIds: () => readonly string[];
   };
-  readonly blobs: { readonly getStream: (contentHash: string, resolveKey: KeyResolver, photoId: string) => Readable };
+  readonly blobs: { readonly getStream: (contentHash: string, resolveKey: KeyResolver, photoId: string, signal?: AbortSignal) => Readable };
   readonly resolveKey: KeyResolver;
   /** The head edit revision (#497); absent = no edits anywhere. */
   readonly editHead?: ((photoId: string) => EditRevisionView | null) | undefined;
-  readonly openOriginal: (photo: PhotoRecord) => Promise<{
+  readonly openOriginal: (
+    photo: PhotoRecord,
+    signal?: AbortSignal,
+  ) => Promise<{
     readonly stream: Readable;
     readonly release?: (() => Promise<void>) | undefined;
   }>;
@@ -46,7 +49,7 @@ export interface ExportRuntimeOptions {
         readonly ownerId?: string | undefined;
       }[])
     | undefined;
-  readonly sidecarStream?: ((photoId: string, contentHash: string) => Readable) | undefined;
+  readonly sidecarStream?: ((photoId: string, contentHash: string, signal?: AbortSignal) => Readable) | undefined;
   readonly progress: (done: number, total: number) => void;
   readonly pickDestination: () => Promise<string | null>;
   /** ADR-0032 §6 planner (#509); absent = permissive (unit worlds). */
@@ -76,7 +79,7 @@ export function createExportRuntime(options: ExportRuntimeOptions): DrainableExp
     },
     joinPath: (dir, name) => path.join(dir, name),
     transcodeJpeg: transcodeToJpeg,
-    bufferStream: async (stream) => buffer(stream),
+    bufferStream: async (stream, signal) => buffer(signal === undefined ? stream : addAbortSignal(signal, stream)),
     events: { progress: options.progress },
   });
   let controller: AbortController | null = null;
@@ -110,8 +113,8 @@ export function createExportRuntime(options: ExportRuntimeOptions): DrainableExp
     };
     const next = turn.then(task, task);
     turn = next.then(
-      () => undefined,
-      () => undefined,
+      () => engine.drain(),
+      () => engine.drain(),
     );
     return next;
   };
