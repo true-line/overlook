@@ -5,7 +5,11 @@ import type { ElectronApplication } from '@playwright/test';
 type ProfileState = typeof globalThis & { overlookPerfSession?: Session };
 
 /** Opt-in diagnostic only: profiling perturbs timings, so these runs are not baselines. */
-export async function profileMainProcess<T>(app: ElectronApplication, phase: 'query' | 'import', operation: () => Promise<T>): Promise<T> {
+export async function profileMainProcess<T>(
+  app: ElectronApplication,
+  phase: 'startup' | 'query' | 'import',
+  operation: () => Promise<T>,
+): Promise<T> {
   if (process.env['OVERLOOK_PERF_PROFILE'] !== '1') return operation();
   console.log('[perf] DIAGNOSTIC CPU PROFILE ENABLED: timings are not baseline evidence');
   await app.evaluate(async () => {

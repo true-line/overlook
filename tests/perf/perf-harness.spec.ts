@@ -106,14 +106,17 @@ test('200K perf harness: cold start, queries, scroll, import, memory', async () 
   const launchStarted = Date.now();
   const app = await electron.launch({ args: ['.'], env });
   try {
-    const page = await app.firstWindow();
-
-    // Cold start: launch → the existing 200K grid is interactive.
-    await expect(page.getByTestId('statusbar-left')).toContainText(`${LIBRARY_SIZE.toLocaleString('en-US')} photos ·`, {
-      timeout: 120_000,
+    const { page, coldStartMs } = await profileMainProcess(app, 'startup', async () => {
+      const page = await app.firstWindow();
+      // Capture the post-launch interval; work before the main-process debugging
+      // connection is available is outside this diagnostic profile. The metric
+      // still includes the entire launch → interactive interval in both modes.
+      await expect(page.getByTestId('statusbar-left')).toContainText(`${LIBRARY_SIZE.toLocaleString('en-US')} photos ·`, {
+        timeout: 120_000,
+      });
+      await expect(page.getByTestId('virtual-grid').locator('.ovl-grid__cell').first()).toBeVisible();
+      return { page, coldStartMs: Date.now() - launchStarted };
     });
-    await expect(page.getByTestId('virtual-grid').locator('.ovl-grid__cell').first()).toBeVisible();
-    const coldStartMs = Date.now() - launchStarted;
     console.log(`[perf] cold start ${String(coldStartMs)}ms`);
 
     // Query latency (median of rounds) over the real IPC boundary.
