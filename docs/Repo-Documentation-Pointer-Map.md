@@ -14,6 +14,7 @@ only so existing issue, PR, and comment links continue to resolve.
 | ADRs                               | [Architecture Decision Records](./adr/Architecture-Decision-Records.md) — index + template         |
 | User-story / milestone planning    | [User Stories](./stories/User-Stories.md)                                                          |
 | Testing strategy                   | [Testing Strategy](./Testing-Strategy.md)                                                          |
+| Performance qualification          | [Performance Qualification](./Performance-Qualification.md)                                        |
 | E2E timing / flake synchronization | [E2E & Storybook Timing Audit](./E2E-Timing-Audit.md)                                              |
 | Visual accessibility acceptance    | [Visual Accessibility Acceptance](./acceptance/Acceptance-Test-Visual-Accessibility.md)            |
 

@@ -5,6 +5,7 @@
     "src/renderer/src/capture-frame.ts",
     "tests/**/*.test.ts",
     "tests/db/inclusion-page-performance.bench.ts",
+    "tests/perf/sql-diagnostics.ts",
     "tests/dom/css-loader.ts",
     "tests/dom/register.ts",
     "tests/e2e/**/*.spec.ts",

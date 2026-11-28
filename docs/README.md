@@ -27,6 +27,7 @@ existing links resolve — never add content there.
 - [Library Management](./Library-Management.md) — multi-library registry, relocation, and disk-missing / interrupted-move repair
 - [Original Preservation Policy](./Original-Preservation-Policy.md) — protected marker, deletion override, duplicate boundary, and custody invariants
 - [Testing Strategy](./Testing-Strategy.md) — test lanes, coverage floors, when each lane must grow
+- [Performance Qualification](./Performance-Qualification.md) — fixtures, ratchets, measurement boundaries and retained evidence
 - [Validation And Release Gates](./Validation-And-Release-Gates.md) — gate-by-gate detail, ratchet values, license and dependency policy, packaging and release/signing
 - [Windows Code Signing](./Signing.md) — Azure Trusted Signing secrets, secret-scope boundary, first-time setup, and Authenticode verification (#683)
 - [CI Identity And Tokens](./CI-Identity-And-Tokens.md) — bot identities, token blast radius, and the branch-update/merge automation

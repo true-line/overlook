@@ -3,6 +3,7 @@ import { migrateRestoredExclusion } from './restored-exclusion-migration.js';
 import { migrateProtectedSidecarCustody } from './protected-sidecar-migration.js';
 import { migrateAlbumPhotosPhotoIndex } from './album-photos-index-migration.js';
 import { migrateLocalCustodyIntegrity } from './local-custody-repository.js';
+import { migrateEmbeddingEligibilityIndex } from './embedding-index-migration.js';
 import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
 
 import { migrateOriginalAvailability } from './original-availability.js';
@@ -13,7 +14,7 @@ import { migrateSmartAlbums } from './smart-album-migration.js';
 import { migrateEditBakeDebt, migrateEditRevisions } from './edit-revision-migration.js';
 import { migratePhotoProvenance } from './provenance-migration.js';
 import { migrateVariants } from './variant-migration.js';
-import { migratePerceptualFingerprints } from './fingerprint-migration.js';
+import { migrateFingerprintCandidateIndex, migratePerceptualFingerprints } from './fingerprint-migration.js';
 import { migrateBackupCoverage } from './coverage-migration.js';
 import { migrateLibraryKeyring } from './keyring-migration.js';
 import { migratePurgeCleanup } from './purge-cleanup-migration.js';
@@ -71,4 +72,6 @@ export const COLLECTION_MIGRATIONS: readonly {
   { version: 48, name: 'protected-sidecar-custody', up: migrateProtectedSidecarCustody, rebuild: true },
   { version: 49, name: 'album-photos-photo-index', up: migrateAlbumPhotosPhotoIndex },
   { version: 50, name: 'excluded-local-custody-integrity', up: migrateLocalCustodyIntegrity },
+  { version: 51, name: 'fingerprint-candidate-index', up: migrateFingerprintCandidateIndex },
+  { version: 52, name: 'embedding-eligibility-index', up: migrateEmbeddingEligibilityIndex },
 ];

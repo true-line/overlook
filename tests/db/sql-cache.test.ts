@@ -32,10 +32,10 @@ function countingDb(): { db: Database.Database; prepares: () => number } {
   return { db, prepares: () => prepares };
 }
 
-describe('library database page cache (113K-import freeze)', () => {
-  test('the page cache is sized for SQLCipher (64MB)', () => {
+describe('library database page cache (113K-import freeze; 200K qualification)', () => {
+  test('the page cache is sized for SQLCipher (256 MiB)', () => {
     const db = openDb();
-    assert.equal(db.pragma('cache_size', { simple: true }), -65536);
+    assert.equal(db.pragma('cache_size', { simple: true }), -262144);
     db.close();
   });
 });
