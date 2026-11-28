@@ -286,6 +286,10 @@ See [Performance Qualification](./Performance-Qualification.md#fingerprint-progr
 
 See [Performance Qualification](./Performance-Qualification.md#fingerprint-candidate-scan-cost-1221).
 
+### Preview-repair startup materialization (#1221)
+
+See [Performance Qualification](./Performance-Qualification.md#preview-repair-startup-materialization-1221).
+
 ### Perf budgets (#123 — RATCHETS: tighten, never loosen)
 
 See [Performance Qualification](./Performance-Qualification.md#perf-budgets-123--ratchets-tighten-never-loosen).

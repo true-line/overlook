@@ -71,6 +71,23 @@ query plan without a temporary sort. These are correctness/plan assertions, not
 200K timing acceptance. Hosted unprofiled complete qualification must still
 satisfy every existing ratchet and retain both report files before #1221 closes.
 
+## Preview-repair startup materialization (#1221)
+
+The opt-in startup capture in [run 46098662511](https://github.com/true-line/overlook/actions/runs/46098662511)
+at `892c3cad` sampled 1.169 seconds in eager preview-repair candidate
+selection/hydration, plus 0.345 seconds of garbage collection. The runtime now
+materializes 64-row keyset pages instead of one complete library array. Import
+time and photo ID retain the existing order, including tied import times; no
+SQLite iterator or transaction remains open across asynchronous repair work.
+
+Abort checks precede page reads and candidate delivery. Database-backed tests
+cover laziness, changing eligibility between pages, cancellation before the first
+read and at a page boundary, targeted hash/photo selection, and invalid limits.
+Repair eligibility, custody checks, plaintext cleanup and completion reporting
+remain in the existing service. This bounds one measured startup cost; it does
+not disable maintenance, change the launch measurement, or establish complete
+performance qualification.
+
 ## Perf budgets (#123 — RATCHETS: tighten, never loosen)
 
 The harness: `npm run test:perf` (own Playwright config, ~90 s;
