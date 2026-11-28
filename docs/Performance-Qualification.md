@@ -148,18 +148,8 @@ does not change any measured performance ratchet. Budgets are ratchets and are
 never loosened to absorb variance; CI numbers are indicative, while the
 recorded baselines are the dev machine's.
 
-The keyword-search sample explicitly requests `searchMode: 'keyword'`; the
-separate semantic sample uses `auto` fusion. Query measurements are archived
-before import starts, so a later timeout preserves that evidence. For CPU
-attribution, dispatch the manual workflow with `profile=true`: it profiles
-the main process during those two query samples and separately during import,
-uploading `perf-query-profile.cpuprofile` and `perf-import-profile.cpuprofile`.
-Each capture is requested after 30 seconds or when its operation finishes,
-whichever comes first, so an import that remains pending can still leave CPU
-evidence. A busy main thread may delay the inspector response. Profiling does
-not cancel or shorten the measured operation.
-Profiling is off by default. Profiled runs remain subject to every assertion,
-but their timings are diagnostic only and must not establish a baseline.
+See [Testing Strategy](./Testing-Strategy.md#perf-budgets-123--ratchets-tighten-never-loosen)
+for query measurement and CPU-profiling boundaries.
 
 With `profile=true`, an additional hosted-only SQL scenario seeds a separate
 200K encrypted fixture and compares point versus scan vector joins, covering
