@@ -91,6 +91,22 @@ and stale content. The query-plan assertion requires a covering read; it does
 not establish performance acceptance. All ratchets still require an unprofiled
 complete run on the final head.
 
+## SQLCipher page-cache pressure (#1221)
+
+The controlled hosted [run 46102385770](https://github.com/true-line/overlook/actions/runs/46102385770)
+at `15e724da` executed all SQL comparisons with identical results. On its
+four-CPU AMD EPYC 9V74 runner, covering point-query medians were 1,570.6 ms at
+64 MiB, 1,555.9 at 128 MiB, 959.5 at 256 MiB and 963.6 at 512 MiB. Scan-first
+joins did not improve this result; without the covering index the 256 MiB
+median was 1,037.9 ms. Setup (21.759 s) and open (170.3 ms) were recorded
+separately. These are isolated diagnostic measurements, not IPC acceptance.
+
+The connection now permits a 256 MiB page cache, allocated on demand and
+released on connection close. This is the smallest measured beneficial size;
+it does not raise the existing main-RSS ceiling or any other ratchet. Native
+retrieval, concurrent work, cold start, import, scroll and memory must still
+qualify together in a complete unprofiled exact-head application run.
+
 ## Perf budgets (#123 — RATCHETS: tighten, never loosen)
 
 The harness: `npm run test:perf` (own Playwright config, ~90 s;

@@ -30,10 +30,10 @@ export function openLibraryDatabase(options: OpenLibraryOptions): BetterSqlite3.
     db.pragma(`key="x'${options.dbKey.toString('hex')}'"`);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
-    // 64MB page cache (negative = KiB). SQLCipher pays AES + per-page HMAC
-    // on every page read, so the default ~2MB cache forced re-decryption on
-    // nearly every B-tree seek once the library DB outgrew it.
-    db.pragma('cache_size = -65536');
+    // 256 MiB page cache (negative = KiB), allocated on demand. The hosted
+    // 200K SQL probe (#1221) found repeated AES/HMAC work below this size;
+    // 512 MiB gave no further benefit. Connection close still releases it.
+    db.pragma('cache_size = -262144');
     // Fails here (not on first query) when the key is wrong.
     db.prepare('SELECT count(*) FROM sqlite_master').get();
     // ADR-0018: vec0 tables share the SQLCipher connection and therefore the
