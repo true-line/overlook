@@ -245,6 +245,7 @@ export async function writeFileCleanly(
   signal?: AbortSignal,
   createOutput = (target: string) => createWriteStream(target, { flags: 'wx' }),
 ): Promise<void> {
+  if (signal?.aborted === true) plaintext.destroy();
   signal?.throwIfAborted();
   const output = createOutput(path);
   let owned = false;

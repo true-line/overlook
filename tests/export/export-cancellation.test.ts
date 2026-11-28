@@ -353,6 +353,24 @@ test('write cleanup preserves a pre-existing collision winner', async (t) => {
   assert.equal((await readFile(target)).toString(), 'completed');
 });
 
+test('a pre-aborted writer closes its input without creating a destination', async (t) => {
+  const w = await world(t);
+  const controller = new AbortController();
+  controller.abort();
+  const input = new PassThrough();
+  let opens = 0;
+  await assert.rejects(
+    writeFileCleanly(join(w.destination, 'cancelled'), input, controller.signal, (path) => {
+      opens += 1;
+      return createWriteStream(path, { flags: 'wx' });
+    }),
+    { name: 'AbortError' },
+  );
+  assert.equal(input.destroyed, true);
+  assert.equal(opens, 0);
+  assert.deepEqual(await readdir(w.destination), []);
+});
+
 test('late failure and a closed diagnostic sink cannot skip or repeat custody release', async (t) => {
   const w = await world(t);
   const controller = new AbortController();
