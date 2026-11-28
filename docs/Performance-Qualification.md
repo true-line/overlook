@@ -127,9 +127,14 @@ identical cosine results and records every sample/query plan in
 `sql-diagnostics-perf-report.json`, retained by the existing artifact glob.
 Seeding and database-open costs are separate from the SQL samples. Each variant
 requests SQLite page-cache release; filesystem-cache warmth is not controlled.
-CPU model, parallelism and Node version are retained. This isolates SQL costs from concurrent maintenance and IPC; it is
+CPU model, parallelism and Node version are retained. This isolates SQL costs
+from concurrent maintenance and IPC; it is
 not application acceptance. The existing complete scenarios and every ratchet
 assertion still run in both modes. Do not run this heavy probe locally.
+
+The SQL probe runs as compiled JavaScript in a plain Node child, outside
+Playwright's declaration-only SQLite path mapping. Its compilation happens
+during diagnostic setup, before any product or query measurement.
 
 Scroll measurements run three visible native-BrowserWindow trials at every
 zoom. The report retains each trial's frames, drops, drop rate, and worst frame;
