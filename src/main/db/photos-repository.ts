@@ -56,12 +56,6 @@ import type {
 export { toRecord, type PhotoRow } from './photo-row.js';
 
 export const SELECT = select('date');
-
-export interface PreviewRepairCandidatePage {
-  readonly after?: Pick<PhotoRecord, 'importedAt' | 'id'>;
-  readonly limit: number;
-}
-
 export class PhotosRepository {
   private readonly metadata: PhotoMetadataRepository;
 
@@ -332,14 +326,7 @@ export class PhotosRepository {
 
   /** Background candidates retain their format/debt eligibility. Explicit IDs
    * select only live image rows for the service to recheck custody before decoding. */
-  previewRepairCandidates(
-    contentHashes?: readonly string[],
-    photoIds?: readonly string[],
-    page?: PreviewRepairCandidatePage,
-  ): readonly PhotoRecord[] {
-    if (page !== undefined && (!Number.isSafeInteger(page.limit) || page.limit <= 0)) {
-      throw new RangeError('preview repair page limit must be a positive safe integer');
-    }
+  previewRepairCandidates(contentHashes?: readonly string[], photoIds?: readonly string[]): readonly PhotoRecord[] {
     return queryAll<PhotoRow>(
       this.db,
       `${SELECT}
@@ -350,14 +337,10 @@ export class PhotosRepository {
            ((p.dimension_status = 'legacy' AND p.file_kind IN ('jpeg', 'png', 'raw', 'heic') OR p.file_kind IN ('raw', 'heic'))
              AND COALESCE(l.status, 'local') <> 'offloaded'))))
          AND (@hashes IS NULL OR p.content_hash IN (SELECT value FROM json_each(@hashes)))
-       ${page?.after === undefined ? '' : 'AND p.imported_at >= @afterImportedAt AND (p.imported_at, p.id) > (@afterImportedAt, @afterId)'}
-       ORDER BY p.imported_at, p.id LIMIT @limit`,
+       ORDER BY p.imported_at, p.id`,
       {
         hashes: contentHashes === undefined ? null : JSON.stringify(contentHashes),
         photoIds: photoIds === undefined ? null : JSON.stringify(photoIds),
-        afterImportedAt: page?.after?.importedAt ?? null,
-        afterId: page?.after?.id ?? null,
-        limit: page?.limit ?? -1,
       },
     ).map(toRecord);
   }

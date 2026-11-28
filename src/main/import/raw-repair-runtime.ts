@@ -10,7 +10,6 @@ import type { EditBakeDebtRepository } from '../db/edit-bake-debt-repository.js'
 import type { EditRevisionRepository } from '../db/edit-revision-repository.js';
 import { IDENTITY_TRANSFORM } from '../../shared/library/edit-revision.js';
 import { assetOwnerOf } from '../../shared/library/asset-owner.js';
-import { iteratePreviewRepairCandidates } from './preview-repair-candidates.js';
 
 export interface RawRepairRuntimeOptions {
   readonly repo: PhotosRepository;
@@ -26,7 +25,7 @@ export interface RawRepairRuntimeOptions {
 
 export function createRawRepairRuntime(options: RawRepairRuntimeOptions): RawRepairService {
   return new RawRepairService({
-    candidates: (hashes, photoIds, signal) => iteratePreviewRepairCandidates(options.repo, signal, hashes, photoIds),
+    candidates: (hashes, photoIds) => options.repo.previewRepairCandidates(hashes, photoIds),
     isUnavailable: (photoId) => {
       const photo = options.repo.get(photoId);
       return (

@@ -188,8 +188,7 @@ for (const state of ['locked', 'offloaded', 'trashed', 'missing', 'closed'] as c
     const repair = w.service(
       state === 'locked'
         ? {
-            candidates: (hashes, ids, signal) =>
-              [...w.options.candidates(hashes, ids, signal)].map((photo) => ({ ...photo, locked: true })),
+            candidates: (hashes, ids) => w.options.candidates(hashes, ids).map((photo) => ({ ...photo, locked: true })),
           }
         : {},
     );

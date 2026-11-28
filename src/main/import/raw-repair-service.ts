@@ -15,11 +15,7 @@ interface RepairOutcome extends ThumbnailOutcome {
 }
 
 export interface RawRepairServiceOptions {
-  readonly candidates: (
-    contentHashes: readonly string[] | undefined,
-    photoIds: readonly string[] | undefined,
-    signal: AbortSignal,
-  ) => Iterable<PhotoRecord>;
+  readonly candidates: (contentHashes?: readonly string[], photoIds?: readonly string[]) => readonly PhotoRecord[];
   readonly isUnavailable: (photoId: string) => boolean;
   readonly requiresRebake?: ((photoId: string) => boolean) | undefined;
   readonly validThumbs: (photo: PhotoRecord) => Promise<boolean>;
@@ -112,7 +108,7 @@ export class RawRepairService {
     let skipped = 0;
     const changed = new Set<string>();
     let membershipChanged = false;
-    for (const photo of this.options.candidates(contentHashes, photoIds, this.controller.signal)) {
+    for (const photo of this.options.candidates(contentHashes, photoIds)) {
       if (this.controller.signal.aborted) break;
       scanned += 1;
       const requested = photoIds !== undefined;
