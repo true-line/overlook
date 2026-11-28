@@ -87,7 +87,7 @@ export class EphemeralOriginalService {
     photoId: string,
     purpose: OriginalPurpose,
     signal?: AbortSignal,
-  ): Promise<{ readonly stream: Readable; readonly custody: OriginalCustody }> {
+  ): Promise<{ readonly stream: Readable; readonly custody: OriginalCustody; readonly release?: (() => Promise<void>) | undefined }> {
     signal?.throwIfAborted();
     const selected = this.deps.repo.get(photoId);
     if (selected === undefined) throw new EphemeralOriginalError(`photo ${photoId} does not exist`, 'not-found');
@@ -109,7 +109,16 @@ export class EphemeralOriginalService {
         custody === 'durable'
           ? this.deps.blobs.durableStream(photo.contentHash, assetOwnerOf({ id: photoId, ...photo }))
           : this.deps.blobs.ephemeralStream(photo.contentHash, photoId);
-      return { stream: signal === undefined ? stream : addAbortSignal(signal, stream), custody };
+      let released = false;
+      const release =
+        custody === 'ephemeral' && purpose !== 'prefetch'
+          ? () => {
+              if (released) return Promise.resolve();
+              released = true;
+              return this.releaseHash(photoId, selected.contentHash, purpose);
+            }
+          : undefined;
+      return { stream: signal === undefined ? stream : addAbortSignal(signal, stream), custody, release };
     } catch (error) {
       if (custody === 'ephemeral' && purpose !== 'prefetch') await this.releaseHash(photoId, selected.contentHash, purpose);
       throw error;

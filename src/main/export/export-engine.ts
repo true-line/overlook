@@ -24,13 +24,14 @@ import {
 import { embeddedFieldsOf } from '../disclosure/disclosure-service.js';
 import { inspectSourceSidecar, readSourceSidecar, sourceSidecarFinding, sourceSidecarRefusal } from '../disclosure/source-sidecars.js';
 import { inspectSourceXmp } from '../disclosure/source-xmp.js';
+import { ExportCancelledError, ExportFileWork, exportAborted } from './export-cancellation.js';
 
 // Export engine (#97): the decrypt counterpart to import — selected photos
 // become real files in a chosen folder. Streaming decrypt straight to the
 // destination (plaintext only ever exists where the user asked for it),
 // original filenames with a recorded numbered suffix on collision, progress
-// n/total per file, and cancellation that finishes the file in flight and
-// keeps everything completed. v1 decision (recorded on #97): no
+// n/total per file, and cancellation that retires active IO and
+// keeps completed photo entries. v1 decision (recorded on #97): no
 // encrypted-export format — the dialog's decrypt-off switch disables Export.
 //
 // #497 (ADR-0031 §6): every export declares ONE payload mode before bytes
@@ -173,7 +174,7 @@ export interface ExportEngineDeps {
   /** ADR-0032 §6 planner; absent = every field the boundary carries crosses (unit worlds). */
   readonly disclosure?: ExportDisclosurePlanner | undefined;
   readonly repo: { readonly get: (id: string) => PhotoRecord | undefined };
-  readonly blobs: { readonly getStream: (contentHash: string, resolveKey: KeyResolver, photoId: string) => Readable };
+  readonly blobs: { readonly getStream: (contentHash: string, resolveKey: KeyResolver, photoId: string, signal?: AbortSignal) => Readable };
   /** Encrypted companion custody (#484); absent = no sidecar support. Only
    * 'original' format exports companions — a transcode is a baked export
    * whose recipe no longer applies (ADR-0031 §6). */
@@ -186,7 +187,7 @@ export interface ExportEngineDeps {
         readonly ownerId?: string | undefined;
       }[])
     | undefined;
-  readonly sidecarStream?: ((photoId: string, contentHash: string) => Readable) | undefined;
+  readonly sidecarStream?: ((photoId: string, contentHash: string, signal?: AbortSignal) => Readable) | undefined;
   readonly resolveKey: KeyResolver;
   /** The head edit revision (#493); absent = no edits anywhere (#497). */
   readonly editHead?: ((photoId: string) => EditRevisionView | null) | undefined;
@@ -194,17 +195,25 @@ export interface ExportEngineDeps {
    * originals export from verified temporary ciphertext without becoming
    * durable; legacy/unit seams fall back to blobs.getStream. */
   readonly openOriginal?:
-    ((photo: PhotoRecord) => Promise<{ readonly stream: Readable; readonly release?: (() => Promise<void>) | undefined }>) | undefined;
-  /** Streams plaintext to `path`; rejects on IO failure (fs seam). */
-  readonly writeFile: (path: string, plaintext: Readable) => Promise<void>;
-  readonly exists: (path: string) => Promise<boolean>;
+    | ((
+        photo: PhotoRecord,
+        signal?: AbortSignal,
+      ) => Promise<{ readonly stream: Readable; readonly release?: (() => Promise<void>) | undefined }>)
+    | undefined;
+  /** Creates without clobbering; settles after terminal IO/own-partial cleanup,
+   * including on failure. A writer owns its failed-open/partial-file decisions
+   * (writeFileCleanly), while the scope disposes abandoned successful writes. */
+  readonly writeFile: (path: string, plaintext: Readable, signal?: AbortSignal) => Promise<void>;
+  /** Removes only successful, uncommitted outputs owned by this entry. */
+  readonly removeFile?: ((path: string) => Promise<void>) | undefined;
+  readonly exists: (path: string, signal?: AbortSignal) => Promise<boolean>;
   /** Free bytes on the destination volume (statfs seam). */
-  readonly freeBytes: (dir: string) => Promise<number>;
+  readonly freeBytes: (dir: string, signal?: AbortSignal) => Promise<number>;
   readonly joinPath: (dir: string, name: string) => string;
   /** sharp transcode seam (#98) — src/main/export/transcode.ts in prod. */
   readonly transcodeJpeg: (bytes: Buffer, fileKind: PhotoRecord['fileKind'], options?: TranscodeOptions) => Promise<TranscodeResult>;
   /** Buffers a decrypt stream (transcode needs whole files). */
-  readonly bufferStream: (stream: Readable) => Promise<Buffer>;
+  readonly bufferStream: (stream: Readable, signal?: AbortSignal) => Promise<Buffer>;
   readonly events: { progress(done: number, total: number): void };
   /** Protected domains supply a redacted sink; ordinary exports retain the
    * existing filename/error diagnostics. */
@@ -230,13 +239,42 @@ async function failureCustody(
  * failure mid-decrypt — removes the partial file so the destination never
  * holds a truncated "original" (PR #194 review).
  */
-export async function writeFileCleanly(path: string, plaintext: Readable): Promise<void> {
+export async function writeFileCleanly(
+  path: string,
+  plaintext: Readable,
+  signal?: AbortSignal,
+  createOutput = (target: string) => createWriteStream(target, { flags: 'wx' }),
+): Promise<void> {
+  signal?.throwIfAborted();
+  const output = createOutput(path);
+  let owned = false;
+  output.once('open', () => {
+    owned = true;
+  });
+  const closed = new Promise<void>((resolve) => output.once('close', resolve));
   try {
-    await pipeline(plaintext, createWriteStream(path, { flags: 'wx' }));
+    await pipeline(plaintext, output, { signal });
   } catch (error) {
-    await rm(path, { force: true });
+    // An OS open/write already in flight may finish after abort. Wait for its
+    // descriptor to close before unlinking, and never unlink an EEXIST winner.
+    await closed;
+    if (owned) await rm(path, { force: true });
     throw error;
   }
+}
+
+function exportSummary(files: readonly ExportedFile[], failures: readonly ExportFailure[], cancelled: number): ExportSummary {
+  return {
+    exported: files.length,
+    failed: failures.length,
+    cancelled,
+    previewTranscodes: files.filter((file) => file.fromPreview).length,
+    sidecarsExported: files.reduce((sum, file) => sum + file.sidecarNames.length, 0),
+    bakedEdits: files.filter((file) => file.editsBaked).length,
+    editSidecars: files.filter((file) => file.editsInSidecar).length,
+    files,
+    failures,
+  };
 }
 
 /** IMG_4021.RAF + '.jpg' → IMG_4021.jpg */
@@ -252,6 +290,8 @@ function withSuffix(fileName: string, counter: number): string {
 }
 
 export class ExportEngine {
+  private readonly retiring = new Set<Promise<void>>();
+
   constructor(private readonly deps: ExportEngineDeps) {}
 
   /** §6 preflight: what the mode does to the selection's edits. An operation
@@ -330,73 +370,94 @@ export class ExportEngine {
       }
     }
     const projected = (photo: PhotoRecord): PhotoRecord => projectForDisclosure(photo, plans.get(photo.id) ?? permissivePlan('export'));
-    if (mode === 'original-sidecars' && metadata === 'original') {
-      for (const photo of photos) {
-        if (photo === undefined) continue;
-        for (const sidecar of this.deps.sidecarsFor?.(photo.id) ?? []) {
-          const inspection = await inspectSourceSidecar(sidecar, () => {
-            if (this.deps.sidecarStream === undefined) throw new Error('Source sidecar reader unavailable');
-            return this.deps.sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash);
-          });
-          const finding = sourceSidecarFinding(photo.id, sidecar, inspection, plans.get(photo.id) ?? permissivePlan('export'));
-          if (finding.refused) throw new ExportPreflightError(sourceSidecarRefusal(finding));
+    const preflight = new ExportFileWork(signal, (error) => this.reportFailure('preflight', error), this.deps.removeFile);
+    let transforms = new Map<string, EditTransform>();
+    try {
+      if (mode === 'original-sidecars' && metadata === 'original') {
+        for (const photo of photos) {
+          if (photo === undefined) continue;
+          for (const sidecar of this.deps.sidecarsFor?.(photo.id) ?? []) {
+            const inspection = await preflight.wait(() =>
+              inspectSourceSidecar(
+                sidecar,
+                () => {
+                  if (this.deps.sidecarStream === undefined) throw new Error('Source sidecar reader unavailable');
+                  return this.deps.sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash, signal);
+                },
+                signal,
+              ),
+            );
+            const finding = sourceSidecarFinding(photo.id, sidecar, inspection, plans.get(photo.id) ?? permissivePlan('export'));
+            if (finding.refused) throw new ExportPreflightError(sourceSidecarRefusal(finding));
+          }
         }
+        disclosure.assertCurrent?.();
       }
-      disclosure.assertCurrent?.();
-    }
-    const transforms = new Map(
-      photos.flatMap((photo) => {
-        if (photo === undefined) return [];
-        const head = this.deps.editHead?.(photo.id) ?? null;
-        return [[photo.id, head === null || head.unsupported !== null ? IDENTITY_TRANSFORM : head.transform] as const];
-      }),
-    );
-    // Free-space preflight: the sum of plaintext sizes must fit BEFORE any
-    // bytes move — a mid-batch ENOSPC helps nobody. Sidecar bytes count too.
-    const needed =
-      photos.reduce((sum, photo) => sum + (photo?.bytes ?? 0), 0) +
-      (mode === 'original-sidecars' && metadata === 'original'
-        ? photos.reduce(
-            (sum, photo) =>
-              sum +
-              (photo === undefined ? 0 : (this.deps.sidecarsFor?.(photo.id) ?? []).reduce((inner, sidecar) => inner + sidecar.bytes, 0)),
-            0,
-          )
-        : 0) +
-      (mode === 'original'
-        ? 0
-        : photos.reduce(
-            (sum, photo) =>
-              sum +
-              (photo === undefined
-                ? 0
-                : (authoredMetadataXmp(
-                    metadata === 'overlook' ? projected(photo) : null,
-                    mode === 'baked' ? IDENTITY_TRANSFORM : (transforms.get(photo.id) ?? IDENTITY_TRANSFORM),
-                  )?.length ?? 0)),
-            0,
-          ));
-    const free = await this.deps.freeBytes(destination);
-    if (needed > free) {
-      throw new ExportPreflightError(`destination needs ${String(needed)} bytes free, has ${String(free)}`);
+      transforms = new Map(
+        photos.flatMap((photo) => {
+          if (photo === undefined) return [];
+          const head = this.deps.editHead?.(photo.id) ?? null;
+          return [[photo.id, head === null || head.unsupported !== null ? IDENTITY_TRANSFORM : head.transform] as const];
+        }),
+      );
+      // Free-space preflight: the sum of plaintext sizes must fit BEFORE any
+      // bytes move — a mid-batch ENOSPC helps nobody. Sidecar bytes count too.
+      const needed =
+        photos.reduce((sum, photo) => sum + (photo?.bytes ?? 0), 0) +
+        (mode === 'original-sidecars' && metadata === 'original'
+          ? photos.reduce(
+              (sum, photo) =>
+                sum +
+                (photo === undefined ? 0 : (this.deps.sidecarsFor?.(photo.id) ?? []).reduce((inner, sidecar) => inner + sidecar.bytes, 0)),
+              0,
+            )
+          : 0) +
+        (mode === 'original'
+          ? 0
+          : photos.reduce(
+              (sum, photo) =>
+                sum +
+                (photo === undefined
+                  ? 0
+                  : (authoredMetadataXmp(
+                      metadata === 'overlook' ? projected(photo) : null,
+                      mode === 'baked' ? IDENTITY_TRANSFORM : (transforms.get(photo.id) ?? IDENTITY_TRANSFORM),
+                    )?.length ?? 0)),
+              0,
+            ));
+      const free = await preflight.wait(() => this.deps.freeBytes(destination, signal));
+      if (needed > free) {
+        throw new ExportPreflightError(`destination needs ${String(needed)} bytes free, has ${String(free)}`);
+      }
+    } catch (error) {
+      if (error instanceof ExportCancelledError) return exportSummary([], [], photoIds.length);
+      throw error;
+    } finally {
+      const retirement = this.retire(preflight, true);
+      try {
+        await preflight.wait(() => retirement);
+      } catch (error) {
+        if (!(error instanceof ExportCancelledError)) this.reportFailure('cleanup', error);
+      }
     }
 
     const files: ExportedFile[] = [];
     const failures: ExportFailure[] = [];
     const total = photoIds.length;
     let done = 0;
-    let failed = 0;
     let cancelled = 0;
     for (const [index, id] of photoIds.entries()) {
       disclosure.assertCurrent?.();
-      if (signal?.aborted === true) {
-        // Cancel finishes the file in flight (we only check between files)
-        // and keeps everything completed.
+      if (exportAborted(signal)) {
+        // Finished photo entries stay committed; an active entry is retired
+        // by its abort-aware scope before another batch may start.
         cancelled = total - index;
         break;
       }
       const photo = photos[index];
       let releaseOriginal: (() => Promise<void>) | undefined;
+      let completed = false;
+      const work = new ExportFileWork(signal, (error) => this.reportFailure(id, error), this.deps.removeFile);
       try {
         if (photo === undefined) {
           throw new Error(`photo ${id} is not in the library`);
@@ -408,26 +469,42 @@ export class ExportEngine {
             `edit stack has an operation this build cannot render (${unsupported}) — export as Original + XMP or Original only`,
           );
         }
-        const opened = this.deps.openOriginal === undefined ? null : await this.deps.openOriginal(photo);
-        const stream = opened?.stream ?? this.deps.blobs.getStream(photo.contentHash, this.deps.resolveKey, assetOwnerOf(photo));
+        const openOriginal = this.deps.openOriginal;
+        const opened =
+          openOriginal === undefined
+            ? null
+            : await work.wait(
+                () => openOriginal(photo, signal),
+                async (late) => {
+                  late.stream.destroy();
+                  await late.release?.();
+                },
+              );
         releaseOriginal = opened?.release;
+        const stream = work.own(
+          opened?.stream ?? this.deps.blobs.getStream(photo.contentHash, this.deps.resolveKey, assetOwnerOf(photo), signal),
+        );
         let plaintext: Readable = stream;
         const safeSourceName = sanitizeExportFileName(photo.fileName, photo.id);
         const nominalTargetName = mode === 'baked' ? reExtension(photo.fileName, '.jpg') : photo.fileName;
         let targetName = safeSourceName;
         let fromPreview = false;
         if (mode === 'baked') {
-          const { jpeg, fromPreview: capped } = await this.deps.transcodeJpeg(await this.deps.bufferStream(stream), photo.fileKind, {
-            transform,
-            quality: edits.quality,
-          });
+          const bytes = await work.wait(() => this.deps.bufferStream(stream, signal));
+          const { jpeg, fromPreview: capped } = await work.wait(() =>
+            this.deps.transcodeJpeg(bytes, photo.fileKind, {
+              transform,
+              quality: edits.quality,
+              signal,
+            }),
+          );
           plaintext = Readable.from([jpeg]);
           targetName = reExtension(safeSourceName, '.jpg');
           fromPreview = capped;
         }
-        const fileName = await this.resolveCollision(destination, targetName);
+        const fileName = await this.resolveCollision(destination, targetName, work);
         disclosure.assertCurrent?.();
-        await this.deps.writeFile(this.containedPath(destination, fileName), plaintext);
+        await work.write(this.containedPath(destination, fileName), plaintext, this.deps.writeFile);
         const editsTravel = mode === 'original-sidecars' && !isIdentityTransform(transform);
         // The generated packet owns the canonical stem (`IMG.xmp`): sidecar
         // consumers associate XMP by stem, so it is written first and, under
@@ -444,11 +521,13 @@ export class ExportEngine {
                   editsTravel ? transform : IDENTITY_TRANSFORM,
                   destination,
                   fileName,
+                  work,
                 )),
                 ...(mode === 'original-sidecars' && metadata === 'original'
-                  ? await this.exportSidecars(photo, destination, fileName, disclosure)
+                  ? await this.exportSidecars(photo, destination, fileName, disclosure, work)
                   : []),
               ];
+        work.check();
         files.push({
           photoId: photo.id,
           fileName,
@@ -458,33 +537,56 @@ export class ExportEngine {
           editsBaked: mode === 'baked' && !isIdentityTransform(transform),
           editsInSidecar: editsTravel,
         });
+        completed = true;
       } catch (error) {
-        failed += 1;
-        const reason = error instanceof Error ? error.message : String(error);
-        const custody = photo === undefined ? undefined : await failureCustody(this.deps.custodyStatus, photo.id, error);
-        failures.push({ photoId: id, fileName: photo?.fileName ?? id, reason, ...(custody === undefined ? {} : { custody }) });
-        if (this.deps.failure === undefined) {
-          console.error(`[overlook] export failed for ${photo?.fileName ?? id}: ${reason}`);
-        } else {
-          this.deps.failure(id, error);
+        if (error instanceof ExportCancelledError) {
+          cancelled = total - index;
+          break;
         }
+        const reason = error instanceof Error ? error.message : String(error);
+        const failure: ExportFailure = { photoId: id, fileName: photo?.fileName ?? id, reason };
+        failures.push(failure);
+        try {
+          const custody = photo === undefined ? undefined : await work.wait(() => failureCustody(this.deps.custodyStatus, photo.id, error));
+          if (custody !== undefined) failures[failures.length - 1] = { ...failure, custody };
+        } catch {
+          /* Cancellation stops optional failure enrichment, not the recorded IO failure. */
+        }
+        this.reportFailure(id, error, photo?.fileName);
       } finally {
-        await releaseOriginal?.();
+        const retirement = this.retire(work, completed, releaseOriginal);
+        try {
+          await work.wait(() => retirement);
+        } catch (error) {
+          if (!(error instanceof ExportCancelledError)) this.reportFailure('cleanup', error);
+        }
       }
       done += 1;
       this.deps.events.progress(done, total);
     }
-    return {
-      exported: files.length,
-      failed,
-      cancelled,
-      previewTranscodes: files.filter((file) => file.fromPreview).length,
-      sidecarsExported: files.reduce((sum, file) => sum + file.sidecarNames.length, 0),
-      bakedEdits: files.filter((file) => file.editsBaked).length,
-      editSidecars: files.filter((file) => file.editsInSidecar).length,
-      files,
-      failures,
-    };
+    return exportSummary(files, failures, cancelled);
+  }
+
+  /** Acknowledgement is separate from native/OS retirement. Queue and lock
+   * drains must not claim an abandoned operation has physically stopped. */
+  async drain(): Promise<void> {
+    while (this.retiring.size > 0) await Promise.all([...this.retiring]);
+  }
+
+  private retire(work: ExportFileWork, completed: boolean, release?: () => Promise<void>): Promise<void> {
+    const retirement = work.retire(completed, release).catch((error: unknown) => this.reportFailure('cleanup', error));
+    this.retiring.add(retirement);
+    void retirement.then(() => this.retiring.delete(retirement));
+    return retirement;
+  }
+
+  private reportFailure(photoId: string, error: unknown, fileName = photoId): void {
+    try {
+      if (this.deps.failure !== undefined) this.deps.failure(photoId, error);
+      else console.error(`[overlook] export failed for ${fileName}: ${error instanceof Error ? error.message : String(error)}`);
+    } catch {
+      // A closed diagnostic sink must not abandon cleanup or custody release.
+    }
   }
 
   /** Writes each companion beside the exported original, named from the
@@ -495,6 +597,7 @@ export class ExportEngine {
     destination: string,
     resolvedName: string,
     disclosure: ExportDisclosureIntent,
+    work: ExportFileWork,
   ): Promise<readonly string[]> {
     const sidecars = this.deps.sidecarsFor?.(photo.id) ?? [];
     const sidecarStream = this.deps.sidecarStream;
@@ -503,15 +606,17 @@ export class ExportEngine {
     const stem = dot <= 0 ? resolvedName : resolvedName.slice(0, dot);
     const written: string[] = [];
     for (const sidecar of sidecars) {
-      const bytes = await readSourceSidecar(sidecar, () => sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash));
+      const bytes = await work.wait(() =>
+        readSourceSidecar(sidecar, () => sidecarStream(sidecar.ownerId ?? photo.id, sidecar.contentHash, work.signal), work.signal),
+      );
       disclosure.assertCurrent?.();
       const plan = this.deps.disclosure?.(photo.id, disclosure) ?? permissivePlan('export', disclosure.destination);
       const finding = sourceSidecarFinding(photo.id, sidecar, inspectSourceXmp(sidecar.fileName, bytes), plan);
       if (finding.refused) throw new ExportPreflightError(sourceSidecarRefusal(finding));
       const extension = sanitizeSidecarExtension(sidecar.fileName);
-      const target = await this.resolveCollision(destination, `${stem}${extension}`);
+      const target = await this.resolveCollision(destination, `${stem}${extension}`, work);
       disclosure.assertCurrent?.();
-      await this.deps.writeFile(this.containedPath(destination, target), Readable.from([bytes]));
+      await work.write(this.containedPath(destination, target), Readable.from([bytes]), this.deps.writeFile);
       written.push(target);
     }
     return written;
@@ -522,23 +627,24 @@ export class ExportEngine {
     transform: EditTransform,
     destination: string,
     resolvedName: string,
+    work: ExportFileWork,
   ): Promise<readonly string[]> {
     const xmp = authoredMetadataXmp(photo, transform);
     if (xmp === null) return [];
     const dot = resolvedName.lastIndexOf('.');
     const stem = dot <= 0 ? resolvedName : resolvedName.slice(0, dot);
-    const target = await this.resolveCollision(destination, `${stem}.xmp`);
-    await this.deps.writeFile(this.containedPath(destination, target), Readable.from([xmp]));
+    const target = await this.resolveCollision(destination, `${stem}.xmp`, work);
+    await work.write(this.containedPath(destination, target), Readable.from([xmp]), this.deps.writeFile);
     return [target];
   }
 
-  private async resolveCollision(destination: string, fileName: string): Promise<string> {
-    if (!(await this.deps.exists(this.containedPath(destination, fileName)))) {
+  private async resolveCollision(destination: string, fileName: string, work: ExportFileWork): Promise<string> {
+    if (!(await work.wait(() => this.deps.exists(this.containedPath(destination, fileName), work.signal)))) {
       return fileName;
     }
     for (let counter = 1; ; counter += 1) {
       const candidate = withSuffix(fileName, counter);
-      if (!(await this.deps.exists(this.containedPath(destination, candidate)))) {
+      if (!(await work.wait(() => this.deps.exists(this.containedPath(destination, candidate), work.signal)))) {
         return candidate;
       }
     }

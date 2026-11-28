@@ -31,4 +31,7 @@ Recorded decisions: v1 ships no encrypted-export format (decrypt-off just disabl
 
 ## Definition of done
 
+Active cancellation and late-completion evidence:
+[Export cancellation acceptance](../acceptance/Acceptance-Test-Export-Cancellation.md) (#1217).
+
 See the epic issue [#42](https://github.com/qwts/photos/issues/42) — the epic body is canonical; this page is the planning index entry.

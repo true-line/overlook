@@ -34,11 +34,11 @@ export function createExportFacade(deps: ExportFacadeFactoryDeps): DrainableExpo
     editHead: (photoId) => revisions.head(photoId).head,
     // Companions export beside their originals (#484, ADR-0031 §6).
     sidecarsFor: (photoId) => sidecars.listForPhoto(photoId),
-    sidecarStream: (photoId, contentHash) => deps.blobStore.getSidecarStream(photoId, contentHash, deps.resolveKey),
-    openOriginal: async (photo) => {
+    sidecarStream: (photoId, contentHash, signal) => deps.blobStore.getSidecarStream(photoId, contentHash, deps.resolveKey, signal),
+    openOriginal: async (photo, signal) => {
       const service = deps.ephemeral();
-      const opened = await service.open(photo.id, 'export');
-      return { stream: opened.stream, release: opened.custody === 'ephemeral' ? () => service.release(photo.id, 'export') : undefined };
+      const opened = await service.open(photo.id, 'export', signal);
+      return { stream: opened.stream, release: opened.release };
     },
     custodyStatus: (photoId, error) =>
       error instanceof EphemeralOriginalError ? deps.ephemeral().custodyStatus(photoId) : Promise.resolve(undefined),

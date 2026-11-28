@@ -86,6 +86,7 @@ existing links resolve — never add content there.
 - [Library keyring acceptance](./acceptance/Acceptance-Test-Keyring.md) — #517 Encryption keys under Settings ▸ Privacy: the (key_ref, version) registry, password-sealed key files, Tier D removal that leaves locked photos instead of deleting them, verified import, schema-15 manifests carrying the keyring
 - [Disclosure classes acceptance](./acceptance/Acceptance-Test-Disclosure-Policy.md) — #509 Disclosure under Settings ▸ Privacy: private/shared/public per metadata field, the pinned-private set, scope resolution, the pre-export preview, refusal of originals that embed a withheld field, activity by field name only
 - [Edited export acceptance](./acceptance/Acceptance-Test-Edited-Export.md) — #497 one declared export mode per ADR-0031 §6: Bake to JPEG at an explicit quality, Original + XMP (`tiff:Orientation`, `crs:Crop*`), Original only, and the preflight loss report
+- [Export cancellation acceptance](./acceptance/Acceptance-Test-Export-Cancellation.md) — #1217 active IO, late completion, cleanup ownership and physical-retirement bounds
 - [Theming reference](./Theming.md) — `.overlook-theme.json` format, every user-themable token with its role, the export → edit → import workflow, an LLM prompt, and example themes
 
 ## Maintenance Convention

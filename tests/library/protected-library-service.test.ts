@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Readable } from 'node:stream';
+import { PassThrough, Readable } from 'node:stream';
 import { describe, test } from 'node:test';
 
 import { ProtectedBlobStore } from '../../src/main/blobs/protected-blob-store.js';
@@ -373,5 +373,66 @@ describe('protected library authorization boundary (#327)', () => {
     runtime.close();
     await runtime.drain();
     w.db.close();
+  });
+
+  test('cancel interrupts a protected original read and releases exactly once (#1217)', async (t) => {
+    const w = await world();
+    w.authorities.authorize('protected-a', albumKey(w));
+    const stalled = new PassThrough();
+    stalled.write('partial');
+    let entered: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let releases = 0;
+    let failures = 0;
+    const original = w.service.openOriginal.bind(w.service);
+    t.mock.method(w.service, 'openOriginal', (albumId: string, photoId: string) => {
+      const opened = original(albumId, photoId);
+      opened.stream.destroy();
+      entered?.();
+      return {
+        ...opened,
+        stream: stalled,
+        release: async () => {
+          releases += 1;
+          await opened.release();
+        },
+      };
+    });
+    const destination = mkdtempSync(join(tmpdir(), 'overlook-protected-export-cancel-'));
+    const runtime = createProtectedExportRuntime({
+      library: w.service,
+      progress: () => undefined,
+      pickDestination: () => Promise.resolve(destination),
+      failure: () => {
+        failures += 1;
+      },
+    });
+    const pending = runtime.run('protected-a', [PHOTO_ID], destination);
+    await started;
+    runtime.cancel();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        pending,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new Error('protected cancellation waited for the stalled source')), 1_000);
+        }),
+      ]);
+      assert.deepEqual(result, { exported: 0, failed: 0, cancelled: 1, previewTranscodes: 0 });
+      await runtime.drain();
+      assert.deepEqual(await readdir(destination), []);
+      assert.equal(stalled.destroyed, true);
+      assert.equal(releases, 1);
+      assert.equal(failures, 0);
+    } finally {
+      clearTimeout(timer);
+      stalled.end();
+      await pending;
+      runtime.close();
+      await runtime.drain();
+      w.db.close();
+    }
   });
 });

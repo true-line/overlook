@@ -1,3 +1,4 @@
+import { addAbortSignal } from 'node:stream';
 import { access, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import { buffer } from 'node:stream/consumers';
@@ -32,10 +33,11 @@ export function createProtectedExportRuntime(options: ProtectedExportRuntimeOpti
   let closed = false;
   return {
     run: (albumId, photoIds, destination, format) => {
+      let engine: ExportEngine | undefined;
       const task = async () => {
         if (closed) throw new Error('protected export service is closed');
         controller = new AbortController();
-        const engine = new ExportEngine({
+        engine = new ExportEngine({
           repo: {
             get: (photoId) => {
               try {
@@ -67,7 +69,7 @@ export function createProtectedExportRuntime(options: ProtectedExportRuntimeOpti
           },
           joinPath: (dir, name) => path.join(dir, name),
           transcodeJpeg: transcodeToJpeg,
-          bufferStream: async (stream) => buffer(stream),
+          bufferStream: async (stream, signal) => buffer(signal === undefined ? stream : addAbortSignal(signal, stream)),
           events: { progress: options.progress },
           failure: () => options.failure?.(),
         });
@@ -85,8 +87,8 @@ export function createProtectedExportRuntime(options: ProtectedExportRuntimeOpti
       };
       const next = turn.then(task, task);
       turn = next.then(
-        () => undefined,
-        () => undefined,
+        () => engine?.drain(),
+        () => engine?.drain(),
       );
       return next;
     },

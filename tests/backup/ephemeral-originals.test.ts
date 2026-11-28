@@ -280,6 +280,22 @@ describe('ephemeral originals (#306)', () => {
     assert.deepEqual(w.service.stats(), { cachedBytes: 0, entries: 0, inFlight: 0 });
   });
 
+  test('opened export references release once even after row deletion (#1217)', async () => {
+    const w = await world();
+    const [first, second] = await Promise.all([w.service.open('P0', 'export'), w.service.open('P0', 'export')]);
+    first.stream.destroy();
+    second.stream.destroy();
+    w.removePhoto('P0');
+    assert.ok(first.release);
+    assert.ok(second.release);
+    await first.release();
+    await first.release();
+    assert.equal(w.ephemeral.has(HASH_A), true, 'repeating one handle cannot release the other owner');
+    await second.release();
+    assert.equal(w.ephemeral.has(HASH_A), false, 'release does not depend on a surviving repository row');
+    assert.deepEqual(w.service.stats(), { cachedBytes: 0, entries: 0, inFlight: 0 });
+  });
+
   test('temporary prefetch remains LRU-bounded', async () => {
     const w = await world({ maxCacheBytes: 20 });
     w.setPolicy(true);
