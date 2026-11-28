@@ -1,6 +1,6 @@
 import type { PreviewFailureReason } from '../../shared/library/preview.js';
 import { parseMediaInfo, type MediaInfo } from '../../shared/library/media-info.js';
-import type { DimensionStatus, PhotoRecord } from '../../shared/library/types.js';
+import type { DimensionStatus, LocalCustodyFailure, PhotoRecord } from '../../shared/library/types.js';
 import { effectivePhotoTags, normalizePhotoTags } from '../../shared/library/photo-metadata.js';
 
 // The photos row as SQLite returns it and its mapping to the shared record.
@@ -38,6 +38,7 @@ export interface PhotoRow {
   preview_failure: string | null;
   preview_missing?: number;
   original_failure?: 'missing-original' | null;
+  local_custody_failure?: LocalCustodyFailure | null;
   dimension_status: string;
   media_info: string | null;
   sync_state: string | null;
@@ -104,6 +105,7 @@ export function toRecord(row: PhotoRow): PhotoRecord {
     deletedAt: row.deleted_at,
     previewFailure: (row.preview_failure ?? (row.preview_missing === 1 ? 'deferred-original' : null)) as PreviewFailureReason | null,
     originalFailure: row.original_failure ?? null,
+    localCustodyFailure: row.local_custody_failure ?? null,
     dimensionStatus: row.dimension_status as DimensionStatus,
     mediaInfo: parseMediaInfo(row.media_info),
     // New rows always get a ledger row; LEFT JOIN keeps reads total anyway.

@@ -4,8 +4,9 @@ import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
 // by default; `excluding` is the durable intermediate ADR-0033 §2 requires
 // between "the user decided" and "the provider copy is gone"; `excluded`
 // rows are local-only by choice. Automatic backup, pending counts and
-// integrity reporting read only included rows — an excluded photo is not
-// pending, not dirty-counted and not a remote-presence expectation.
+// remote-presence reporting read only included rows — an excluded photo is
+// not pending, not dirty-counted and not a remote-presence expectation.
+// Independent local-custody verification still applies (#1135).
 // `coverage_origin` records who decided (the user, the protected domain, or
 // a provider that cannot hold the asset) and `coverage_since` when.
 export function migrateBackupCoverage(db: BetterSqlite3.Database): void {

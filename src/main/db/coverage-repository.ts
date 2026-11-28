@@ -1,7 +1,7 @@
 import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
 
 import { queryAll } from './sql.js';
-import type { BackupCoverage, SyncStatus } from '../../shared/library/types.js';
+import type { BackupCoverage, LocalCustodyFailure, SyncStatus } from '../../shared/library/types.js';
 
 // Backup-coverage reads (#506, ADR-0033). Split from photos-repository.ts so
 // that file stays under the cap; every query joins the ledger through the
@@ -16,6 +16,7 @@ export interface CoverageRow {
   readonly dirty: boolean;
   readonly coverage: BackupCoverage;
   readonly deleted: boolean;
+  readonly localCustodyFailure?: LocalCustodyFailure | null | undefined;
 }
 
 interface RawRow {
@@ -27,9 +28,10 @@ interface RawRow {
   dirty: number;
   coverage: BackupCoverage;
   deleted_at: string | null;
+  local_custody_failure: LocalCustodyFailure | null;
 }
 
-const COLUMNS = `p.id, p.content_hash, p.bytes, p.file_name, l.status, l.dirty, l.coverage, p.deleted_at
+const COLUMNS = `p.id, p.content_hash, p.bytes, p.file_name, l.status, l.dirty, l.coverage, p.deleted_at, p.local_custody_failure
      FROM ordinary_visible_photos p JOIN sync_ledger l ON l.photo_id = p.id`;
 
 function toRow(row: RawRow): CoverageRow {
@@ -42,6 +44,7 @@ function toRow(row: RawRow): CoverageRow {
     dirty: row.dirty === 1,
     coverage: row.coverage,
     deleted: row.deleted_at !== null,
+    localCustodyFailure: row.local_custody_failure,
   };
 }
 

@@ -43,7 +43,12 @@ const messages = defineMessages({
   encryptedOpenSettings: { id: 'sidebar.encrypted.openSettings', defaultMessage: 'Library encrypted — open Settings' },
   storageOnDisk: { id: 'sidebar.storage.onDisk', defaultMessage: '{bytes} on disk' },
   storageOffload: { id: 'sidebar.storage.offload', defaultMessage: '{bytes} offload ({provider})' },
-  storageExcluded: { id: 'sidebar.storage.excluded', defaultMessage: '{bytes} on this device only' },
+  storageExcluded: { id: 'sidebar.storage.excluded', defaultMessage: '{bytes} excluded from backup' },
+  localCustodyProblems: {
+    id: 'sidebar.storage.localProblems',
+    defaultMessage:
+      '{missing, plural, one {# local original missing} other {# local originals missing}} · {corrupt, plural, one {# local original corrupt} other {# local originals corrupt}}',
+  },
   connect: { id: 'sidebar.connect', defaultMessage: 'Connect' },
   sourceAll: { id: 'sidebar.source.all', defaultMessage: 'All Photos' },
   sourceFavorites: { id: 'sidebar.source.favorites', defaultMessage: 'Favorites' },
@@ -714,7 +719,7 @@ export function Sidebar({
             <div className="ovl-sidebar__storage mono-data">
               <div>
                 {intl.formatMessage(messages.storageOnDisk, {
-                  bytes: formatBytes(stats.bytes - stats.offloadedBytes),
+                  bytes: formatBytes(Math.max(0, stats.bytes - stats.offloadedBytes - (stats.localMissingBytes ?? 0))),
                 })}
               </div>
               {state.providerConnected ? (
@@ -728,6 +733,14 @@ export function Sidebar({
               {stats.excludedCount > 0 ? (
                 <div data-testid="storage-excluded">
                   {intl.formatMessage(messages.storageExcluded, { bytes: formatBytes(stats.excludedBytes) })}
+                </div>
+              ) : null}
+              {(stats.localMissingCount ?? 0) + (stats.localCorruptCount ?? 0) > 0 ? (
+                <div data-testid="storage-local-problems" style={{ color: 'var(--accent-red)' }}>
+                  {intl.formatMessage(messages.localCustodyProblems, {
+                    missing: stats.localMissingCount ?? 0,
+                    corrupt: stats.localCorruptCount ?? 0,
+                  })}
                 </div>
               ) : null}
             </div>

@@ -1,5 +1,5 @@
 {
-  "$comment": "Acceptance coverage ledger (#82, ADR-0001): every user-facing flow declares how it is covered — automated (playwright-e2e / storybook / unit-dom), manual (with a reason), or deferred (with an issue). check-e2e-coverage-map.mjs validates shape and path existence; check-acceptance-coverage-diff.mjs forces updates alongside renderer changes. Each epic seeds its own entries.",
+  "$comment": "Acceptance coverage ledger (#82, ADR-0001): every user-facing flow declares how it is covered \u2014 automated (playwright-e2e / storybook / unit-dom), manual (with a reason), or deferred (with an issue). check-e2e-coverage-map.mjs validates shape and path existence; check-acceptance-coverage-diff.mjs forces updates alongside renderer changes. Each epic seeds its own entries.",
   "entries": [
     {
       "id": "392-semantic-search",
@@ -127,7 +127,7 @@
         },
         {
           "type": "manual",
-          "reason": "Follow the 200% zoom pass in docs/acceptance/Acceptance-Test-Visual-Accessibility.md in packaged macOS and Windows builds with a selection: the pill stays one line, ⋯ holds exactly the actions missing from the pill, and a screen reader announces an unavailable Export with its reason."
+          "reason": "Follow the 200% zoom pass in docs/acceptance/Acceptance-Test-Visual-Accessibility.md in packaged macOS and Windows builds with a selection: the pill stays one line, \u22ef holds exactly the actions missing from the pill, and a screen reader announces an unavailable Export with its reason."
         }
       ]
     },
@@ -178,7 +178,7 @@
     {
       "id": "native-application-menu",
       "wiki": "Acceptance-Test-Native-Application-Menu",
-      "$note": "#689 rebuilt the macOS bar to the design-system six-menu spec (Overlook · File · Edit · View · Photo · Help). Structure/order/accelerators/target-aware enablement are asserted by application-menu.spec.ts (`…six-menu design-system spec…`) and application-menu-model.test.ts. The follow-up wired the new commands to their handlers — Toggle Sidebar and the Export parity path are exercised by application-menu.spec.ts (`…drive their shared handlers (parity)`), the sidebar reducer by app-state.test.ts; the router lives in use-native-command-router.ts and shares handlers with the toolbar/context menu (ADR-0024).",
+      "$note": "#689 rebuilt the macOS bar to the design-system six-menu spec (Overlook \u00b7 File \u00b7 Edit \u00b7 View \u00b7 Photo \u00b7 Help). Structure/order/accelerators/target-aware enablement are asserted by application-menu.spec.ts (`\u2026six-menu design-system spec\u2026`) and application-menu-model.test.ts. The follow-up wired the new commands to their handlers \u2014 Toggle Sidebar and the Export parity path are exercised by application-menu.spec.ts (`\u2026drive their shared handlers (parity)`), the sidebar reducer by app-state.test.ts; the router lives in use-native-command-router.ts and shares handlers with the toolbar/context menu (ADR-0024).",
       "coverage": [
         {
           "type": "playwright-e2e",
@@ -670,7 +670,7 @@
         },
         {
           "type": "manual",
-          "reason": "Follow docs/acceptance/Acceptance-Test-Disclosure-Policy.md step 4 for actual retained-sidecar findings, source-only GPS refusal, native consent, unknown/malformed cases and Edits/None omission (#1142), and for the main-owned native consent prompt on folder and PhotoKit export (including Cancel, affirmative consent, lock/switch invalidation and Export all selection changes; #1141), the Send to Apple Photos refusal over the real bridge, the File Provider date in Finder, and the relaunch persistence of a changed class. Check the Destination choice (Named recipient · Public) with its hint and the neutral class badges in dark, light and high contrast, and that a screen reader hears the blocked notice politely, not as an alert (#1308). Consent copy in the preview reads at --text-sm body; only the loading, empty and decline notes are faint (#1309)."
+          "reason": "Follow docs/acceptance/Acceptance-Test-Disclosure-Policy.md step 4 for actual retained-sidecar findings, source-only GPS refusal, native consent, unknown/malformed cases and Edits/None omission (#1142), and for the main-owned native consent prompt on folder and PhotoKit export (including Cancel, affirmative consent, lock/switch invalidation and Export all selection changes; #1141), the Send to Apple Photos refusal over the real bridge, the File Provider date in Finder, and the relaunch persistence of a changed class. Check the Destination choice (Named recipient \u00b7 Public) with its hint and the neutral class badges in dark, light and high contrast, and that a screen reader hears the blocked notice politely, not as an alert (#1308). Consent copy in the preview reads at --text-sm body; only the loading, empty and decline notes are faint (#1309)."
         }
       ]
     },
@@ -2461,7 +2461,7 @@
     {
       "id": "encrypted-library-activity-history",
       "wiki": "Activity-History",
-      "$note": "Activity is reached only from Help → Activity… (#690), never a sidebar row; the Help-menu command and its dialog open are covered by application-menu.spec.ts, and Sidebar.stories.tsx regression-guards the row's absence.",
+      "$note": "Activity is reached only from Help \u2192 Activity\u2026 (#690), never a sidebar row; the Help-menu command and its dialog open are covered by application-menu.spec.ts, and Sidebar.stories.tsx regression-guards the row's absence.",
       "coverage": [
         {
           "type": "playwright-e2e",
@@ -2650,7 +2650,7 @@
         },
         {
           "type": "manual",
-          "reason": "The offscreen-renderer poster decode (§6: capture.html/capture-frame.ts loaded in a hidden BrowserWindow, mpegts.js TS→fMP4 remux over MediaSource, capturePage of the first decodable frame) and encrypted-TS full-viewer playback run only inside the signed macOS/Windows package — MSE and the offscreen window are absent under headless unit/story runs. Validate against owner-supplied .ts/.mts/.m2ts originals per docs/acceptance/acceptance-test-mpeg-ts-video-media.md: deterministic poster on the tile, duration pill, no autoplay, keyboard-accessible playback, and byte-identical Original export."
+          "reason": "The offscreen-renderer poster decode (\u00a76: capture.html/capture-frame.ts loaded in a hidden BrowserWindow, mpegts.js TS\u2192fMP4 remux over MediaSource, capturePage of the first decodable frame) and encrypted-TS full-viewer playback run only inside the signed macOS/Windows package \u2014 MSE and the offscreen window are absent under headless unit/story runs. Validate against owner-supplied .ts/.mts/.m2ts originals per docs/acceptance/acceptance-test-mpeg-ts-video-media.md: deterministic poster on the tile, duration pill, no autoplay, keyboard-accessible playback, and byte-identical Original export."
         }
       ]
     },
@@ -2716,7 +2716,7 @@
         },
         {
           "type": "manual",
-          "reason": "Follow the Titlebar Help Menu spec (§05/§08): on real Windows/Linux confirm no native menu bar renders, the titlebar Help button opens the ContextMenu with correct pointer placement and viewport-edge clamping across desktop-environment window-control layouts, RTL mirroring, reduced-motion, 200% text scaling, and native menu/menuitem screen-reader semantics that automated lanes cannot fully observe."
+          "reason": "Follow the Titlebar Help Menu spec (\u00a705/\u00a708): on real Windows/Linux confirm no native menu bar renders, the titlebar Help button opens the ContextMenu with correct pointer placement and viewport-edge clamping across desktop-environment window-control layouts, RTL mirroring, reduced-motion, 200% text scaling, and native menu/menuitem screen-reader semantics that automated lanes cannot fully observe."
         }
       ]
     },
@@ -2844,7 +2844,7 @@
     {
       "id": "965-restore-progress-reopen-verified-only",
       "wiki": "User-Story-M18-Recovery-key",
-      "$note": "Verified-only restore binds to manifest identity (not an exact gap set), verify/run show 1/N progress, and closing Settings or the restore dialog leaves a status snapshot so the status-bar chip and Restore library… reopen the live job (#965).",
+      "$note": "Verified-only restore binds to manifest identity (not an exact gap set), verify/run show 1/N progress, and closing Settings or the restore dialog leaves a status snapshot so the status-bar chip and Restore library\u2026 reopen the live job (#965).",
       "coverage": [
         {
           "type": "playwright-e2e",
@@ -2861,7 +2861,7 @@
         },
         {
           "type": "manual",
-          "reason": "Close-and-reopen during a live cloud restore, the status-bar chip, and extra-gap activation after verify are owner-verified on a real provider in docs/acceptance/Manual-Test-M18-Cloud-Disaster-Recovery.md steps 6–7."
+          "reason": "Close-and-reopen during a live cloud restore, the status-bar chip, and extra-gap activation after verify are owner-verified on a real provider in docs/acceptance/Manual-Test-M18-Cloud-Disaster-Recovery.md steps 6\u20137."
         }
       ]
     },
@@ -3301,6 +3301,28 @@
         {
           "type": "playwright-e2e",
           "path": "tests/e2e/library-switcher-ui.spec.ts"
+        }
+      ]
+    },
+    {
+      "id": "1135-excluded-local-custody",
+      "wiki": "Acceptance-Test-Backup-Coverage",
+      "coverage": [
+        {
+          "type": "unit-dom",
+          "paths": [
+            "tests/backup/local-custody-integrity.test.ts",
+            "tests/library/original-recovery.test.ts",
+            "tests/dom/local-custody-state.test.tsx"
+          ]
+        },
+        {
+          "type": "storybook",
+          "path": "src/renderer/src/inspector/Inspector.stories.tsx"
+        },
+        {
+          "type": "manual",
+          "reason": "Follow the excluded local-custody section of docs/acceptance/Acceptance-Test-Backup-Coverage.md in packaged builds to verify background discovery and repair on real disks, provider-disconnected operation, and lock/library-switch cancellation."
         }
       ]
     }

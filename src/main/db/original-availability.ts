@@ -47,7 +47,9 @@ export class OriginalAvailabilityRepository {
   verifiedRestored(contentHash: string): readonly string[] {
     return queryAll<{ id: string }>(
       this.db,
-      'UPDATE photos SET original_failure = NULL WHERE content_hash = @contentHash AND original_failure IS NOT NULL RETURNING id',
+      `UPDATE photos SET original_failure = NULL, local_custody_failure = NULL, local_custody_fingerprint = NULL,
+         local_custody_verified_at = NULL WHERE content_hash = @contentHash
+         AND (original_failure IS NOT NULL OR local_custody_failure IS NOT NULL) RETURNING id`,
       { contentHash },
     ).map((row) => row.id);
   }
@@ -65,7 +67,8 @@ export class OriginalAvailabilityRepository {
       );
       const ids = queryAll<{ id: string }>(
         this.db,
-        'UPDATE photos SET original_failure = NULL, key_id = @keyId WHERE content_hash = @contentHash RETURNING id',
+        `UPDATE photos SET original_failure = NULL, local_custody_failure = NULL, local_custody_fingerprint = NULL,
+           local_custody_verified_at = NULL, key_id = @keyId WHERE content_hash = @contentHash RETURNING id`,
         { contentHash, keyId },
       ).map((row) => row.id);
       for (const id of ids) {

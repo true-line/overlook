@@ -9,6 +9,7 @@ import { pipeline } from 'node:stream/promises';
 import { createDecryptStream, createEncryptStream } from '../crypto/envelope.js';
 import { syncDirectoryEntry, syncFileData } from '../filesystem/durability.js';
 import type { EnvelopeKey, KeyResolver } from '../crypto/envelope.js';
+import { inspectLocalOriginal, type LocalOriginalInspection } from './local-original-inspection.js';
 
 // Content-addressed encrypted blob store per ADR-0005 (#70). Plaintext never
 // touches disk: bytes stream through the #67 envelope into tmp/, are fsynced,
@@ -361,6 +362,11 @@ export class BlobStore {
   hasOriginal(contentHash: string): boolean {
     assertHash(contentHash);
     return existsSync(this.originalPath(contentHash));
+  }
+
+  inspectOriginal(contentHash: string): Promise<LocalOriginalInspection> {
+    assertHash(contentHash);
+    return inspectLocalOriginal(this.originalPath(contentHash));
   }
 
   /** Rehydrate restore (#107): RAW ciphertext lands staged, links into the

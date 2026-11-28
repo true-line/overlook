@@ -10,7 +10,7 @@ export const RAW_WHERE = `p.file_kind = 'raw'`;
 /** Unavailable is derived from the row's typed renderability reasons: a
  * recorded preview failure, confirmed missing previews, unknown decoded dimensions, or confirmed missing originals.
  * Clearing these conditions moves the row out of the source with no restart. */
-export const UNAVAILABLE_WHERE = `(p.preview_failure IS NOT NULL OR p.preview_missing = 1 OR p.dimension_status = 'unavailable' OR p.original_failure IS NOT NULL)`;
+export const UNAVAILABLE_WHERE = `(p.preview_failure IS NOT NULL OR p.preview_missing = 1 OR p.dimension_status = 'unavailable' OR p.original_failure IS NOT NULL OR p.local_custody_failure IS NOT NULL)`;
 
 /** Rows whose dimensions are not known. They are never treated as zero
  * megapixels (ADR-0030 §4) and pass every size threshold. */

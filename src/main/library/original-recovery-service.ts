@@ -45,7 +45,12 @@ export class OriginalRecoveryService {
   private async restore(photoId: string, sourcePath: string): Promise<OriginalRecoveryResult> {
     if (this.closed) return 'cancelled';
     const photo = this.options.getPhoto(photoId);
-    if (photo === undefined || photo.deletedAt !== null || photo.locked || photo.originalFailure !== 'missing-original') {
+    if (
+      photo === undefined ||
+      photo.deletedAt !== null ||
+      photo.locked ||
+      (photo.originalFailure !== 'missing-original' && photo.localCustodyFailure !== 'local-missing')
+    ) {
       return 'unavailable';
     }
     const controller = new AbortController();

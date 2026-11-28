@@ -656,6 +656,9 @@
   "coverage.reason.inFlight": {
     "defaultMessage": "uploading right now"
   },
+  "coverage.reason.localCorrupt": {
+    "defaultMessage": "the local original failed verification"
+  },
   "coverage.reason.localMissing": {
     "defaultMessage": "no original on this device"
   },
@@ -1306,6 +1309,12 @@
   },
   "inspector.copy.fileName": {
     "defaultMessage": "filename"
+  },
+  "inspector.custody.localCorrupt": {
+    "defaultMessage": "Local original corrupt — backup remains excluded by choice"
+  },
+  "inspector.custody.localMissing": {
+    "defaultMessage": "Local original missing — backup remains excluded by choice"
   },
   "inspector.custody.locked": {
     "defaultMessage": "Locked — KEY #{id} is not on this device"
@@ -2633,6 +2642,9 @@
   "photo.context.actions": {
     "defaultMessage": "Actions for {target}"
   },
+  "photo.recovery.corrupt": {
+    "defaultMessage": "The local original is corrupt. Select the matching original file to recover it."
+  },
   "photo.recovery.failed": {
     "defaultMessage": "Recovery failed. Select the exact original file and make sure its key is available."
   },
@@ -3609,7 +3621,10 @@
     "defaultMessage": "Unavailable"
   },
   "sidebar.storage.excluded": {
-    "defaultMessage": "{bytes} on this device only"
+    "defaultMessage": "{bytes} excluded from backup"
+  },
+  "sidebar.storage.localProblems": {
+    "defaultMessage": "{missing, plural, one {# local original missing} other {# local originals missing}} · {corrupt, plural, one {# local original corrupt} other {# local originals corrupt}}"
   },
   "sidebar.storage.offload": {
     "defaultMessage": "{bytes} offload ({provider})"
@@ -3662,6 +3677,12 @@
   "statusGlyph.local": {
     "defaultMessage": "Local only"
   },
+  "statusGlyph.localCorrupt": {
+    "defaultMessage": "Local original corrupt"
+  },
+  "statusGlyph.localMissing": {
+    "defaultMessage": "Local original missing"
+  },
   "statusGlyph.offloaded": {
     "defaultMessage": "Offloaded to cloud"
   },
@@ -3670,6 +3691,9 @@
   },
   "statusGlyph.syncing": {
     "defaultMessage": "Uploading…"
+  },
+  "statusbar.coverage.localProblems": {
+    "defaultMessage": "{missing, plural, one {# local original missing} other {# local originals missing}} · {corrupt, plural, one {# local original corrupt} other {# local originals corrupt}}"
   },
   "statusbar.coverage.removalPending": {
     "defaultMessage": "{count, plural, one {# cloud copy} other {# cloud copies}} awaiting removal"

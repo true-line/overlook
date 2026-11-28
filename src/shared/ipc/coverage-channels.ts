@@ -23,6 +23,7 @@ export const coverageSkipReasonSchema = z.enum([
   'provider-disconnected',
   'restore-failed',
   'local-missing',
+  'local-corrupt',
 ]);
 
 const coveragePreflightItemSchema = z.object({

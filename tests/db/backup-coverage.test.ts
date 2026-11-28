@@ -17,7 +17,8 @@ import type { PhotoInsert } from '../../src/shared/library/types.js';
 
 // #506 / ADR-0033 §1: coverage is a ledger column with its own machine
 // (included → excluding → excluded → included), and every backup read —
-// dirty rows, the pending count, integrity — sees only included rows.
+// dirty rows, the pending count, remote integrity — sees only included rows.
+// Excluded local custody has its own verification pass (#1135).
 
 const AT = '2026-09-02T00:00:00.000Z';
 
@@ -99,7 +100,7 @@ describe('backup coverage column (#506, migration 35)', () => {
     assert.equal(w.ledger.coverage('P1')?.since, '2026-09-03T00:00:00.000Z', 'already included is a no-op');
   });
 
-  test('backup reads skip excluded rows: dirty list, pending count, integrity, stats', () => {
+  test('remote backup reads skip excluded rows: dirty list, pending count, integrity, stats', () => {
     const w = world();
     w.insert('P1', 10);
     w.insert('P2', 20);

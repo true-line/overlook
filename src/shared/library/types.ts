@@ -27,6 +27,7 @@ export type SyncStatus = 'local' | 'syncing' | 'synced' | 'offloaded' | 'error';
 export type BackupCoverage = 'included' | 'excluding' | 'excluded';
 /** Who decided a row's coverage (ADR-0033 §1). */
 export type BackupCoverageOrigin = 'user' | 'protected-domain' | 'provider-unsupported';
+export type LocalCustodyFailure = 'local-missing' | 'local-corrupt';
 
 /** Local comparison between embedded metadata and a successful pixel decode. */
 export type DimensionStatus = 'legacy' | 'verified' | 'metadata-mismatch' | 'unavailable';
@@ -69,6 +70,8 @@ export interface PhotoRecord extends PhotoMetadataFields {
   readonly previewFailure: PreviewFailureReason | null;
   /** Device-local original absence; omitted by older photo projections. */
   readonly originalFailure?: 'missing-original' | null | undefined;
+  /** Last observed loss of an excluded original; independent of backup policy. */
+  readonly localCustodyFailure?: LocalCustodyFailure | null | undefined;
   /** Local integrity hint; metadata-mismatch means the original may have corrupt metadata. */
   readonly dimensionStatus: DimensionStatus;
   /** Probed container facts (ADR-0026 §1); null for kinds without them. */
@@ -260,4 +263,9 @@ export interface LibraryStats {
   readonly excludedBytes: number;
   /** Excluded rows whose provider copy still awaits removal (ADR-0033 §6). */
   readonly pendingRemovals: number;
+  /** Ordinary excluded rows with a verified local-custody problem. */
+  readonly localMissingCount?: number | undefined;
+  readonly localCorruptCount?: number | undefined;
+  /** Missing original bytes, deduplicated by asset. Corrupt bytes still occupy disk. */
+  readonly localMissingBytes?: number | undefined;
 }

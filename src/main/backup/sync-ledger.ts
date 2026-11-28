@@ -128,14 +128,14 @@ export class SyncLedger {
     return queryAll<{ dirty: number }>(this.db, 'SELECT dirty FROM sync_ledger WHERE photo_id = @id', { id: photoId })[0]?.dirty === 1;
   }
 
-  /** Offloaded and clean integrity-error rows have no durable local original;
-   * they must keep using their recorded remote custody path. */
+  /** Included offloaded/clean integrity errors keep their recorded remote
+   * custody. An excluded local failure never borrows a provider as its source. */
   requiresRemoteCustody(photoId: string): boolean {
     return (
       queryAll<{ found: number }>(
         this.db,
         `SELECT 1 AS found FROM sync_ledger
-          WHERE photo_id = @id
+          WHERE photo_id = @id AND coverage = 'included'
             AND (status = 'offloaded' OR (status = 'error' AND dirty = 0))`,
         { id: photoId },
       )[0] !== undefined

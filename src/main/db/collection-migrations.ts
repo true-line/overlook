@@ -2,6 +2,7 @@ import { migrateRetainedPhotoKeys } from './retained-photo-keys.js';
 import { migrateRestoredExclusion } from './restored-exclusion-migration.js';
 import { migrateProtectedSidecarCustody } from './protected-sidecar-migration.js';
 import { migrateAlbumPhotosPhotoIndex } from './album-photos-index-migration.js';
+import { migrateLocalCustodyIntegrity } from './local-custody-repository.js';
 import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
 
 import { migrateOriginalAvailability } from './original-availability.js';
@@ -69,4 +70,5 @@ export const COLLECTION_MIGRATIONS: readonly {
   { version: 47, name: 'restored-exclusion-provenance', up: migrateRestoredExclusion },
   { version: 48, name: 'protected-sidecar-custody', up: migrateProtectedSidecarCustody, rebuild: true },
   { version: 49, name: 'album-photos-photo-index', up: migrateAlbumPhotosPhotoIndex },
+  { version: 50, name: 'excluded-local-custody-integrity', up: migrateLocalCustodyIntegrity },
 ];

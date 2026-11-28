@@ -8,6 +8,10 @@ import { Button } from '../components/Button.js';
 
 const messages = defineMessages({
   missing: { id: 'photo.recovery.missing', defaultMessage: 'The original is missing. Select the matching original file to recover it.' },
+  corrupt: {
+    id: 'photo.recovery.corrupt',
+    defaultMessage: 'The local original is corrupt. Select the matching original file to recover it.',
+  },
   recovered: { id: 'photo.recovery.recovered', defaultMessage: 'Original recovered.' },
   failed: {
     id: 'photo.recovery.failed',
@@ -38,12 +42,15 @@ export function OriginalRecoveryAction({ photo }: { readonly photo: PhotoRecord 
   const intl = useIntl();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
-  if (photo.originalFailure !== 'missing-original' || photo.deletedAt !== null) return null;
+  if ((photo.originalFailure !== 'missing-original' && photo.localCustodyFailure !== 'local-missing') || photo.deletedAt !== null)
+    return null;
   const enabled = photoCommandAvailability('photo.recoverOriginal', photo.locked).enabled;
   const reason = enabled ? undefined : intl.formatMessage(LOCKED_PHOTO_COMMAND_REASON, { id: String(photo.missingKeyId ?? photo.keyId) });
   return (
     <div>
-      <p className="prose-note">{intl.formatMessage(messages.missing)}</p>
+      <p className="prose-note">
+        {intl.formatMessage(photo.localCustodyFailure === 'local-corrupt' ? messages.corrupt : messages.missing)}
+      </p>
       <Button
         size="sm"
         variant="secondary"

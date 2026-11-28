@@ -225,6 +225,7 @@ export const en = {
   "coverage.reason.deleted": "in Trash",
   "coverage.reason.disconnected": "cloud copy exists but the provider is not connected",
   "coverage.reason.inFlight": "uploading right now",
+  "coverage.reason.localCorrupt": "the local original failed verification",
   "coverage.reason.localMissing": "no original on this device",
   "coverage.reason.notFound": "no longer in the library",
   "coverage.reason.restoreFailed": "the cloud-only original could not be downloaded",
@@ -442,6 +443,8 @@ export const en = {
   "import.photoKit.waiting": "Waiting for Apple Photos authorization…",
   "inspector.copy.cipher": "cipher identity",
   "inspector.copy.fileName": "filename",
+  "inspector.custody.localCorrupt": "Local original corrupt — backup remains excluded by choice",
+  "inspector.custody.localMissing": "Local original missing — backup remains excluded by choice",
   "inspector.custody.locked": "Locked — KEY #{id} is not on this device",
   "inspector.custody.lockedThumb": "Locked",
   "inspector.edits.applied": "Applied",
@@ -884,6 +887,7 @@ export const en = {
   "originalDelete.title.authenticate": "Authenticate Original deletion",
   "originalDelete.title.confirm": "Delete {target} permanently?",
   "photo.context.actions": "Actions for {target}",
+  "photo.recovery.corrupt": "The local original is corrupt. Select the matching original file to recover it.",
   "photo.recovery.failed": "Recovery failed. Select the exact original file and make sure its key is available.",
   "photo.recovery.missing": "The original is missing. Select the matching original file to recover it.",
   "photo.recovery.recovered": "Original recovered.",
@@ -1209,7 +1213,8 @@ export const en = {
   "sidebar.source.raw": "RAW",
   "sidebar.source.recent": "Recent imports",
   "sidebar.source.unavailable": "Unavailable",
-  "sidebar.storage.excluded": "{bytes} on this device only",
+  "sidebar.storage.excluded": "{bytes} excluded from backup",
+  "sidebar.storage.localProblems": "{missing, plural, one {# local original missing} other {# local originals missing}} · {corrupt, plural, one {# local original corrupt} other {# local originals corrupt}}",
   "sidebar.storage.offload": "{bytes} offload ({provider})",
   "sidebar.storage.onDisk": "{bytes} on disk",
   "sidebar.trash.actions": "Trash actions",
@@ -1227,9 +1232,12 @@ export const en = {
   "statusGlyph.error": "Sync failed",
   "statusGlyph.excluded": "On this device only",
   "statusGlyph.local": "Local only",
+  "statusGlyph.localCorrupt": "Local original corrupt",
+  "statusGlyph.localMissing": "Local original missing",
   "statusGlyph.offloaded": "Offloaded to cloud",
   "statusGlyph.synced": "Backed up (encrypted)",
   "statusGlyph.syncing": "Uploading…",
+  "statusbar.coverage.localProblems": "{missing, plural, one {# local original missing} other {# local originals missing}} · {corrupt, plural, one {# local original corrupt} other {# local originals corrupt}}",
   "statusbar.coverage.removalPending": "{count, plural, one {# cloud copy} other {# cloud copies}} awaiting removal",
   "statusbar.inclusion.excluded": "{count, plural, one {# photo hidden} other {# photos hidden}} by All Photos rules",
   "statusbar.inclusion.hiddenByAlbums": "{count, plural, one {# photo hidden} other {# photos hidden}} by album settings",
@@ -1534,9 +1542,11 @@ interface InterpolatedMessageArguments {
   "sidebar.smart.duplicateFailed": { "name": MessageValue };
   "sidebar.smart.duplicated": { "copy": MessageValue; "name": MessageValue };
   "sidebar.storage.excluded": { "bytes": MessageValue };
+  "sidebar.storage.localProblems": { "corrupt": number; "missing": number };
   "sidebar.storage.offload": { "bytes": MessageValue; "provider": MessageValue };
   "sidebar.storage.onDisk": { "bytes": MessageValue };
   "smartAlbum.unsupported.title": { "name": MessageValue };
+  "statusbar.coverage.localProblems": { "corrupt": number; "missing": number };
   "statusbar.coverage.removalPending": { "count": number };
   "statusbar.inclusion.excluded": { "count": number };
   "statusbar.inclusion.hiddenByAlbums": { "count": number };
