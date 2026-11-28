@@ -13,7 +13,7 @@ import { migrateSmartAlbums } from './smart-album-migration.js';
 import { migrateEditBakeDebt, migrateEditRevisions } from './edit-revision-migration.js';
 import { migratePhotoProvenance } from './provenance-migration.js';
 import { migrateVariants } from './variant-migration.js';
-import { migratePerceptualFingerprints } from './fingerprint-migration.js';
+import { migrateFingerprintCandidateIndex, migratePerceptualFingerprints } from './fingerprint-migration.js';
 import { migrateBackupCoverage } from './coverage-migration.js';
 import { migrateLibraryKeyring } from './keyring-migration.js';
 import { migratePurgeCleanup } from './purge-cleanup-migration.js';
@@ -71,4 +71,5 @@ export const COLLECTION_MIGRATIONS: readonly {
   { version: 48, name: 'protected-sidecar-custody', up: migrateProtectedSidecarCustody, rebuild: true },
   { version: 49, name: 'album-photos-photo-index', up: migrateAlbumPhotosPhotoIndex },
   { version: 50, name: 'excluded-local-custody-integrity', up: migrateLocalCustodyIntegrity },
+  { version: 51, name: 'fingerprint-candidate-index', up: migrateFingerprintCandidateIndex },
 ];

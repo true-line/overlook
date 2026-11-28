@@ -29,3 +29,13 @@ export function migratePerceptualFingerprints(db: BetterSqlite3.Database): void 
     CREATE INDEX idx_photo_fingerprints_algo ON photo_fingerprints (algo_version, deferred_reason);
   `);
 }
+
+/** #1221: let the batch LIMIT stop an import-ordered index walk instead of
+ * scanning/sorting the wide photo table for every 64 pending candidates. */
+export function migrateFingerprintCandidateIndex(db: BetterSqlite3.Database): void {
+  db.exec(`
+    CREATE INDEX idx_photos_fingerprint_pending
+      ON photos (imported_at, id, derivative_key, content_hash, deleted_at)
+      WHERE deleted_at IS NULL;
+  `);
+}
