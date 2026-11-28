@@ -20,11 +20,33 @@ export function decodable(input: DecodableInput): Sharp {
   return sharp(input.bytes, { failOn: 'error', ...(input.raw === undefined ? {} : { raw: input.raw }) });
 }
 
+/** Export supplies a processing deadline and cancellation checkpoints; other
+ * derivative consumers retain their existing policy. Sharp's clock excludes
+ * libuv queue wait and cannot interrupt an arbitrary OS syscall. */
+interface BakeExecution {
+  readonly signal?: AbortSignal | undefined;
+  readonly timeoutSeconds?: number | undefined;
+}
+
+function executing(pipeline: Sharp, execution: BakeExecution): Sharp {
+  execution.signal?.throwIfAborted();
+  return execution.timeoutSeconds === undefined ? pipeline : pipeline.timeout({ seconds: execution.timeoutSeconds });
+}
+
 /** sharp mirrors before it rotates whatever the call order, so the visual
  * "rotate, then mirror" becomes "mirror, then rotate the other way"
  * (F·R(θ) = R(−θ)·F); the crop is cut from the rotated frame. */
-export async function bakeTransform(bytes: Uint8Array, transform: EditTransform, width: number, height: number): Promise<DecodableInput> {
-  const oriented = await sharp(bytes, { failOn: 'error' }).rotate().raw().toBuffer({ resolveWithObject: true });
+export async function bakeTransform(
+  bytes: Uint8Array,
+  transform: EditTransform,
+  width: number,
+  height: number,
+  execution: BakeExecution = {},
+): Promise<DecodableInput> {
+  const oriented = await executing(sharp(bytes, { failOn: 'error' }), execution)
+    .rotate()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
   let pipeline = sharp(oriented.data, {
     raw: { width: oriented.info.width, height: oriented.info.height, channels: oriented.info.channels },
   });
@@ -40,14 +62,15 @@ export async function bakeTransform(bytes: Uint8Array, transform: EditTransform,
     const cropHeight = Math.max(1, Math.min(rotatedHeight - top, Math.round(transform.crop.height * rotatedHeight)));
     pipeline = pipeline.extract({ left, top, width: cropWidth, height: cropHeight });
   }
-  const baked = await pipeline.raw().toBuffer({ resolveWithObject: true });
+  const baked = await executing(pipeline, execution).raw().toBuffer({ resolveWithObject: true });
+  execution.signal?.throwIfAborted();
   return { bytes: baked.data, raw: { width: baked.info.width, height: baked.info.height, channels: baked.info.channels } };
 }
 
 /** Bakes against the image's own display dimensions (EXIF orientation applied). */
-export async function bakeDecoded(bytes: Uint8Array, transform: EditTransform): Promise<DecodableInput> {
-  const meta = await sharp(bytes, { failOn: 'error' }).metadata();
+export async function bakeDecoded(bytes: Uint8Array, transform: EditTransform, execution: BakeExecution = {}): Promise<DecodableInput> {
+  const meta = await executing(sharp(bytes, { failOn: 'error' }), execution).metadata();
   const dimensions = displayDimensions(meta.width, meta.height, meta.orientation);
   if (dimensions === null) throw new Error('decoded image has invalid dimensions');
-  return bakeTransform(bytes, transform, dimensions.width, dimensions.height);
+  return bakeTransform(bytes, transform, dimensions.width, dimensions.height, execution);
 }

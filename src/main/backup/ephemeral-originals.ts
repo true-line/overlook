@@ -1,4 +1,4 @@
-import type { Readable } from 'node:stream';
+import { addAbortSignal, type Readable } from 'node:stream';
 
 import { CustodyResolutionError, type CustodyHandle, type CustodyHandleResolver } from './custody-handle.js';
 import { ProviderError } from './provider.js';
@@ -83,17 +83,37 @@ export class EphemeralOriginalService {
     this.maxCacheBytes = deps.maxCacheBytes ?? DEFAULT_CACHE_BYTES;
   }
 
-  async open(photoId: string, purpose: OriginalPurpose): Promise<{ readonly stream: Readable; readonly custody: OriginalCustody }> {
+  async open(
+    photoId: string,
+    purpose: OriginalPurpose,
+    signal?: AbortSignal,
+  ): Promise<{ readonly stream: Readable; readonly custody: OriginalCustody }> {
+    signal?.throwIfAborted();
+    const selected = this.deps.repo.get(photoId);
+    if (selected === undefined) throw new EphemeralOriginalError(`photo ${photoId} does not exist`, 'not-found');
+    // Provider acquisition is shared and has no abortable getStream contract.
+    // Do not cancel another viewer's fetch. An abandoned export relinquishes
+    // its own reference when that acquisition actually retires.
     const custody = await this.prepare(photoId, purpose);
+    if (signal?.aborted === true) {
+      if (custody === 'ephemeral' && purpose !== 'prefetch') await this.releaseHash(photoId, selected.contentHash, purpose);
+      signal.throwIfAborted();
+    }
     const photo = this.deps.repo.get(photoId);
-    if (photo === undefined) throw new EphemeralOriginalError(`photo ${photoId} does not exist`, 'not-found');
-    return {
-      stream:
+    if (photo === undefined) {
+      if (custody === 'ephemeral' && purpose !== 'prefetch') await this.releaseHash(photoId, selected.contentHash, purpose);
+      throw new EphemeralOriginalError(`photo ${photoId} does not exist`, 'not-found');
+    }
+    try {
+      const stream =
         custody === 'durable'
           ? this.deps.blobs.durableStream(photo.contentHash, assetOwnerOf({ id: photoId, ...photo }))
-          : this.deps.blobs.ephemeralStream(photo.contentHash, photoId),
-      custody,
-    };
+          : this.deps.blobs.ephemeralStream(photo.contentHash, photoId);
+      return { stream: signal === undefined ? stream : addAbortSignal(signal, stream), custody };
+    } catch (error) {
+      if (custody === 'ephemeral' && purpose !== 'prefetch') await this.releaseHash(photoId, selected.contentHash, purpose);
+      throw error;
+    }
   }
 
   async prepare(photoId: string, purpose: OriginalPurpose): Promise<OriginalCustody> {
@@ -162,17 +182,21 @@ export class EphemeralOriginalService {
   async release(photoId: string, purpose: Exclude<OriginalPurpose, 'prefetch'> = 'view'): Promise<void> {
     const photo = this.deps.repo.get(photoId);
     if (photo === undefined) return;
+    await this.releaseHash(photoId, photo.contentHash, purpose);
+  }
+
+  private async releaseHash(photoId: string, contentHash: string, purpose: Exclude<OriginalPurpose, 'prefetch'>): Promise<void> {
     const owner = this.ownerKey(photoId, purpose);
-    const owners = this.ownersByHash.get(photo.contentHash);
+    const owners = this.ownersByHash.get(contentHash);
     if (owners !== undefined) this.releaseOwner(owners, owner, purpose);
-    const entry = this.cache.get(photo.contentHash);
+    const entry = this.cache.get(contentHash);
     if (entry === undefined) {
-      if (this.inFlight.has(photo.contentHash)) this.releasedWhilePreparing.add(owner);
-      this.dropEmptyOwners(photo.contentHash, owners);
+      if (this.inFlight.has(contentHash)) this.releasedWhilePreparing.add(owner);
+      this.dropEmptyOwners(contentHash, owners);
       return;
     }
     if (entry.owners.size > 0) return;
-    await this.remove(photo.contentHash, entry);
+    await this.remove(contentHash, entry);
     this.changeState(photoId, 'released');
   }
 

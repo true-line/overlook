@@ -16,8 +16,11 @@ import type { FileKind } from '../../shared/library/types.js';
 
 /** Recorded default quality setting (#98). */
 export const EXPORT_JPEG_QUALITY = 90;
+/** Per native pipeline, measured by libvips after input opens, not queue time. */
+export const EXPORT_PROCESSING_TIMEOUT_SECONDS = 30;
 
 export interface TranscodeOptions {
+  readonly signal?: AbortSignal | undefined;
   /** Edits to bake into the pixels; absent or identity = the untouched pipeline. */
   readonly transform?: EditTransform | undefined;
   /** JPEG quality 1–100; defaults to EXPORT_JPEG_QUALITY. */
@@ -31,6 +34,7 @@ export interface TranscodeResult {
 }
 
 export async function transcodeToJpeg(bytes: Buffer, fileKind: FileKind, options: TranscodeOptions = {}): Promise<TranscodeResult> {
+  options.signal?.throwIfAborted();
   let source = bytes;
   let fromPreview = false;
   if (fileKind === 'raw') {
@@ -48,11 +52,17 @@ export async function transcodeToJpeg(bytes: Buffer, fileKind: FileKind, options
   const transform = options.transform ?? IDENTITY_TRANSFORM;
   const quality = options.quality ?? EXPORT_JPEG_QUALITY;
   if (isIdentityTransform(transform)) {
-    const jpeg = await sharp(source, { failOn: 'error' }).rotate().jpeg({ quality }).toBuffer();
+    const jpeg = await sharp(source, { failOn: 'error' })
+      .timeout({ seconds: EXPORT_PROCESSING_TIMEOUT_SECONDS })
+      .rotate()
+      .jpeg({ quality })
+      .toBuffer();
+    options.signal?.throwIfAborted();
     return { jpeg, fromPreview };
   }
-  const jpeg = await decodable(await bakeDecoded(source, transform))
-    .jpeg({ quality })
-    .toBuffer();
+  const baked = await bakeDecoded(source, transform, { signal: options.signal, timeoutSeconds: EXPORT_PROCESSING_TIMEOUT_SECONDS });
+  options.signal?.throwIfAborted();
+  const jpeg = await decodable(baked).timeout({ seconds: EXPORT_PROCESSING_TIMEOUT_SECONDS }).jpeg({ quality }).toBuffer();
+  options.signal?.throwIfAborted();
   return { jpeg, fromPreview };
 }

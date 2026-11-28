@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Readable } from 'node:stream';
+import { addAbortSignal, type Readable } from 'node:stream';
 
 import type { DisclosurePlan } from '../../shared/disclosure/policy.js';
 import type { SourceSidecarFinding } from '../../shared/disclosure/source-sidecars.js';
@@ -20,10 +20,11 @@ export interface SourceSidecarReader {
 
 /** A bounded, authenticated copy. Write these exact verified bytes, never
  * reopen a stream after inspecting different bytes. */
-export async function readSourceSidecar(sidecar: SourceSidecar, open: () => Readable): Promise<Buffer> {
+export async function readSourceSidecar(sidecar: SourceSidecar, open: () => Readable, signal?: AbortSignal): Promise<Buffer> {
   if (!Number.isSafeInteger(sidecar.bytes) || sidecar.bytes < 0 || sidecar.bytes > MAX_SOURCE_SIDECAR_BYTES)
     throw new Error('Source sidecar exceeds inspection limit');
-  const stream = open();
+  signal?.throwIfAborted();
+  const stream = signal === undefined ? open() : addAbortSignal(signal, open());
   const chunks: Buffer[] = [];
   let size = 0;
   try {
@@ -44,11 +45,12 @@ export async function readSourceSidecar(sidecar: SourceSidecar, open: () => Read
   }
 }
 
-export async function inspectSourceSidecar(sidecar: SourceSidecar, open: () => Readable): Promise<SourceInspection> {
+export async function inspectSourceSidecar(sidecar: SourceSidecar, open: () => Readable, signal?: AbortSignal): Promise<SourceInspection> {
   if (sidecar.bytes > MAX_SOURCE_SIDECAR_BYTES) return { status: 'malformed', fields: [] };
   try {
-    return inspectSourceXmp(sidecar.fileName, await readSourceSidecar(sidecar, open));
-  } catch {
+    return inspectSourceXmp(sidecar.fileName, await readSourceSidecar(sidecar, open, signal));
+  } catch (error) {
+    if (signal?.aborted === true) throw error;
     return { status: 'unavailable', fields: [] };
   }
 }
