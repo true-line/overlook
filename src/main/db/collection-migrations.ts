@@ -3,6 +3,7 @@ import { migrateRestoredExclusion } from './restored-exclusion-migration.js';
 import { migrateProtectedSidecarCustody } from './protected-sidecar-migration.js';
 import { migrateAlbumPhotosPhotoIndex } from './album-photos-index-migration.js';
 import { migrateLocalCustodyIntegrity } from './local-custody-repository.js';
+import { migrateEmbeddingEligibilityIndex } from './embedding-index-migration.js';
 import type BetterSqlite3 from 'better-sqlite3-multiple-ciphers';
 
 import { migrateOriginalAvailability } from './original-availability.js';
@@ -72,4 +73,5 @@ export const COLLECTION_MIGRATIONS: readonly {
   { version: 49, name: 'album-photos-photo-index', up: migrateAlbumPhotosPhotoIndex },
   { version: 50, name: 'excluded-local-custody-integrity', up: migrateLocalCustodyIntegrity },
   { version: 51, name: 'fingerprint-candidate-index', up: migrateFingerprintCandidateIndex },
+  { version: 52, name: 'embedding-eligibility-index', up: migrateEmbeddingEligibilityIndex },
 ];

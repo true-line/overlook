@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,7 +10,8 @@ import Database from 'better-sqlite3-multiple-ciphers';
 import { EmbeddingRepository, EMBEDDING_DIMENSIONS } from '../../src/main/db/embedding-repository.js';
 import { openLibraryDatabase } from '../../src/main/db/database.js';
 import { PhotosRepository } from '../../src/main/db/photos-repository.js';
-import { queryGet, run } from '../../src/main/db/sql.js';
+import { queryAll, queryGet, run } from '../../src/main/db/sql.js';
+import { migrate, MIGRATIONS } from '../../src/main/db/migrations.js';
 import { configureEmbeddingVectorSchema, vectorExtensionPath, vectorExtensionSupported } from '../../src/main/db/vector-extension.js';
 import type { PhotoInsert } from '../../src/shared/library/types.js';
 
@@ -66,6 +67,87 @@ function openSeeded(path = tempDbPath()): {
   run(db, `INSERT INTO keys (id, wrapped_key, created_at) VALUES (1, 'wrapped-test-key', ?)`, new Date().toISOString());
   return { path, db, photos: new PhotosRepository(db), embeddings: new EmbeddingRepository(db) };
 }
+
+test('eligibility index upgrade preserves cosine ranking, ties and filtering before LIMIT (#1221)', (t) => {
+  const { db, photos, embeddings } = openSeeded();
+  t.after(() => db.close());
+  db.exec('DROP INDEX idx_photos_embedding_eligibility; DELETE FROM schema_migrations WHERE version = 52');
+  const indexPhoto = (id: string, embedding: Int8Array, version = MODEL_VERSION): void => {
+    const contentHash = createHash('sha256').update(id).digest('hex');
+    photos.insert(photo(id, contentHash));
+    embeddings.put({ photoId: id, contentHash }, version, embedding);
+  };
+  // Insertion/embedding IDs and Euclidean distance disagree with the accepted
+  // cosine + photo-ID tie order, including more tied rows than the limit.
+  for (const [id, magnitude] of [
+    ['Z', 8],
+    ['B', 127],
+    ['A', 2],
+  ] as const) {
+    const embedding = new Int8Array(EMBEDDING_DIMENSIONS);
+    embedding[0] = magnitude;
+    indexPhoto(id, embedding);
+  }
+  indexPhoto('ORTHOGONAL', basis(1));
+  indexPhoto('OLD-MODEL', basis(0), 'other-model');
+  const prepare = db.prepare.bind(db);
+  let capturedSql = '';
+  t.mock.method(db, 'prepare', (sql: string) => {
+    capturedSql = sql;
+    return prepare(sql);
+  });
+  const query = basis(0);
+  const before = embeddings.nearest(MODEL_VERSION, query, { source: 'all' }, 2);
+  const nearestSql = capturedSql;
+  assert.deepEqual(
+    before.map(({ photoId }) => photoId),
+    ['A', 'B'],
+  );
+  const status = embeddings.status(MODEL_VERSION);
+
+  assert.equal(
+    migrate(
+      db,
+      MIGRATIONS.filter(({ version }) => version === 52),
+    ),
+    1,
+  );
+  assert.equal(
+    migrate(
+      db,
+      MIGRATIONS.filter(({ version }) => version === 52),
+    ),
+    0,
+  );
+  assert.deepEqual(embeddings.nearest(MODEL_VERSION, query, { source: 'all' }, 2), before);
+  assert.deepEqual(embeddings.status(MODEL_VERSION), status, 'public counts remain accurate');
+  const plan = queryAll<{ detail: string }>(db, `EXPLAIN QUERY PLAN ${nearestSql}`, {
+    modelVersion: MODEL_VERSION,
+    embedding: Buffer.from(query),
+    limit: 2,
+  });
+  assert.ok(
+    plan.some(({ detail }) => detail.includes('COVERING INDEX idx_photos_embedding_eligibility')),
+    JSON.stringify(plan),
+  );
+
+  photos.toggleFavorite('B');
+  assert.deepEqual(
+    embeddings.nearest(MODEL_VERSION, query, { source: 'favorites' }, 1).map(({ photoId }) => photoId),
+    ['B'],
+  );
+  run(db, "UPDATE photos SET in_all_photos = 0 WHERE id = 'A'");
+  assert.deepEqual(
+    embeddings.nearest(MODEL_VERSION, query, { source: 'all' }, 2).map(({ photoId }) => photoId),
+    ['B', 'Z'],
+  );
+  photos.softDelete(['B']);
+  run(db, "UPDATE photos SET content_hash = ? WHERE id = 'Z'", 'b'.repeat(64));
+  assert.deepEqual(
+    embeddings.nearest(MODEL_VERSION, query, { source: 'all' }, 2).map(({ photoId }) => photoId),
+    ['ORTHOGONAL'],
+  );
+});
 
 describe('sqlite-vec SQLCipher composition (#391)', () => {
   test('loads vec0 before migration and rewrites packaged extension paths', () => {

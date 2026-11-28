@@ -71,6 +71,26 @@ query plan without a temporary sort. These are correctness/plan assertions, not
 200K timing acceptance. Hosted unprofiled complete qualification must still
 satisfy every existing ratchet and retain both report files before #1221 closes.
 
+## Semantic eligibility reads (#1221)
+
+The current-main query profile in [run 46097419079](https://github.com/true-line/overlook/actions/runs/46097419079)
+sampled 6.406 seconds in scalar cosine retrieval and 1.938 seconds in embedding
+status reads. After the fingerprint index, the unprofiled index-only
+[run 46099967238](https://github.com/true-line/overlook/actions/runs/46099967238)
+at `c356d406` passed cold-start, page, count and keyword assertions, then failed
+the composed-search assertion at 1,246.6 ms. Import (5.0203 photos/s) and zoom-96
+drops (0.1399) were within their ratchets by report comparison; those later
+assertions were not executed.
+
+Migration 52 covers live-photo identity, content freshness and visibility fields
+so existing eligibility/count queries avoid the wide photo rows. Scalar cosine,
+filtering before LIMIT, photo-ID tie order, model freshness and accurate public
+counts are unchanged. The upgrade regression uses unequal vector magnitudes and
+reverse insertion order, more ties than the limit, favorites, hidden/deleted rows
+and stale content. The query-plan assertion requires a covering read; it does
+not establish performance acceptance. All ratchets still require an unprofiled
+complete run on the final head.
+
 ## Perf budgets (#123 — RATCHETS: tighten, never loosen)
 
 The harness: `npm run test:perf` (own Playwright config, ~90 s;
